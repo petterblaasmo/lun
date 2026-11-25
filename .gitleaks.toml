@@ -1,5 +1,5 @@
 # Secret scanning for Search: gitleaks' own rules, and three more for keys
-# the AI add-on may be given. Run before each commit (see CONTRIBUTING.md)
+# the AI add-on may be given. Run before each commit
 # and on the whole history with `gitleaks git`.
 
 [extend]
