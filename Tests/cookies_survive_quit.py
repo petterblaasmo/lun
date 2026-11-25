@@ -27,7 +27,7 @@ sv.use("cookies-quit")
 # a probe under Search's own bundle id gets a store made by identifier
 # instead (Store.websites). A copy under a bundle id of its own uses the
 # default store, as the real browser does, so both are tried.
-BUNDLE = "com.officecommun.search.cookiesquit"
+BUNDLE = "com.lunbrowser.lun.cookiesquit"
 HOME = str(Path.home())
 work = Path(tempfile.mkdtemp(prefix="search-cookiesquit-"))
 

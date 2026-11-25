@@ -40,7 +40,7 @@ import blocker_bench as b  # noqa: E402
 
 b.W = "session-kept"
 b.SUPPORT = f"{b.HOME}/Library/Application Support/Search ({b.W})"
-b.SUITE = f"com.officecommun.search.test.{b.W}"
+b.SUITE = f"com.lunbrowser.lun.test.{b.W}"
 b.SOCK = f"{b.SUPPORT}/bench.sock"
 
 def fnv(name):
@@ -48,7 +48,7 @@ def fnv(name):
     for c in name: h = ((h ^ ord(c)) * 16777619) & 0xFFFFFFFF
     return h
 H = fnv(b.W)
-CONTROLLER = Path(os.path.expanduser(f"~/Library/WebKit/com.officecommun.search/WebExtensions/5E4C{H >> 16:04X}-{H & 0xFFFF:04X}-4000-8000-000000000002"))
+CONTROLLER = Path(os.path.expanduser(f"~/Library/WebKit/com.lunbrowser.lun/WebExtensions/5E4C{H >> 16:04X}-{H & 0xFFFF:04X}-4000-8000-000000000002"))
 
 class Page(BaseHTTPRequestHandler):
     def do_GET(self):

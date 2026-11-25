@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("shim-cost")
-BUNDLE = "com.officecommun.search.shimcost"
+BUNDLE = "com.lunbrowser.lun.shimcost"
 work = Path(tempfile.mkdtemp(prefix="search-shimcost-"))
 
 KIDS = 20

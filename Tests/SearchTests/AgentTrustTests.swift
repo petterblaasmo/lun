@@ -209,7 +209,7 @@ final class AgentTrustTests: XCTestCase {
         // The keychain item, from a copy without Search's access group (this
         // test runner): nowhere safe, so nothing read, nothing kept, and no
         // falling back to the defaults.
-        let keychain = KeychainVault(service: "com.officecommun.search.agents.trusted.tests", account: "trusted (\(getpid()))")
+        let keychain = KeychainVault(service: "com.lunbrowser.lun.agents.trusted.tests", account: "trusted (\(getpid()))")
         let trust = AgentTrust(vault: keychain)
         if !trust.usable {
             XCTAssertTrue(trust.remembered.isEmpty)
@@ -292,7 +292,7 @@ final class AgentTrustTests: XCTestCase {
         // This runner has no application identifier: no group, and so
         // nowhere to keep anyone.
         if KeychainVault.group == nil {
-            XCTAssertFalse(KeychainVault(service: "com.officecommun.search.agents.trusted.tests", account: "x").usable)
+            XCTAssertFalse(KeychainVault(service: "com.lunbrowser.lun.agents.trusted.tests", account: "x").usable)
         }
         let source = try String(contentsOfFile: #filePath.replacingOccurrences(of: "Tests/SearchTests/AgentTrustTests.swift",
                                                                                  with: "Sources/Search/AgentTrust.swift"), encoding: .utf8)

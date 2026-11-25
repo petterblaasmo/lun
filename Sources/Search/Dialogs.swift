@@ -393,7 +393,7 @@ extension Browser {
     /// Said in the system log, so a page that kept reloading or went white
     /// can be traced afterwards to why: the reason, and what was done about
     /// it. The site stays private there; the reason doesn't.
-    private static let pageLog = Logger(subsystem: "com.officecommun.search", category: "Pages")
+    private static let pageLog = Logger(subsystem: "com.lunbrowser.lun", category: "Pages")
 
     private func pageProcessEnded(_ webView: WKWebView, _ end: PageEnd) {
         cancelDisplay(for: webView)

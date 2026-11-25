@@ -11,7 +11,7 @@ take part.
 
 ## Where
 
-- CloudKit container `iCloud.com.officecommun.search`, the **private**
+- CloudKit container `iCloud.com.lunbrowser.lun`, the **private**
   database: the person's own iCloud. Nothing goes through a server of ours
   and nobody but the person can read it.
 - One custom zone: `Search` (owner: current user).

@@ -19,7 +19,7 @@ LLAMA_TAG="v0.5.0"
 LLAMA_COMMIT="7fe450e19305b828c199d602c23a8337aaa1f03b"
 OUT="build/engine"
 SRC="$OUT/llama.cpp"
-IDENTIFIER="com.officecommun.search.ai-engine"
+IDENTIFIER="com.lunbrowser.lun.ai-engine"
 JOBS=$(sysctl -n hw.logicalcpu)
 which="${1:-all}"
 
@@ -47,7 +47,7 @@ COMMON=(
 )
 
 IDENTITY="${SEARCH_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null \
-  | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"' || true)}"
+  | grep -o '"Developer ID Application: [^"]*(VQL4SPXAL3)"' | head -1 | tr -d '"' || true)}"
 
 build() {
   local arch=$1 libs=() frameworks=() flags=()

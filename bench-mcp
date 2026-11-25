@@ -60,8 +60,8 @@ ROOT = Path(__file__).resolve().parent
 APP = str(ROOT / "build" / "Search.app")
 HOME = os.path.expanduser("~")
 SUPPORT = f"{HOME}/Library/Application Support"
-WEBKIT = f"{HOME}/Library/WebKit/com.officecommun.search"
-LEASES = f"{HOME}/Library/Caches/com.officecommun.search.bench-mcp"
+WEBKIT = f"{HOME}/Library/WebKit/com.lunbrowser.lun"
+LEASES = f"{HOME}/Library/Caches/com.lunbrowser.lun.bench-mcp"
 REAL = f"{SUPPORT}/Search"
 FIRST_SPACE = "00000000-0000-0000-0000-000000000001"
 PERSONAL = "00000000-0000-0000-0000-0000000000A1"
@@ -101,7 +101,7 @@ def folder(world):
 
 
 def suite(world):
-    return "com.officecommun.search.test" if world == "test" else f"com.officecommun.search.test.{world}"
+    return "com.lunbrowser.lun.test" if world == "test" else f"com.lunbrowser.lun.test.{world}"
 
 
 def socket_of(world):

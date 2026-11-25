@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-popup-follow")
-BUNDLE = "com.officecommun.search.popupfollow"
+BUNDLE = "com.lunbrowser.lun.popupfollow"
 work = Path(tempfile.mkdtemp(prefix="search-popupfollow-"))
 
 ROWS = "Array.from({length: N}, (_, i) => '<li style=\"height:30px\">Row ' + i + '</li>').join('')"

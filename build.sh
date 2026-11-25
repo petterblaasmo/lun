@@ -122,7 +122,7 @@ build_devtools() {
   ID="$(plutil -extract id raw -o - "$META")"
   PVERSION="$(plutil -extract version raw -o - "$META")"
   API="$(plutil -extract api raw -o - "$META")"
-  IDENT="com.officecommun.search.devtools.$ID"
+  IDENT="com.lunbrowser.lun.devtools.$ID"
   swift build "${SWIFTFLAGS[@]}" --product "$PRODUCT"
   LIB="$(swift build "${SWIFTFLAGS[@]}" --show-bin-path)/lib$PRODUCT.dylib"
   [ "$(lipo -archs "$LIB")" = "$ARCH" ] || { echo "$LIB is not a $ARCH library" >&2; exit 1; }
@@ -154,7 +154,7 @@ build_devtools() {
 </plist>
 PLIST
   SIGNER="${SEARCH_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null \
-    | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"' || true)}"
+    | grep -o '"Developer ID Application: [^"]*(VQL4SPXAL3)"' | head -1 | tr -d '"' || true)}"
   # A release package is the Developer ID's or nothing: an ad-hoc one only
   # when asked for by name (SEARCH_SIGN_IDENTITY=-, for the tests), never
   # because no certificate was found. (A `release dmg` on a Mac without one
@@ -269,7 +269,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>$NAME</string>
   <key>CFBundleDisplayName</key><string>$NAME</string>
   <key>CFBundleExecutable</key><string>$NAME</string>
-  <key>CFBundleIdentifier</key><string>com.officecommun.search</string>
+  <key>CFBundleIdentifier</key><string>com.lunbrowser.lun</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$BUILD</string>
@@ -388,7 +388,7 @@ fi
 # which is enough for the app to run on the machine that built it — and
 # which the updater refuses to swap anything in under.
 IDENTITY="${SEARCH_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null \
-  | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"' || true)}"
+  | grep -o '"Developer ID Application: [^"]*(VQL4SPXAL3)"' | head -1 | tr -d '"' || true)}"
 # Passkeys need an entitlement Apple grants to browsers on request, and a
 # Developer ID provisioning profile that carries it. With the profile next to
 # this script, both go in; without it, the app is signed as before, because
@@ -408,7 +408,7 @@ if [ -f "Search.provisionprofile" ]; then
   # Sync with iCloud (ICloudSync.swift) needs the iCloud entitlements, and
   # those only open with a profile that carries the container: signed with
   # them and a profile from before, the app would not start. So they go in
-  # only when the profile names iCloud.com.officecommun.search; otherwise
+  # only when the profile names iCloud.com.lunbrowser.lun; otherwise
   # the build is as before and Settings says it needs a new one. Of the
   # two keys a profile may or may not carry (the container's environment,
   # the pushes), only what it does carry is kept.
@@ -416,14 +416,14 @@ if [ -f "Search.provisionprofile" ]; then
   security cms -D -i "Search.provisionprofile" > "$PROFILE_PLIST" 2>/dev/null || true
   profile_has() { /usr/libexec/PlistBuddy -c "Print :Entitlements:$1" "$PROFILE_PLIST" >/dev/null 2>&1; }
   if /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.icloud-container-identifiers" "$PROFILE_PLIST" 2>/dev/null \
-      | grep -q "iCloud.com.officecommun.search"; then
+      | grep -q "iCloud.com.lunbrowser.lun"; then
     ENTITLEMENTS="build/Search.icloud.entitlements"
     mkdir -p build
     cp "Search.icloud.entitlements" "$ENTITLEMENTS"
     for key in com.apple.developer.icloud-container-environment com.apple.developer.aps-environment; do
       profile_has "$key" || /usr/libexec/PlistBuddy -c "Delete :$key" "$ENTITLEMENTS" >/dev/null
     done
-    echo "iCloud: the profile carries iCloud.com.officecommun.search, Sync with iCloud is in"
+    echo "iCloud: the profile carries iCloud.com.lunbrowser.lun, Sync with iCloud is in"
   else
     echo "iCloud: the profile has no iCloud container, built without Sync with iCloud (Settings says it needs a new build)"
   fi
@@ -510,8 +510,8 @@ write_engine() {
   [ "$ARCH" = "arm64" ] && [ -n "${SEARCH_AI_ENGINE_VERSION:-}" ] || return 0
   [[ "$SEARCH_AI_ENGINE_VERSION" =~ ^[0-9]+$ ]] || { echo "SEARCH_AI_ENGINE_VERSION is a whole number" >&2; exit 1; }
   [ -f "$ENGINE" ] || { echo "$ENGINE is missing — ./engine.sh arm64 makes it" >&2; exit 1; }
-  codesign --verify --strict -R='anchor apple generic and identifier "com.officecommun.search.ai-engine" and certificate leaf[subject.OU] = "7BYKA895MC"' "$ENGINE" \
-    || { echo "$ENGINE isn't signed with the Developer ID as com.officecommun.search.ai-engine" >&2; exit 1; }
+  codesign --verify --strict -R='anchor apple generic and identifier "com.lunbrowser.lun.ai-engine" and certificate leaf[subject.OU] = "VQL4SPXAL3"' "$ENGINE" \
+    || { echo "$ENGINE isn't signed with the Developer ID as com.lunbrowser.lun.ai-engine" >&2; exit 1; }
   local FILE="search-ai-engine-arm64-$SEARCH_AI_ENGINE_VERSION"
   mkdir -p "$OUT/ai"
   cp "$ENGINE" "$OUT/ai/$FILE"
@@ -569,7 +569,7 @@ JSON
     local SIGNED
     SIGNED="$(mktemp -d)"
     cp "$OUT/appcast.json" "$SIGNED/appcast.json"
-    codesign --force --timestamp --sign "$IDENTITY" --identifier com.officecommun.search.appcast "$SIGNED/appcast.json"
+    codesign --force --timestamp --sign "$IDENTITY" --identifier com.lunbrowser.lun.appcast "$SIGNED/appcast.json"
     ditto -c -k --sequesterRsrc "$SIGNED/appcast.json" "$OUT/appcast.json.zip"
     rm -rf "$SIGNED"
     echo "signed: $OUT/appcast.json.zip"

@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-worker-cryptokey")
-BUNDLE = "com.officecommun.search.cryptokey"
+BUNDLE = "com.lunbrowser.lun.cryptokey"
 work = Path(tempfile.mkdtemp(prefix="search-cryptokey-"))
 NAME = "KeyStore"
 

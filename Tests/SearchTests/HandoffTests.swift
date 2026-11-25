@@ -22,7 +22,7 @@ final class HandoffTests: XCTestCase {
 
     override class func tearDown() {
         if let world = Store.world {
-            UserDefaults.standard.removePersistentDomain(forName: "com.officecommun.search.test.\(world)")
+            UserDefaults.standard.removePersistentDomain(forName: "com.lunbrowser.lun.test.\(world)")
             try? FileManager.default.removeItem(at: Store.folder)
         }
         super.tearDown()

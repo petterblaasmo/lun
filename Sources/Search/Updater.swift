@@ -15,7 +15,7 @@ import Security
 //
 // What the updater leaves alone, on purpose: everything in
 // ~/Library/Application Support/Search, the defaults under
-// com.officecommun.search, and the keychain. The session, the pins, the
+// com.lunbrowser.lun, and the keychain. The session, the pins, the
 // history, the passwords — none of it is read, moved or rewritten here. Only
 // the bundle changes hands, and it keeps its bundle id and its signing
 // identity, so the keychain items the old build made open for the new one.
@@ -378,8 +378,8 @@ final class Updater: ObservableObject {
     }
 
     /// The team that signs Search's releases, and with them its feed.
-    nonisolated static let team = "7BYKA895MC"
-    nonisolated static let feedIdentifier = "com.officecommun.search.appcast"
+    nonisolated static let team = "VQL4SPXAL3"
+    nonisolated static let feedIdentifier = "com.lunbrowser.lun.appcast"
 
     /// The feed inside `packed`, if it is Office Commun's: appcast.json with
     /// a code signature (codesign keeps it in the file's extended attributes,

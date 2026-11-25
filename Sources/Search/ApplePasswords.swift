@@ -28,7 +28,7 @@ import Security
 //   helper is kept running for as long as the pairing lasts: told every few
 //   minutes, and on wake, that a tab came to the front, as Apple's extension
 //   tells it on every tab switch. Not while unpaired. Why a helper ended is
-//   logged (#1122): `log show --predicate 'subsystem == "com.officecommun.search"
+//   logged (#1122): `log show --predicate 'subsystem == "com.lunbrowser.lun"
 //   AND category == "ApplePasswords"' --info --last 1d`.
 // - Only names are asked for, when the caret is in a sign-in box on an https
 //   page of an ordinary tab. A password is asked for once you pick its
@@ -124,7 +124,7 @@ final class ApplePasswords: ObservableObject {
     static let shared = ApplePasswords(prefs: Shared.prefs)
     /// Why the helper ended or a pairing was dropped (#1122): states,
     /// durations, command numbers. Never a key, a code, a name or a site.
-    nonisolated static let log = Logger(subsystem: "com.officecommun.search", category: "ApplePasswords")
+    nonisolated static let log = Logger(subsystem: "com.lunbrowser.lun", category: "ApplePasswords")
     /// How often a paired helper is told a tab came to the front.
     nonisolated static let keepAliveEvery: TimeInterval = 240
 

@@ -60,7 +60,7 @@ enum TestWorld {
             Disk.drain()
             try? FileManager.default.removeItem(at: home)
             if let world = Store.world {
-                let suite = "com.officecommun.search.test.\(world)"
+                let suite = "com.lunbrowser.lun.test.\(world)"
                 UserDefaults.standard.removePersistentDomain(forName: suite)
                 CFPreferencesAppSynchronize(suite as CFString)
                 // The emptied file too, from the real home: this run's own.

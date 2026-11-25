@@ -19,9 +19,9 @@ import WebKit
 enum ExtensionNative {
     /// Why an app's connection ended (#1122: iCloud Passwords' helper went
     /// after a couple of minutes): the host's name and how, never a message.
-    /// `log show --predicate 'subsystem == "com.officecommun.search" AND
+    /// `log show --predicate 'subsystem == "com.lunbrowser.lun" AND
     /// category == "ExtensionNative"' --info --last 1h`
-    static let log = Logger(subsystem: "com.officecommun.search", category: "ExtensionNative")
+    static let log = Logger(subsystem: "com.lunbrowser.lun", category: "ExtensionNative")
 
     /// "0.21 s": how long after its host started a connection ended. The
     /// moment matters (a port gone a fifth of a second in is the extension's

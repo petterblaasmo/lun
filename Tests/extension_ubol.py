@@ -45,7 +45,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("sec-ubol")
-BUNDLE = "com.officecommun.search.ubol"
+BUNDLE = "com.lunbrowser.lun.ubol"
 UBOL = "ddkjiahejlhfcafbddmgiahcphecmpfh"
 work = Path(tempfile.mkdtemp(prefix="search-ubol-"))
 PORT = sv.srv.server_port

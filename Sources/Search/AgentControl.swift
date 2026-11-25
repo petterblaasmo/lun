@@ -453,7 +453,7 @@ final class AgentSession: ObservableObject, Identifiable {
 @MainActor
 final class AgentControl: ObservableObject {
     static let shared = AgentControl()
-    static let log = Logger(subsystem: "com.officecommun.search", category: "Agent")
+    static let log = Logger(subsystem: "com.lunbrowser.lun", category: "Agent")
 
     /// In a folder of its own beside the session file, 0700 and this
     /// user's: a test world's is its own.

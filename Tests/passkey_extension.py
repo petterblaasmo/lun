@@ -48,7 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("passkey-extension")
-BUNDLE = "com.officecommun.search.passkeyextension"
+BUNDLE = "com.lunbrowser.lun.passkeyextension"
 work = Path(tempfile.mkdtemp(prefix="search-passkeyextension-"))
 
 # The site: a request under the field at load; the passkey button puts it

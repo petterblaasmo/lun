@@ -67,7 +67,7 @@ enum DeveloperResponseMedia {
     /// (Search deletes the package's temporary folder, named for its
     /// identifier) or, after a crash, when the package next starts.
     private static let folder = FileManager.default.temporaryDirectory
-        .appendingPathComponent("com.officecommun.search.devtools.full", isDirectory: true)
+        .appendingPathComponent("com.lunbrowser.lun.devtools.full", isDirectory: true)
         .appendingPathComponent("Network Preview", isDirectory: true)
 
     static func clear() { try? FileManager.default.removeItem(at: folder) }

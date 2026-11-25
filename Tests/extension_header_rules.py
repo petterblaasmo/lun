@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("ext-header-rules")
-BUNDLE = "com.officecommun.search.extheaderrules"
+BUNDLE = "com.lunbrowser.lun.extheaderrules"
 work = Path(tempfile.mkdtemp(prefix="search-extheaderrules-"))
 
 

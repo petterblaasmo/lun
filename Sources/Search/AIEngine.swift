@@ -53,7 +53,7 @@ final class AIEngine: ObservableObject {
     }
     @Published var offered: Offer?
 
-    nonisolated static let identifier = "com.officecommun.search.ai-engine"
+    nonisolated static let identifier = "com.lunbrowser.lun.ai-engine"
 
     enum State: Equatable {
         case absent

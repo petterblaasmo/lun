@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 final class IPhoneAskTests: XCTestCase {
     private var store: UserDefaults!
-    private let suite = "com.officecommun.search.iphoneask-tests-\(getpid())"
+    private let suite = "com.lunbrowser.lun.iphoneask-tests-\(getpid())"
 
     override func setUp() {
         super.setUp()

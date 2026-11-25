@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = str(ROOT / "build" / "Search.app")
 W = "ext-copies"
 SUPPORT = os.path.expanduser(f"~/Library/Application Support/Search ({W})")
-SUITE = f"com.officecommun.search.test.{W}"
+SUITE = f"com.lunbrowser.lun.test.{W}"
 
 MANIFEST = {
     "manifest_version": 3, "name": "Copies probe", "version": "1.0", "description": "Counts its content scripts.",

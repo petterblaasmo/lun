@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-permission-rerun")
-BUNDLE = "com.officecommun.search.permissionrerun"
+BUNDLE = "com.lunbrowser.lun.permissionrerun"
 work = Path(tempfile.mkdtemp(prefix="search-rerun-"))
 PORT = sv.srv.server_port
 A = f"http://127.0.0.1:{PORT}"

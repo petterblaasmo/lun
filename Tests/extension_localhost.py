@@ -53,7 +53,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("ext-localhost")
-BUNDLE = "com.officecommun.search.extlocalhost"
+BUNDLE = "com.lunbrowser.lun.extlocalhost"
 EAGLE = "lieogkinebikhdchceieedcigeafdkid"
 work = Path(tempfile.mkdtemp(prefix="search-extlocalhost-"))
 

@@ -46,7 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("ext-own-requests")
-BUNDLE = "com.officecommun.search.extownrequests"
+BUNDLE = "com.lunbrowser.lun.extownrequests"
 work = Path(tempfile.mkdtemp(prefix="search-extownrequests-"))
 NAMES = ("shop.test", "other.test")  # known to the proxy alone
 

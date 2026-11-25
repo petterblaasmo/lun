@@ -107,7 +107,7 @@ struct AgentLauncher: Equatable {
 // MARK: - the signature
 
 enum AgentIdentity {
-    static let log = Logger(subsystem: "com.officecommun.search", category: "Agent")
+    static let log = Logger(subsystem: "com.lunbrowser.lun", category: "Agent")
 
     /// The audit token of the process at the other end of a Unix socket: the
     /// process that connected, as the kernel knows it (pid and its version).
@@ -269,7 +269,7 @@ struct KeychainVault: AgentVault {
     let account: String
 
     /// Search's own access group, named outright: the application identifier
-    /// this copy is signed with (TEAM.com.officecommun.search), from its own
+    /// this copy is signed with (TEAM.com.lunbrowser.lun), from its own
     /// entitlements. A copy without one has no group, and nowhere to keep this.
     static let group: String? = {
         guard let task = SecTaskCreateFromSelf(nil),
@@ -278,7 +278,7 @@ struct KeychainVault: AgentVault {
         return value as? String
     }()
 
-    static let agents = KeychainVault(service: "com.officecommun.search.agents.trusted",
+    static let agents = KeychainVault(service: "com.lunbrowser.lun.agents.trusted",
                                       account: Store.world.map { "trusted (\($0))" } ?? "trusted")
 
     private var query: [String: Any] {

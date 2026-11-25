@@ -44,7 +44,7 @@ enum AIError: LocalizedError, Equatable {
 final class AIClient: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     static let shared = AIClient()
 
-    private static let log = Logger(subsystem: "com.officecommun.search", category: "AI")
+    private static let log = Logger(subsystem: "com.lunbrowser.lun", category: "AI")
 
     /// Kept between asks, and made again when the proxy changes: a session
     /// holds the configuration it was born with, so a lazy one would go on

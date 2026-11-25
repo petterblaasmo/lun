@@ -37,7 +37,7 @@ def use(name):
     global W, SUPPORT, SUITE, SOCK
     W = f"{name}-{hashlib.sha1(str(ROOT).encode()).hexdigest()[:8]}"
     SUPPORT = f"{HOME}/Library/Application Support/Search ({W})"
-    SUITE = f"com.officecommun.search.test.{W}"
+    SUITE = f"com.lunbrowser.lun.test.{W}"
     SOCK = f"{SUPPORT}/bench.sock"
 use("split-tests")
 class H(BaseHTTPRequestHandler):
@@ -74,7 +74,7 @@ started = set()
 def running(): return set(subprocess.run(["pgrep", "-f", APP + "/Contents/MacOS"], capture_output=True, text=True).stdout.split())
 def holding(): return set(subprocess.run(["lsof", "-t", "--", SOCK], capture_output=True, text=True).stdout.split()) if os.path.exists(SOCK) else set()
 def pids(): return sorted((started & running()) | (holding() & running()))
-WEBKIT = f"{HOME}/Library/WebKit/com.officecommun.search"
+WEBKIT = f"{HOME}/Library/WebKit/com.lunbrowser.lun"
 def stores():
     """The WebKit stores this world's runs made, where WebKit keeps them and
     named as the app names them (Store.probeStore, Spaces.store): its

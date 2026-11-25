@@ -33,7 +33,7 @@ try:
     # A build signed with a profile that carries iCloud says so; any other
     # build is right to say no. Either way it launched, which a signature
     # the profile doesn't cover would not have.
-    signed = "iCloud.com.officecommun.search" in subprocess.run(
+    signed = "iCloud.com.lunbrowser.lun" in subprocess.run(
         ["codesign", "-d", "--entitlements", ":-", sv.APP], capture_output=True, text=True).stdout
     t.ok("the signature's iCloud entitlement is seen from inside", s["entitled"] is signed, (s["entitled"], signed))
     t.ok("Settings says why", s["summary"] == ("Off in a test run" if signed else "Needs a build of Search signed for iCloud"), s["summary"])

@@ -43,7 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("shim-order")
-BUNDLE = "com.officecommun.search.shimorder"
+BUNDLE = "com.lunbrowser.lun.shimorder"
 work = Path(tempfile.mkdtemp(prefix="search-shimorder-"))
 
 ENTRIES = 3

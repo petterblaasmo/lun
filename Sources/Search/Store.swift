@@ -122,7 +122,7 @@ enum Store {
     /// differ from stores made by identifier in how long extension workers
     /// are let live.
     static var ownContainer: Bool {
-        (Bundle.main.bundleIdentifier ?? "") != "com.officecommun.search"
+        (Bundle.main.bundleIdentifier ?? "") != "com.lunbrowser.lun"
     }
 
     /// The fixed identifiers of a test world's WebKit stores: 1 for websites,
@@ -183,7 +183,7 @@ enum Store {
             carryOver(into: .standard)
             return .standard
         }
-        let suite = world == "test" ? "com.officecommun.search.test" : "com.officecommun.search.test.\(world ?? "")"
+        let suite = world == "test" ? "com.lunbrowser.lun.test" : "com.lunbrowser.lun.test.\(world ?? "")"
         return UserDefaults(suiteName: suite) ?? .standard
     }()
 

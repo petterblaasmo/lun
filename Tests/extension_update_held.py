@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-update-held")
-BUNDLE = "com.officecommun.search.updateheld"
+BUNDLE = "com.lunbrowser.lun.updateheld"
 BW = "nngceckbapebfimnlniiiahkandclblb"
 OLD = "2026.10.2"
 work = Path(tempfile.mkdtemp(prefix="search-updateheld-"))

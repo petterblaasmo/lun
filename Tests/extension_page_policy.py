@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("sec-page-policy")
-BUNDLE = "com.officecommun.search.pagepolicy"
+BUNDLE = "com.lunbrowser.lun.pagepolicy"
 work = Path(tempfile.mkdtemp(prefix="search-page-policy-"))
 
 # The smallest WebAssembly module there is.

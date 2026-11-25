@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("sec-install-event")
-BUNDLE = "com.officecommun.search.installevent"
+BUNDLE = "com.lunbrowser.lun.installevent"
 work = Path(tempfile.mkdtemp(prefix="search-install-event-"))
 
 FILES = {

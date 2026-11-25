@@ -8,7 +8,7 @@ import XCTest
 @MainActor
 final class OptInTests: XCTestCase {
     private var store: UserDefaults!
-    private let suite = "com.officecommun.search.optin-tests-\(getpid())"
+    private let suite = "com.lunbrowser.lun.optin-tests-\(getpid())"
 
     override func setUp() {
         super.setUp()
