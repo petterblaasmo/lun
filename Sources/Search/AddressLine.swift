@@ -158,7 +158,7 @@ struct AddressLine: View {
             // Across the top nothing cuts it off: it opens where it is.
             .overlay(alignment: .topLeading) {
                 if editing && !inColumn {
-                    AddressCard(browser: browser, height: height, width: AddressCard.width(for: width), line: width)
+                    AddressCard(browser: browser, height: height, width: min(width, Metrics.fieldWidth), line: min(width, Metrics.fieldWidth))
                 }
             }
             .animation(.easeOut(duration: 0.15), value: editing)
