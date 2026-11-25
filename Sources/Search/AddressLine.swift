@@ -189,12 +189,7 @@ struct AddressLine: View {
 /// row of the page's card, on its ground.
 struct AddressRow: View {
     @ObservedObject var browser: Browser
-    @ObservedObject private var bookmarks: Bookmarks
-
-    init(browser: Browser) {
-        self.browser = browser
-        self.bookmarks = browser.bookmarks
-    }
+    private var bookmarks: Bookmarks { browser.bookmarks }
 
     var body: some View {
         HStack(spacing: 2) {

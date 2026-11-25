@@ -827,7 +827,8 @@ enum SettingsIndex {
         case "sidebar.roomy", "sidebar.player", "sidebar.doorsUp", "sidebar.foldButton", "sidebar.narrowIcons": return prefs.sidebar && !prefs.sideIcons
         case "sidebar.hides", "sidebar.slides", "layout.cards", "pins.list": return prefs.sidebar
         case "layout.cardsFullScreen": return prefs.sidebar && prefs.cards
-        case "address.width": return prefs.addressLine && !prefs.sidebar
+        // The address has the row under the tabs to itself (AddressRow).
+        case "address.width": return false
         case "tabs.clickKeepsName": return prefs.addressLine && !prefs.iconColumn
         // A click that edits nothing has no card to leave out.
         case "tabs.clickAddressOnly": return !(prefs.tabClickKeepsName && prefs.addressLine && !prefs.iconColumn)
