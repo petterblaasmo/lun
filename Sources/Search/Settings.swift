@@ -39,6 +39,10 @@ struct SettingsPanel: View {
     @FocusState private var finding: Bool
     /// A row gone to from a result, lit for a moment.
     @State private var lit: String?
+    /// The pages whose More options are open, kept from one visit to the
+    /// next (SettingsIndex.essential).
+    @State private var more = Set(Store.settings.stringArray(forKey: SettingsPanel.moreKey) ?? [])
+    static let moreKey = "settings.more"
     /// What Set Up Like Arc changed, for Undo.
     @ObservedObject private var likeArc = LikeArc.shared
 
@@ -350,12 +354,45 @@ struct SettingsPanel: View {
         }
     }
 
+    /// A page's rows: the few most people come for (SettingsIndex.essential),
+    /// then one line that opens the rest under it, group by group. The page
+    /// was every row it had, up to thirty-nine of them, and what was looked
+    /// for was somewhere among them.
+    @ViewBuilder
     private func groups(of page: Page) -> some View {
         // A group whose every row is left out (SettingsIndex.offered) has
         // no heading either.
-        ForEach(SettingsIndex.groups(of: page).filter { !SettingsIndex.items(in: $0.id).isEmpty }) { group in
-            GroupBlock(title: group.title, icon: group.icon) {
-                Card { rows(SettingsIndex.items(in: group.id).filter(shown), searched: false) }
+        let groups = SettingsIndex.groups(of: page).filter { !SettingsIndex.items(in: $0.id).isEmpty }
+        let all = groups.flatMap { SettingsIndex.items(in: $0.id).filter(shown) }
+        let rest = all.filter { !SettingsIndex.essential.contains($0.id) }
+        // Nothing to open, or nothing to open on: every row, as before.
+        if rest.isEmpty || rest.count == all.count {
+            blocks(groups) { _ in true }
+        } else {
+            let open = more.contains(page.rawValue)
+            blocks(groups) { SettingsIndex.essential.contains($0.id) }
+            MoreOptions(count: rest.count, open: open) {
+                withAnimation(Motion.settle) {
+                    if open { more.remove(page.rawValue) } else { more.insert(page.rawValue) }
+                }
+                Store.settings.set(Array(more).sorted(), forKey: SettingsPanel.moreKey)
+            }
+            if open {
+                blocks(groups) { !SettingsIndex.essential.contains($0.id) }
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    /// The groups, each with those of its rows that `keep` keeps; one left
+    /// with none has no heading either.
+    private func blocks(_ groups: [SettingsGroup], keeping keep: @escaping (SettingsItem) -> Bool) -> some View {
+        ForEach(groups) { group in
+            let items = SettingsIndex.items(in: group.id).filter(shown).filter(keep)
+            if !items.isEmpty {
+                GroupBlock(title: group.title, icon: group.icon) {
+                    Card { rows(items, searched: false) }
+                }
             }
         }
     }
@@ -411,6 +448,9 @@ struct SettingsPanel: View {
                     query = ""
                     page = group.page
                     lit = first?.findOnly == false ? first?.id : nil
+                    // One under More options: opened, or there is no row
+                    // to light.
+                    if let lit, !SettingsIndex.essential.contains(lit) { more.insert(group.page.rawValue) }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { withAnimation(Motion.quick) { lit = nil } }
                 } label: {
                     HStack(spacing: 6) {
@@ -1248,6 +1288,54 @@ private extension View {
     /// A list under a row's words (sites, profiles, languages): its lines
     /// start where the row's title does.
     func under() -> some View { self }
+}
+
+/// The line under a page's first rows that opens the rest of them, and
+/// closes them again: it says how many there are, answers the pointer and
+/// gives under a press as a row of the column does.
+struct MoreOptions: View {
+    let count: Int
+    let open: Bool
+    let act: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: act) {
+            HStack(spacing: 8) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .rotationEffect(.degrees(open ? 90 : 0))
+                Text(open ? "Fewer options" : "More options")
+                    .font(.system(size: 13, weight: .medium))
+                if !open {
+                    Text("\(count)")
+                        .font(.system(size: 12))
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.muted)
+                }
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(Palette.ink)
+            .padding(.horizontal, 16)
+            .frame(height: 36)
+            .background(hovering ? Palette.fillHover : Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(Pressed())
+        .onHover { hovering = $0 }
+        .animation(Motion.quick, value: hovering)
+        .animation(Motion.settle, value: open)
+        .accessibilityLabel(open ? "Fewer options" : "More options, \(count)")
+    }
+
+    /// Gives a little under the press, and comes back.
+    private struct Pressed: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? Motion.give : 1)
+                .animation(Motion.quick, value: configuration.isPressed)
+        }
+    }
 }
 
 /// A group of a section: its small heading, then its card.
