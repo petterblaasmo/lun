@@ -338,9 +338,9 @@ final class SidebarPressTests: XCTestCase {
         activationPolicy = NSApp.activationPolicy()
         NSApp.setActivationPolicy(.prohibited)
         let prefs = Shared.prefs
-        let previous = (prefs.sidebar, prefs.usesTabGroups, prefs.splitView, prefs.listsPins, prefs.roomyTabs)
+        let previous = (prefs.sidebar, prefs.usesTabGroups, prefs.splitView, prefs.listsPins, prefs.roomyTabs, prefs.addressLine)
         restorePreferences = {
-            (prefs.sidebar, prefs.usesTabGroups, prefs.splitView, prefs.listsPins, prefs.roomyTabs) = previous
+            (prefs.sidebar, prefs.usesTabGroups, prefs.splitView, prefs.listsPins, prefs.roomyTabs, prefs.addressLine) = previous
         }
         let browser = Browser(record: WindowRecord())
         browsers.append(browser)
@@ -349,6 +349,8 @@ final class SidebarPressTests: XCTestCase {
         browser.prefs.splitView = false
         browser.prefs.listsPins = false
         browser.prefs.roomyTabs = false
+        // The address bar on top of the column would take rowPoint(0)'s press.
+        browser.prefs.addressLine = false
         for word in ["one", "two", "three"] {
             if browser.tabs.last?.isBlank == false { browser.newTab() }
             browser.tabs.last?.restore(url: URL(string: "about:blank#\(word)")!, title: word)
