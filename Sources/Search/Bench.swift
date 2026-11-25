@@ -2055,6 +2055,8 @@ final class Bench {
             guard let text = request["text"] as? String, !text.isEmpty else { answer(["error": "field needs some text"]); return }
             let pieces = request["type"] as? Bool == true ? text.map(String.init) : [text]
             if browser.fieldShowing { browser.askFocus() } else { browser.edit() }
+            // "inline": in the address bar, as a click on it opens it.
+            if request["inline"] as? Bool == true { browser.inlineEdit = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 guard let field = Bench.addressField(in: (browser.window ?? Links.window)?.contentView),
                       let editor = field.currentEditor() as? NSTextView
@@ -5436,8 +5438,12 @@ final class Bench {
             guard let path = request["path"] as? String else { answer(["error": "column needs a path"]); return }
             let height = request["height"] as? Double ?? 600
             let width = Double(browser.prefs.columnWidth)
-            let host = NSHostingView(rootView: SideBar(browser: browser, prefs: browser.prefs).frame(width: width, height: height))
-            host.frame = NSRect(x: 0, y: 0, width: width, height: height)
+            AddressLine.benchHovering = request["hovering"] as? Bool ?? false
+            // "width": the picture wider than the column, for what opens past it.
+            let shown = max(width, request["width"] as? Double ?? width)
+            let host = NSHostingView(rootView: SideBar(browser: browser, prefs: browser.prefs).frame(width: width, height: height)
+                .frame(width: shown, height: height, alignment: .leading))
+            host.frame = NSRect(x: 0, y: 0, width: shown, height: height)
             let window = NSWindow(contentRect: host.frame, styleMask: .borderless, backing: .buffered, defer: false)
             window.appearance = NSApp.effectiveAppearance
             window.contentView = host
