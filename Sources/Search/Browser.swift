@@ -3074,6 +3074,11 @@ final class Browser: NSObject, ObservableObject {
     /// Settings › Appearance › Window › Keep the card in full screen, off
     /// unless turned on, keeps it there too, as Arc and Zen do (#1152).
     var asCards: Bool { prefs.sidebar && prefs.cards && (!fullScreen || prefs.cardsInFullScreen) }
+    /// The page as a card with the tabs across the top: they stand on it, and
+    /// its first row is the address (AddressRow).
+    var standsOnCard: Bool { !prefs.sidebar && prefs.cards && !fullScreen && !folded }
+    /// The address in a row of its own under the tabs across the top.
+    var showsAddressRow: Bool { !prefs.sidebar && prefs.addressLine && !folded }
     /// The extension a popup window was opened for (windows.create with
     /// type "popup"), or nil for a browser window. Such a window is small,
     /// the page under a thin line with its site; it is never saved, never
@@ -8443,7 +8448,7 @@ final class Browser: NSObject, ObservableObject {
 
     /// The address bar is on screen for the page in front, for ⌘L to open.
     private var editsInLine: Bool {
-        prefs.addressLine && prefs.sidebar && !prefs.iconColumn && !folded && !fullScreen && active.map { !$0.isBlank } ?? false
+        prefs.addressLine && !(prefs.sidebar && prefs.iconColumn) && !folded && active.map { !$0.isBlank } ?? false
     }
 
     func dismiss() {

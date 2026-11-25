@@ -15,7 +15,7 @@ struct TabBar: View {
     @StateObject private var lens = LensMotion()
     /// The height the tabs and the bar's buttons take, centred in the bar:
     /// above and below it the bar is title bar (see DragStrip.band).
-    static let band: CGFloat = 30
+    @MainActor static var band: CGFloat { Shared.prefs.cards ? Metrics.standingTab : 30 }
     /// The neighbouring spaces' own grey, apart from this one's.
     @Namespace private var above
     @Namespace private var below
@@ -26,18 +26,22 @@ struct TabBar: View {
     @State private var looseFrames = LooseFrames()
     /// A tab of the run is being carried along it (see Carried).
     @State private var carrying = false
-    /// The plus only comes out when the pointer is in the row.
-    @State private var nearby = false
     @State private var plussed = false
     /// What stands before the tabs besides the space's dot: the helm when
     /// it leads, the profile's badge once there are several profiles, and
     /// the address when it is in sight. The badge was left out, and the row
     /// was laid out 28 points wider than the window gave it.
     private var leading: CGFloat {
-        (browser.prefs.navigationLeft && browser.prefs.helmDoors > 0 ? Metrics.helm(browser.prefs) - 8 + Metrics.tabGap : 0)
+        (helmLeads ? Metrics.helm(browser.prefs) - 8 + Metrics.tabGap : 0)
             + (browser.prefs.showsProfileDoor ? ProfileBadge.width + Metrics.tabGap : 0)
-            + (browser.prefs.addressLine ? browser.prefs.addressWidth.width + AddressLine.after + Metrics.tabGap : 0)
     }
+    /// Back, forward and reload by the lights, when asked; with the address in
+    /// a row of its own they are there, before it (AddressRow).
+    private var helmLeads: Bool { browser.prefs.navigationLeft && browser.prefs.helmDoors > 0 && !browser.showsAddressRow }
+    /// The space's name, as wide as it is drawn.
+    @State private var spaceWidth: CGFloat = 0
+    /// The tabs stand on the page's card rather than lying in the bar.
+    private var stands: Bool { browser.standsOnCard }
     /// How much wider the run's tabs were laid out than they were worked out
     /// to be (see `measures`).
     @State private var unaccounted: CGFloat = 0
@@ -79,20 +83,18 @@ struct TabBar: View {
 
                 HStack(spacing: Metrics.tabGap) {
                     // Back, forward and reload by the lights, when asked.
-                    if browser.prefs.navigationLeft, browser.prefs.helmDoors > 0 { Helm(browser: browser) }
+                    if helmLeads { Helm(browser: browser) }
                     // The space on screen, first, when there are spaces.
                     // Above the tabs, for the name it shows over them a moment
                     // after a switch.
                     // The profile, once there is more than one (see Profiles.swift).
                     if browser.prefs.showsProfileDoor { ProfileBadge(browser: browser) }
-                    // The page's address, when it is to be in sight: before the tabs.
-                    if browser.prefs.addressLine {
-                        AddressLine(browser: browser)
-                            .frame(width: browser.prefs.addressWidth.width)
-                            .padding(.trailing, AddressLine.after)
-                            .zIndex(2)
+                    if browser.prefs.usesSpaces {
+                        SpaceName(browser: browser)
+                            .padding(.trailing, 4)
+                            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { spaceWidth = $0 }
+                            .zIndex(1)
                     }
-                    if browser.prefs.usesSpaces && !browser.prefs.showsSpaceButtons { SpaceDot(browser: browser).zIndex(1) }
 
                     // The tabs, in a run of their own. While they fit, it is
                     // exactly as wide as they are and nothing about the row
@@ -237,7 +239,7 @@ struct TabBar: View {
                             SwipeCard(side: browser.swipeSide, browser: browser, inline: true)
                         }
                     }
-                    .frame(width: making ? min(540, row.room) : row.run, height: Metrics.strip, alignment: .leading)
+                    .frame(width: making ? min(540, row.room) : row.run, height: Metrics.strip, alignment: stands && !making ? .bottomLeading : .leading)
                     // Only up and down: a neighbour's row may run wider than this one.
                     .mask(Rectangle().frame(width: 4000, height: Metrics.strip))
 
@@ -246,8 +248,8 @@ struct TabBar: View {
                     // run has scrolled. Out of sight until the pointer is up here.
                     Button { browser.launch() } label: {
                         Image(systemName: "plus")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(Palette.muted)
+                            .font(.system(size: 12))
+                            .foregroundStyle(plussed ? Palette.ink : Palette.muted)
                             .frame(width: 15, height: 15)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 6)
@@ -260,10 +262,7 @@ struct TabBar: View {
                     .buttonStyle(.plain)
                     .shortcutHelp("New Tab", "file.newTab")
                     .onHover { plussed = $0 }
-                    .opacity(nearby ? 1 : 0)
-                    .scaleEffect(nearby ? 1 : 0.7, anchor: .leading)
-                    .allowsHitTesting(nearby)
-                    .animation(Motion.settle, value: nearby)
+                    .padding(.leading, stands ? 4 : 0)
 
                     Spacer(minLength: 0)
 
@@ -278,13 +277,13 @@ struct TabBar: View {
                         // Only while a download is running, and a moment after.
                         FetchDoor(browser: browser, fetches: browser.fetches)
                         ExtensionSlot(browser: browser, puzzle: !browser.prefs.hidesExtensionsDoor)
-                        if !browser.prefs.navigationLeft, browser.prefs.helmDoors > 0 {
+                        if !browser.prefs.navigationLeft, browser.prefs.helmDoors > 0, !browser.showsAddressRow {
                             Helm(browser: browser).padding(.trailing, 8)
                         }
                         if !browser.prefs.hidesBookmarksDoor {
                             BookmarkDoor(browser: browser, arrowEdge: .bottom)
                         }
-                        SpaceButtons(browser: browser)
+                        Door(icon: "chevron.down", help: "Search Tabs", shortcut: "tabs.search") { browser.summon() }
                     }
                     .background {
                         GeometryReader { box in
@@ -307,14 +306,13 @@ struct TabBar: View {
                 // own lies over it, from end to end (#1321).
                 if !making {
                     DragStrip()
-                        .frame(height: (Metrics.strip - TabBar.band) / 2)
+                        .frame(height: stands ? Metrics.strip - TabBar.band : (Metrics.strip - TabBar.band) / 2)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
         .frame(height: Metrics.strip)
-        .onHover { nearby = $0 }
         .onAppear { SpaceSwipe.shared.start(for: browser) }
         // A link dragged onto the row opens there.
         .onDrop(of: [.url, .text], isTargeted: $landing) { providers in
@@ -401,7 +399,7 @@ struct TabBar: View {
                     ForEach(pinsShown) { tab in
                         rowItem(tab, in: row.tabs, splits: row.splits, activeID: row.active,
                                 width: each, room: strip - lights - 12,
-                                height: Metrics.strip, interactive: false, pill: pill)
+                                height: stands ? TabBar.band : Metrics.strip, interactive: false, pill: pill)
                     }
                     if line { PinLine() }
                     let spaced = GroupBand.spaced(groupsShown.map(\.group), looseAfter: !looseShown.isEmpty)
@@ -416,7 +414,7 @@ struct TabBar: View {
                         ForEach(members) { tab in
                             rowItem(tab, in: row.tabs, splits: row.splits, activeID: row.active,
                                     width: each, room: strip - lights - 12,
-                                    height: Metrics.strip, interactive: false, pill: pill)
+                                    height: stands ? TabBar.band : Metrics.strip, interactive: false, pill: pill)
                                 .background {
                                     if banded { GroupBand(group: drawn.group, piece: tab.id, last: tab.id == members.last?.id) }
                                 }
@@ -426,18 +424,18 @@ struct TabBar: View {
                     ForEach(looseShown) { tab in
                         rowItem(tab, in: row.tabs, splits: row.splits, activeID: row.active,
                                 width: each, room: strip - lights - 12,
-                                height: Metrics.strip, interactive: false, pill: pill)
+                                height: stands ? TabBar.band : Metrics.strip, interactive: false, pill: pill)
                     }
                 } else {
                     ForEach(Array(shown.enumerated()).filter { fit.contains($0.element.id) }, id: \.element.id) { index, tab in
                         if line, index == firstLoose { PinLine() }
                         rowItem(tab, in: row.tabs, splits: row.splits, activeID: row.active,
                                 width: each, room: strip - lights - 12,
-                                height: Metrics.strip, interactive: false, pill: pill)
+                                height: stands ? TabBar.band : Metrics.strip, interactive: false, pill: pill)
                     }
                 }
             }
-            .frame(height: Metrics.strip)
+            .frame(height: stands ? TabBar.band : Metrics.strip)
             .allowsHitTesting(false)
         }
     }
@@ -474,7 +472,7 @@ struct TabBar: View {
         let isPairRepresentative = pair?.left == tab.id
         return rowItem(tab, in: browser.tabs, splits: browser.splits, activeID: browser.activeID,
                        width: each, room: strip - lights - leading - 12,
-                       height: Metrics.strip, interactive: true, pill: pill)
+                       height: stands ? TabBar.band : Metrics.strip, interactive: true, pill: pill)
             .background {
                 if browser.prefs.splitView && !isPairRepresentative {
                     SplitDropZone(browser: browser, tab: tab, kind: .strip)
@@ -675,15 +673,13 @@ struct TabBar: View {
     /// until they have been, the helm and the bookmarks stand in for them —
     /// unless the helm leads, when nothing at the far end may be a real zero.
     private func room(in strip: CGFloat) -> CGFloat {
-        let far = doors > 0 || browser.prefs.navigationLeft ? doors : Metrics.helm(browser.prefs) + 26
+        let far = doors > 0 || browser.prefs.navigationLeft || browser.showsAddressRow ? doors : Metrics.helm(browser.prefs) + 26
         return max(0, strip - lights - dot - leading - 12 - Metrics.plusWidth - Metrics.tabRowHold - far - 3 * Metrics.tabGap)
     }
 
     /// What the space's dot takes before the tabs, when there are spaces.
-    /// With a button per space, nothing: they are among the doors at the
-    /// far end (SpaceButtons), measured with them.
     private var dot: CGFloat {
-        browser.prefs.usesSpaces && !browser.prefs.showsSpaceButtons ? SpaceDot.width + Metrics.tabGap : 0
+        browser.prefs.usesSpaces ? spaceWidth + Metrics.tabGap : 0
     }
 
     /// Every loose tab is the same width, so the cross is always in the same
@@ -956,6 +952,9 @@ private struct TabPill: View, Equatable {
     @State private var shake: CGFloat = 0
     @State private var pressed = false
     private var pinned: Bool { tab.pin != nil && !editing }
+    /// Standing on the page's card (TabBar.stands): greys of the frame's own
+    /// say so, as the bar is told them.
+    private var stands: Bool { greys.lifts }
     /// Too narrow for a title: the site's mark alone, the title in the
     /// tooltip. A cross on something this small would be what a click to
     /// pick the tab lands on, so only the tab you're on, already picked,
@@ -972,7 +971,7 @@ private struct TabPill: View, Equatable {
     /// the tab doesn't change shape for them.
     private var titleRoom: CGFloat {
         var room = width - Metrics.tabFixed
-        if tab.isBlank { room += Metrics.tabMark + Metrics.tabSpacing }
+        if tab.isBlank, prefs.glyph != .icons { room += Metrics.tabMark + Metrics.tabSpacing }
         if tab.bench && !tab.agent { room -= Metrics.tabGlyph + Metrics.tabSpacing }
         if tab.shy { room -= Metrics.tabGlyph + Metrics.tabSpacing }
         if tab.recording { room -= Metrics.tabGlyph + Metrics.tabSpacing }
@@ -1048,6 +1047,7 @@ private struct TabPill: View, Equatable {
                 loose
             }
         }
+        .frame(height: stands ? TabBar.band : nil)
         .background { ground.animation(Motion.quick, value: rowCarrying) }
         .overlay {
             if selected {
@@ -1145,7 +1145,7 @@ private struct TabPill: View, Equatable {
                 TabAddressField(browser: browser)
                     .frame(height: 16)
             } else {
-                if !tab.isBlank {
+                if !tab.isBlank || prefs.glyph == .icons {
                     Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: Metrics.tabMark, dim: dim,
                          contrast: prefs.highContrastText, globe: prefs.glyph == .icons)
                         .overlay(alignment: .bottomTrailing) { AgentMark(tab: tab) }
@@ -1175,7 +1175,7 @@ private struct TabPill: View, Equatable {
                 // The page is translated (Translate.swift).
                 TranslateSign(tab: tab, colour: colour)
                 TitleAtRest(label: tab.label, rest: rest, shown: atRest, hovering: hovering,
-                            size: 12.5, colour: colour, roomy: false, dim: dim, record: tab.id)
+                            size: 13, colour: colour, roomy: false, dim: dim, live: live, record: tab.id)
             }
 
             Spacer(minLength: Metrics.tabSpring)
@@ -1248,24 +1248,31 @@ private struct TabPill: View, Equatable {
                 // A pinned square among the faint grey of the others: the
                 // darker grey the column's live pin wears too. Under a pane
                 // of Liquid Glass, the glass is a tab's ground.
-                Rectangle().fill(pinned ? greys.pinLive : (liquid ? Color.clear : greys.wash))
+                if stands {
+                    StandingTab().fill(Palette.ground)
+                } else {
+                    Rectangle().fill(pinned ? greys.pinLive : (liquid ? Color.clear : greys.wash))
+                }
                 // Not on a pinned square, nor a tab down to its mark. Thirty
                 // points of grey filling from the left behind a single letter
                 // says nothing about anything — it needs the width of a title
                 // to read as progress at all.
                 if !pinned && !compact && prefs.showsReading {
                     ReadingFill(meter: tab.meter, width: span)
+                        .clipShape(StandingTab(radius: stands ? 10 : 0, flares: false))
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(StandingGround(stands: stands))
             .modifier(LiveMatch(id: "live", in: pill, tab: pinned ? nil : tab.id))
         } else if selected {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(greys.wash)
+        } else if hovering, stands {
+            StandingTab(flares: false).fill(greys.hover)
         } else if hovering {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(greys.hover)
-        } else if pinned || compact || rowCarrying {
+        } else if (pinned || compact) && !stands || rowCarrying {
             // A letter with nothing behind it reads as debris. A pinned tab
             // keeps a faint ground of its own so the block of them reads as
             // one thing, and a tab down to its mark stands in the same place:
@@ -1285,7 +1292,17 @@ private struct TabPill: View, Equatable {
 
     private var colour: Color {
         if live || prefs.highContrastText { return Palette.ink }
-        return hovering ? Palette.ink.opacity(0.7) : greys.muted
+        return hovering ? Palette.ink : greys.muted
+    }
+}
+
+/// What cuts the live tab's ground: its round corners lying in the bar, and
+/// nothing standing on the card, whose curves at the foot are past its frame.
+private struct StandingGround: Shape {
+    let stands: Bool
+
+    func path(in rect: CGRect) -> Path {
+        stands ? Path(rect.insetBy(dx: -20, dy: 0)) : Path(roundedRect: rect, cornerRadius: 10, style: .continuous)
     }
 }
 

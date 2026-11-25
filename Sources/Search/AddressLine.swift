@@ -3,10 +3,10 @@ import SwiftUI
 
 // The address of the page in front, always in sight, for whoever wants it
 // (Settings › Appearance › Window › Always show the address bar, #1227,
-// #1240), with the site card's button at its end. Off unless asked for:
-// Search shows the address when you go to change it, with ⌘L. On, it sits
-// at the top of the column, as tall as a tab and in line with them, or
-// before the tabs across the top, Small or Medium.
+// #1240), with the site card's button at its end. Off, the address shows
+// when you go to change it, with ⌘L. On, it sits
+// at the top of the column, as tall as a tab and in line with them, or in a
+// row of its own under the tabs across the top (AddressRow).
 //
 // At rest it says where the page is from, as the tab at rest does
 // (AtRestLine): the site in ink, not the whole address in grey, which read
@@ -49,9 +49,9 @@ struct AddressLine: View {
     /// card is drawn by the column instead (AddressCard.Place), out over the
     /// page.
     var inColumn = false
-
-    /// The room after it, before the tabs across the top.
-    static let after: CGFloat = 8
+    /// In the row under the tabs across the top (AddressRow): on the page's
+    /// own ground, its path always said, and no button of its own.
+    var row = false
 
     /// The bench pictures the line as it is under the pointer.
     @MainActor static var benchHovering = false
@@ -60,8 +60,8 @@ struct AddressLine: View {
         // The tab says when its address changes; the browser only which tab.
         // A tab with nothing in it has the field in the middle of the window:
         // a second empty one up here would only ask the same again.
-        if let tab = browser.active, !tab.isBlank {
-            Shown(browser: browser, tab: tab, height: height, inColumn: inColumn).id(tab.id)
+        if let tab = browser.active, row || !tab.isBlank {
+            Shown(browser: browser, tab: tab, height: height, inColumn: inColumn, row: row).id(tab.id)
         }
     }
 
@@ -70,6 +70,7 @@ struct AddressLine: View {
         @ObservedObject var tab: Tab
         let height: CGFloat
         let inColumn: Bool
+        let row: Bool
         @Environment(\.greys) private var greys
         /// The line and its site button, for the site card to hang under.
         @State private var line = ViewAnchor.Box()
@@ -101,7 +102,7 @@ struct AddressLine: View {
                     HStack(spacing: 0) {
                         AtRestLine(rest: rest, size: 13, ink: Palette.ink, dim: Palette.muted, says: false, weight: .regular)
                             .layoutPriority(1)
-                        if lit, let path {
+                        if lit || row, let path {
                             Text(path)
                                 .foregroundStyle(Palette.muted)
                                 .lineLimit(1)
@@ -127,7 +128,7 @@ struct AddressLine: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                if tab.isWeb, lit {
+                if tab.isWeb, lit, !row {
                     // The site card (#1240), for a page on the web, under
                     // the pointer.
                     button("slider.horizontal.3", help: "Site Settings") {
@@ -137,11 +138,11 @@ struct AddressLine: View {
                 }
             }
             .font(.system(size: 13))
-            .padding(.leading, 12)
-            .padding(.trailing, tab.isWeb && lit ? 4 : 12)
+            .padding(.leading, row ? 8 : 12)
+            .padding(.trailing, tab.isWeb && lit && !row ? 4 : 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: height)
-            .background(lit ? greys.pinLive : greys.tile, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(row ? (lit ? greys.hover : .clear) : lit ? greys.pinLive : greys.tile, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             // Under the card while it is open, which takes its place.
             .opacity(editing ? 0 : 1)
             .animation(.easeOut(duration: 0.12), value: lit)
@@ -179,6 +180,59 @@ struct AddressLine: View {
             }
             .buttonStyle(.plain)
             .help(help)
+        }
+    }
+}
+
+/// With the tabs across the top, the row under them: back, forward and
+/// reload, the page's address, and what is done with the page most. The first
+/// row of the page's card, on its ground.
+struct AddressRow: View {
+    @ObservedObject var browser: Browser
+    @ObservedObject private var bookmarks: Bookmarks
+
+    init(browser: Browser) {
+        self.browser = browser
+        self.bookmarks = browser.bookmarks
+    }
+
+    var body: some View {
+        HStack(spacing: 2) {
+            if browser.prefs.helmDoors > 0 {
+                Helm(browser: browser).padding(.trailing, 6)
+            }
+            AddressLine(browser: browser, height: 28, row: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .zIndex(1)
+            if let tab = browser.active, tab.isWeb {
+                Page(browser: browser, tab: tab, kept: tab.address.map { bookmarks.bookmark(for: $0) != nil } ?? false)
+            }
+        }
+        .environment(\.greys, .white)
+    }
+
+    /// Watches the tab: its address changes with nothing of the browser's.
+    private struct Page: View {
+        let browser: Browser
+        @ObservedObject var tab: Tab
+        let kept: Bool
+        @State private var here = ViewAnchor.Box()
+
+        var body: some View {
+            HStack(spacing: 2) {
+                Door(icon: kept ? "bookmark.fill" : "bookmark", help: kept ? "Edit Bookmark" : "Bookmark This Page", shortcut: "bookmarks.add") {
+                    browser.bookmarkCurrent()
+                }
+                if browser.prefs.splitView {
+                    Door(icon: "rectangle.split.2x1", help: "Open in Split View", shortcut: "tabs.split") { browser.splitKey() }
+                }
+                Door(icon: "link", help: "Copy Address", shortcut: "tabs.copyAddress") { browser.copyAddress() }
+                Door(icon: "slider.horizontal.3", help: "Site Settings") {
+                    guard let view = here.view else { return }
+                    SiteCardPanel.toggle(for: tab, in: browser, under: view, button: view)
+                }
+                .background(ViewAnchor(box: here))
+            }
         }
     }
 }

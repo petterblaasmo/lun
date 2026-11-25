@@ -981,6 +981,40 @@ struct SpaceDot: View {
     }
 }
 
+/// The space on screen, by name, before the tabs across the top: a dot of
+/// its colour and what it is called. A click opens the spaces' menu.
+struct SpaceName: View {
+    @Environment(\.greys) private var greys
+    @ObservedObject var browser: Browser
+    @State private var hovering = false
+
+    private var space: Space { browser.washSpace }
+
+    var body: some View {
+        Button { SpaceMenu.show(for: browser) } label: {
+            HStack(spacing: 6) {
+                Circle().fill(space.tint ?? greys.muted).frame(width: 7, height: 7)
+                Text(browser.makingSpace ? "New Space" : space.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                    .frame(maxWidth: 120)
+                    .fixedSize()
+            }
+            .padding(.leading, 8)
+            .padding(.trailing, 10)
+            .frame(height: 24)
+            .background(hovering ? greys.pinLive : greys.tile, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(Motion.quick, value: hovering)
+        .help("\(browser.space.name) — \(KeyCombo.spacesOnCommand ? "⌘1–⌘9" : "⌃1–⌃9"), or two fingers up or down over the tabs, to switch")
+        .accessibilityLabel("Space: \(space.name)")
+    }
+}
+
 /// Every space as a button of its own, beside the bookmarks: one click to
 /// any of them, where the dot took a click and a pick from its menu. The
 /// one on screen is marked, and a click on it opens the dot's menu, so New
