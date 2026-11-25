@@ -34,8 +34,11 @@ struct WelcomePanel: View {
     @State private var sources: [ImportSource] = []
     @State private var unreadable: [String] = []
     @State private var looked = false
-    /// Nil until one is picked, which means the first.
-    @State private var source: ImportSource?
+    /// The ones to bring from, by id: any number of them. Nil until one is
+    /// pressed, which means the first.
+    @State private var chosen: Set<String>?
+    /// The ones already brought from, which aren't brought twice.
+    @State private var done: Set<String> = []
     @State private var wantsPasswords = true
     @State private var wantsHistory = true
     @State private var wantsBookmarks = true
@@ -46,15 +49,22 @@ struct WelcomePanel: View {
     @State private var isDefault = Links.isDefault
     @State private var asked = false
 
-    private var picked: ImportSource? { source ?? sources.first }
-    private var importsPasswords: Bool { picked?.importsPasswords ?? false }
+    private var picks: [ImportSource] {
+        let ids = chosen ?? Set(sources.first.map { [$0.id] } ?? [])
+        return sources.filter { ids.contains($0.id) && !done.contains($0.id) }
+    }
+    private var importsPasswords: Bool { picks.contains(where: \.importsPasswords) }
+    /// The first page's words, in after its mark has been written.
+    @State private var said = false
     private var bringsSomething: Bool { (importsPasswords && wantsPasswords) || wantsHistory || wantsBookmarks }
 
     /// Read once: the email page stays to the end once it is there, for
     /// its thanks.
     @State private var offersEmail = OptIn.offered()
-    /// For pictures: the page to open at, and the email page's state.
+    /// For pictures: the page to open at, the browsers picked there, and
+    /// the email page's state.
     var startPage = 0
+    var startChosen: Set<String>?
     var optInStart: OptInForm.Phase = .idle
     var optInEmail = ""
     @State private var began = false
@@ -99,6 +109,7 @@ struct WelcomePanel: View {
         .onAppear {
             guard !began else { return }
             began = true
+            if let startChosen { chosen = startChosen }
             go(to: min(startPage, pages - 1))
         }
     }
@@ -118,15 +129,24 @@ struct WelcomePanel: View {
 
     private var welcome: some View {
         VStack(spacing: 0) {
-            Wordmark(height: 64)
+            Wordmark(height: 88)
                 .accessibilityElement()
                 .accessibilityLabel("Lun")
-            Text("A small, fast, quiet browser for the Mac.")
-                .font(.system(size: 16))
-                .foregroundStyle(Palette.muted)
-                .padding(.top, 20)
-            devices
-                .padding(.top, 36)
+            Group {
+                Text("A small, fast, quiet browser for the Mac.")
+                    .font(.system(size: 19, weight: .medium))
+                    .tracking(-0.2)
+                    .foregroundStyle(Palette.ink)
+                    .padding(.top, 28)
+                devices
+                    .padding(.top, 40)
+            }
+            .opacity(said ? 1 : 0)
+            .offset(y: said ? 0 : 8)
+        }
+        .onAppear {
+            // After the mark, which takes about a second to write.
+            withAnimation(Motion.reduced ? nil : .easeOut(duration: 0.5).delay(0.85)) { said = true }
         }
     }
 
@@ -150,7 +170,8 @@ struct WelcomePanel: View {
         VStack(spacing: 24) {
             heading("Bring your things over.",
                     sources.isEmpty ? "Passwords, bookmarks and history from the browser you're coming from."
-                                    : "Pick the browser you're coming from. Nothing in it changes.")
+                                    : sources.count > 1 ? "Pick the browsers you're coming from. Nothing in them changes."
+                                                        : "From the browser you're coming from. Nothing in it changes.")
 
             if sources.isEmpty {
                 if unreadable.isEmpty {
@@ -166,27 +187,26 @@ struct WelcomePanel: View {
                 browsers
 
                 Box {
-                    if importsPasswords {
-                        Choice("Passwords", "Into your Mac's keychain. macOS asks once for \(picked.map { $0.name + "'s" } ?? "its") key.", on: $wantsPasswords)
+                    if importsPasswords || picks.isEmpty {
+                        Choice("Passwords", passwordsLine, on: $wantsPasswords)
                     } else {
-                        Said("Passwords",
-                             picked?.passwordsInPasswordsApp == true
-                                ? "\(picked?.name ?? "It") keeps them in the Passwords app: export them there, then bring in the file."
-                                : "Not from \(picked?.name ?? "this one") yet.")
+                        Said("Passwords", passwordsLine)
                     }
                     Rule(inset: 0)
                     Choice("Bookmarks", "Folders and all, behind the bookmark button.", on: $wantsBookmarks)
                     Rule(inset: 0)
                     Choice("History", "The last few thousand places, for finishing addresses.", on: $wantsHistory)
                 }
-                .disabled(bringing)
+                .disabled(bringing || picks.isEmpty)
+                .opacity(picks.isEmpty ? 0.5 : 1)
 
                 if let brought {
-                    HStack(spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Image(systemName: "checkmark")
                             .font(.system(size: 11, weight: .semibold))
                         Text(brought)
                             .font(.system(size: 13.5))
+                            .lineSpacing(2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .foregroundStyle(Palette.ink)
@@ -211,15 +231,37 @@ struct WelcomePanel: View {
         .animation(Motion.settle, value: brought)
     }
 
-    /// The browsers found, each under its own icon. Spaces, open tabs and
-    /// which profile are in the full page (File › Bring Things Over…).
+    /// What the passwords row says of the browsers picked: where they go,
+    /// what macOS will ask, and which of them can't give theirs.
+    private var passwordsLine: String {
+        let without = picks.filter { !$0.importsPasswords }
+        guard importsPasswords else {
+            if without.count == 1, let one = without.first {
+                return one.passwordsInPasswordsApp
+                    ? "\(one.name) keeps them in the Passwords app: export them there, then bring in the file."
+                    : "Not from \(one.name) yet."
+            }
+            return without.isEmpty ? "Into your Mac's keychain." : "Not from these yet."
+        }
+        let with = picks.filter(\.importsPasswords)
+        let key = with.count == 1 ? "\(with[0].name)'s key" : "each browser's key"
+        let rest = without.isEmpty ? "" : " Not from \(ImportSource.listed(without.map(\.name))) yet."
+        return "Into your Mac's keychain. macOS asks once for \(key).\(rest)"
+    }
+
+    /// The browsers found on this Mac, each under its own icon: any number
+    /// of them can be picked, and are brought from one after another.
+    /// Spaces, open tabs and which profile are in the full page
+    /// (File › Bring Things Over…).
     private var browsers: some View {
+        let picked = Set(picks.map(\.id))
         let row = HStack(spacing: 10) {
             ForEach(sources) { one in
-                Source(name: one.name, icon: one.appIcon, chosen: one == picked) {
-                    guard !bringing, one != picked else { return }
-                    source = one
-                    brought = nil
+                Source(name: one.name, icon: one.appIcon, chosen: picked.contains(one.id), done: done.contains(one.id)) {
+                    guard !bringing else { return }
+                    var now = chosen ?? Set(sources.first.map { [$0.id] } ?? [])
+                    if now.contains(one.id) { now.remove(one.id) } else { now.insert(one.id) }
+                    chosen = now
                 }
             }
         }
@@ -336,8 +378,9 @@ struct WelcomePanel: View {
             return ("Get Started", next)
         case 1 where bringing:
             return ("Bringing…", {})
-        case 1 where !sources.isEmpty && brought == nil:
-            return ("Bring Over from \(picked?.name ?? "It")", bringAll)
+        case 1 where !picks.isEmpty:
+            let from = picks.count > 2 ? "\(picks.count) Browsers" : ImportSource.listed(picks.map(\.name))
+            return ("Bring Over from \(from)", bringAll)
         case 3 where !isDefault:
             return ("Make Lun the Default", {
                 asked = true
@@ -353,7 +396,7 @@ struct WelcomePanel: View {
     private var second: (title: String, act: () -> Void)? {
         switch page {
         case 0: return ("Skip", finish)
-        case 1 where !sources.isEmpty && brought == nil && !bringing: return ("Not now", next)
+        case 1 where !picks.isEmpty && !bringing: return ("Not now", next)
         case 3 where !isDefault: return ("Not now", next)
         default: return nil
         }
@@ -362,7 +405,7 @@ struct WelcomePanel: View {
     private var foot: some View {
         VStack(spacing: 0) {
             Big(main.title, busy: bringing, act: main.act)
-                .disabled(bringing || (page == 1 && !sources.isEmpty && brought == nil && !bringsSomething))
+                .disabled(bringing || (page == 1 && !picks.isEmpty && !bringsSomething))
                 .keyboardShortcut(.defaultAction)
             // Its room is kept where there is none, so the button stays put
             // from page to page.
@@ -409,50 +452,75 @@ struct WelcomePanel: View {
         page = target
     }
 
+    /// From each browser picked, one after another: macOS asks for one
+    /// keychain key at a time. What came is added up; what went wrong is
+    /// said under it, by browser.
     private func bringAll() {
-        guard let source = picked else { return }
-        // The profile used most recently, without asking: the page in
-        // File › Bring Things Over… is where another is chosen.
-        let profile = source.usual
+        let queue = picks
+        guard !queue.isEmpty else { return }
         bringing = true
-        var lines: [String] = []
-        let group = DispatchGroup()
-        if wantsPasswords && source.importsPasswords {
-            group.enter()
-            DispatchQueue.global(qos: .userInitiated).async {
-                let outcome = Result { try source.read(profile: profile) }
-                DispatchQueue.main.async {
-                    switch outcome {
-                    case .success(let found):
-                        let kept = browser.keep(found)
-                        ImportRecords.note(source.name, passwords: kept)
-                        lines.append("\(kept) passwords" + (found.undecrypted > 0 ? " (\(found.undecrypted) couldn't be decrypted)" : ""))
-                    case .failure(Chromium.Trouble.noPassphrase):
-                        lines.append("passwords: macOS didn't hand over the key — allow it and try again")
-                    case .failure(Mozilla.Trouble.primaryPassword):
-                        lines.append("passwords: \(source.name) has a primary password — export them from it and bring in the CSV")
-                    case .failure:
-                        lines.append("passwords: nothing readable")
+        var passwords = 0
+        var undecrypted = 0
+        var bookmarks = 0
+        var places = 0
+        var asked = false
+        var troubles: [String] = []
+
+        func bring(_ index: Int) {
+            guard index < queue.count else {
+                var lines: [String] = []
+                if asked { lines.append("\(passwords) passwords" + (undecrypted > 0 ? " (\(undecrypted) couldn't be decrypted)" : "")) }
+                if wantsBookmarks { lines.append("\(bookmarks) bookmarks") }
+                if wantsHistory { lines.append("\(places) places") }
+                bringing = false
+                brought = ([lines.joined(separator: " · ")] + troubles).joined(separator: "\n")
+                browser.relist()
+                return
+            }
+            let source = queue[index]
+            // The profile used most recently, without asking: the page in
+            // File › Bring Things Over… is where another is chosen.
+            let profile = source.usual
+            let group = DispatchGroup()
+            if wantsPasswords && source.importsPasswords {
+                group.enter()
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let outcome = Result { try source.read(profile: profile) }
+                    DispatchQueue.main.async {
+                        switch outcome {
+                        case .success(let found):
+                            let kept = browser.keep(found)
+                            ImportRecords.note(source.name, passwords: kept)
+                            asked = true
+                            passwords += kept
+                            undecrypted += found.undecrypted
+                        case .failure(Chromium.Trouble.noPassphrase):
+                            troubles.append("\(source.name)'s passwords: macOS didn't hand over the key. Allow it and try again.")
+                        case .failure(Mozilla.Trouble.primaryPassword):
+                            troubles.append("\(source.name) has a primary password: export its passwords and bring in the CSV.")
+                        case .failure:
+                            troubles.append("\(source.name)'s passwords: nothing readable.")
+                        }
+                        group.leave()
                     }
+                }
+            }
+            if wantsBookmarks {
+                bookmarks += browser.takeBookmarks(from: source, profile: profile).added
+            }
+            if wantsHistory {
+                group.enter()
+                browser.takePlaces(from: source, profile: profile) { count in
+                    places += count
                     group.leave()
                 }
             }
-        }
-        if wantsBookmarks {
-            lines.append("\(browser.takeBookmarks(from: source, profile: profile).added) bookmarks")
-        }
-        if wantsHistory {
-            group.enter()
-            browser.takePlaces(from: source, profile: profile) { count in
-                lines.append("\(count) places")
-                group.leave()
+            group.notify(queue: .main) {
+                done.insert(source.id)
+                bring(index + 1)
             }
         }
-        group.notify(queue: .main) {
-            bringing = false
-            brought = lines.joined(separator: " · ")
-            browser.relist()
-        }
+        bring(0)
     }
 
     private func finish() {
@@ -481,14 +549,19 @@ struct WelcomePanel: View {
     // MARK: - pieces
 
     /// The mark alone, at whatever height the page wants — no plate behind
-    /// it, the same as everywhere else it's drawn.
+    /// it, the same as everywhere else it's drawn. Here it is written as
+    /// the page comes, l then u then n, unless motion is reduced.
     private struct Wordmark: View {
         let height: CGFloat
+        @State private var drawn: CGFloat = Motion.reduced ? 1 : 0
+
         var body: some View {
-            Logomark()
-                .fill(Palette.ink)
-                .aspectRatio(Logomark.canvas.width / Logomark.canvas.height, contentMode: .fit)
+            LogomarkWritten(drawn: drawn)
                 .frame(height: height)
+                .onAppear {
+                    guard drawn < 1 else { return }
+                    withAnimation(.easeInOut(duration: 0.9).delay(0.1)) { drawn = 1 }
+                }
         }
     }
 
@@ -621,6 +694,8 @@ struct WelcomePanel: View {
     private struct Pick: ViewModifier {
         let chosen: Bool
         let hovering: Bool
+        /// Already brought from: ticked still, and no longer to press.
+        var done = false
         var radius: CGFloat = 14
 
         func body(content: Content) -> some View {
@@ -635,12 +710,12 @@ struct WelcomePanel: View {
                 }
                 .overlay { if chosen { shape.strokeBorder(Palette.ink, lineWidth: 1.5) } }
                 .overlay(alignment: .topTrailing) {
-                    if chosen {
+                    if chosen || done {
                         Image(systemName: "checkmark")
                             .font(.system(size: 8.5, weight: .bold))
                             .foregroundStyle(Palette.ground)
                             .frame(width: 17, height: 17)
-                            .background(Palette.ink, in: Circle())
+                            .background(done ? Palette.muted : Palette.ink, in: Circle())
                             .padding(7)
                             .transition(.scale(scale: 0.6).combined(with: .opacity))
                     }
@@ -654,6 +729,7 @@ struct WelcomePanel: View {
         let name: String
         let icon: NSImage?
         let chosen: Bool
+        var done = false
         let pick: () -> Void
         @State private var hovering = false
 
@@ -681,14 +757,17 @@ struct WelcomePanel: View {
                         .lineLimit(1)
                         .padding(.horizontal, 6)
                 }
+                .opacity(done ? 0.55 : 1)
                 .frame(width: 104, height: 100)
-                .modifier(Pick(chosen: chosen, hovering: hovering))
+                .modifier(Pick(chosen: chosen, hovering: hovering && !done, done: done))
             }
             .buttonStyle(.plain)
+            .disabled(done)
             .onHover { hovering = $0 }
             .animation(Motion.quick, value: hovering)
             .animation(Motion.settle, value: chosen)
-            .accessibilityLabel(name)
+            .animation(Motion.settle, value: done)
+            .accessibilityLabel(done ? "\(name), brought over" : name)
             .accessibilityAddTraits(chosen ? .isSelected : [])
         }
     }
