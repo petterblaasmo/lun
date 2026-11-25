@@ -566,6 +566,8 @@ final class Preferences: ObservableObject {
     /// The tab you're on says where its page is, at rest, without a click:
     /// its site, from the address on screen (see AtRest.swift). On unless
     /// turned off.
+    /// Whether the tab you're on says it: not while the address bar does.
+    var saysAddressOnTab: Bool { showsAddress && !(addressLine && !iconColumn) }
     @Published var showsAddress: Bool {
         didSet { store.set(showsAddress, forKey: "tabs.address") }
     }
@@ -1402,7 +1404,7 @@ final class Preferences: ObservableObject {
         highContrastText = store.bool(forKey: "tabs.highContrast")
         // On for everyone who never touched it (Drice, 24 Oct 2026, on
         // Security's advice); a choice made before stands.
-        showsAddress = store.object(forKey: "tabs.address") as? Bool ?? false
+        showsAddress = store.object(forKey: "tabs.address") as? Bool ?? true
         tabClickAddressOnly = store.bool(forKey: "tabs.clickAddressOnly")
         tabClickKeepsName = store.bool(forKey: "tabs.clickKeepsName")
         shielded = store.object(forKey: "shield") as? Bool ?? true
