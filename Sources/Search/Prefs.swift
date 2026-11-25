@@ -1493,7 +1493,7 @@ final class Preferences: ObservableObject {
         launcher = store.bool(forKey: "launcher.on")
         launcherLittle = store.bool(forKey: "launcher.little")
         launcherKey = store.data(forKey: "launcher.key").flatMap { try? JSONDecoder().decode(LauncherKey.self, from: $0) }
-        recentInNewTab = store.bool(forKey: "newtab.recent")
+        recentInNewTab = store.object(forKey: "newtab.recent") as? Bool ?? true
         arcTabPopup = store.bool(forKey: "newtab.arc")
         returnTakesTop = store.bool(forKey: "field.top")
         // On for everyone who never touched it (24 Oct 2026).

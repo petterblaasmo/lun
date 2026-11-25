@@ -287,8 +287,10 @@ struct SideBar: View {
                                 .accessibilityHidden(!doorsTop)
                         }
                     }
-                    // The page's address, when it is to be in sight.
-                    if prefs.addressLine, browser.active?.isBlank == false {
+                    // The page's address, when it is to be in sight: on an
+                    // empty tab too, where it says what to type, so the rows
+                    // under it stay where they are.
+                    if prefs.addressLine {
                         AddressLine(browser: browser, height: prefs.sideRow, inColumn: true)
                             .padding(.bottom, 12)
                             // Its suggestions hang over the rows below.
@@ -1676,20 +1678,28 @@ struct SideBar: View {
     /// An agent's pill is showing in this window (AgentControl).
     private var agentHere: Bool { agents.shownIn == ObjectIdentifier(browser) }
 
+    /// The row that makes a tab. Out of sight while the tab in front is an
+    /// empty one: that row is the new tab, and two rows one over the other
+    /// both said "New Tab". Its room is kept, so nothing under the pointer
+    /// moves when it goes and comes.
     @ViewBuilder
     private var newTab: some View {
-        if icons {
-            Quiet(icon: "plus", title: "", height: rowHeight, size: prefs.sideTitle, centred: true) { browser.launch() }
-                .shortcutHelp("New Tab", "file.newTab")
-                // The column's menu on a right-click, as round it.
-                .overlay { RightClick(menu: columnMenu) }
-                .padding(.top, SideBar.gap)
-        } else {
-            Quiet(icon: "plus", title: "New Tab", height: rowHeight, size: prefs.sideTitle) { browser.launch() }
-                .shortcutHelp("New Tab", "file.newTab")
-                .overlay { RightClick(menu: columnMenu) }
-                .padding(.top, SideBar.gap)
+        let taken = browser.active?.isBlank == true
+        Group {
+            if icons {
+                Quiet(icon: "plus", title: "", height: rowHeight, size: prefs.sideTitle, centred: true) { browser.launch() }
+                    .shortcutHelp("New Tab", "file.newTab")
+            } else {
+                Quiet(icon: "plus", title: "New Tab", height: rowHeight, size: prefs.sideTitle) { browser.launch() }
+                    .shortcutHelp("New Tab", "file.newTab")
+            }
         }
+        .opacity(taken ? 0 : 1)
+        .allowsHitTesting(!taken)
+        .accessibilityHidden(taken)
+        // The column's menu on a right-click, as round it.
+        .overlay { RightClick(menu: columnMenu) }
+        .padding(.top, SideBar.gap)
     }
 
     /// The doors from one end of the column to the other, the top fading

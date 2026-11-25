@@ -184,9 +184,9 @@ struct IPhoneAskNewTab: View {
             GeometryReader { page in
                 let grid = HomeGrid.height(browser)
                 IPhoneAskLine(spot: .newTab, centred: true)
-                    .frame(width: min(Metrics.fieldWidth, max(0, page.size.width - 28)))
+                    .frame(width: Omnibox.width(in: page.size))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, page.size.height / 2 - 30 + 25 + 16 + (grid > 0 ? grid + 14 : 0))
+                    .padding(.top, Omnibox.under(in: page.size) + 16 + (grid > 0 ? grid + 14 : 0))
             }
             .onAppear { IPhoneAsk.seenOnNewTab() }
         }

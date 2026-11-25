@@ -20,6 +20,11 @@ import SwiftUI
 // the column while it is typed in. ⌘L itself still raises its field over
 // the page. A click anywhere else puts it away, as Escape does. Search's own
 // pages show their own address, and a tab with nothing in it what to type.
+//
+// It stays where it is on an empty tab and with no tab at all, saying what
+// to type: gone there, everything under it in the column moved up and down
+// as tabs opened and closed. A click on it then is a click in the field in
+// the middle of the window, which is that tab's.
 
 enum AddressWidth: String, CaseIterable, Identifiable {
     case small, medium
@@ -58,10 +63,52 @@ struct AddressLine: View {
 
     var body: some View {
         // The tab says when its address changes; the browser only which tab.
-        // A tab with nothing in it has the field in the middle of the window:
-        // a second empty one up here would only ask the same again.
-        if let tab = browser.active, row || !tab.isBlank {
+        if let tab = browser.active {
             Shown(browser: browser, tab: tab, height: height, inColumn: inColumn, row: row).id(tab.id)
+        } else {
+            Empty(browser: browser, height: height, row: row)
+        }
+    }
+
+    /// What an empty line says, there to be typed over.
+    private struct Ask: View {
+        var body: some View {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Palette.muted)
+            Text("Search or enter address")
+                .foregroundStyle(Palette.muted)
+                .lineLimit(1)
+        }
+    }
+
+    /// With no tab in front: the line as it stands on an empty one, and a
+    /// click on it a new tab.
+    private struct Empty: View {
+        let browser: Browser
+        let height: CGFloat
+        let row: Bool
+        @Environment(\.greys) private var greys
+        @State private var hovering = false
+
+        var body: some View {
+            HStack(spacing: 6) {
+                Ask()
+                Spacer(minLength: 0)
+            }
+            .font(.system(size: 13))
+            .padding(.leading, row ? 8 : 12)
+            .padding(.trailing, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: height)
+            .background(row ? (hovering ? greys.hover : .clear) : hovering ? greys.pinLive : greys.tile, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+            .onTapGesture { browser.newTab() }
+            .animation(.easeOut(duration: 0.12), value: hovering)
+            .accessibilityElement()
+            .accessibilityLabel("Search or enter address")
+            .accessibilityAddTraits(.isButton)
         }
     }
 
@@ -121,12 +168,7 @@ struct AddressLine: View {
                         }
                     }
                 } else {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Palette.muted)
-                    Text("Search or enter address")
-                        .foregroundStyle(Palette.muted)
-                        .lineLimit(1)
+                    Ask()
                 }
                 Spacer(minLength: 0)
                 if tab.isWeb, lit, !row {
@@ -150,7 +192,15 @@ struct AddressLine: View {
             .background(ViewAnchor(box: line))
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
-            .onTapGesture { if !browser.editing { browser.edit(); browser.inlineEdit = true } }
+            .onTapGesture {
+                // An empty tab's field is the one in the middle of the window.
+                if tab.isBlank {
+                    browser.askFocus()
+                } else if !browser.editing {
+                    browser.edit()
+                    browser.inlineEdit = true
+                }
+            }
             .shortcutHelp("Type an address or a search", "file.openAddress")
             // The button is only there under the pointer.
             .contextMenu { if tab.isWeb { Button("Site Settings") { siteCard() } } }

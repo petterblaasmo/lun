@@ -29,10 +29,9 @@ struct HomeGrid: View {
         // The switch first: off, the bookmarks aren't walked at each key.
         if prefs.homeGrid, browser.active?.isBlank == true, typing.typed.isEmpty,
            case let sites = browser.bookmarks.homeSites, !sites.isEmpty {
-            // The field's own width and row height, hung just under it: the
-            // field is centred, lifted 30, and 50 tall.
+            // As wide as the field, hung just under it (Omnibox.under).
             GeometryReader { page in
-                let width = min(Metrics.fieldWidth, max(0, page.size.width - 28))
+                let width = Omnibox.width(in: page.size)
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
                     ForEach(sites) { site in
                         Button { site.address.map(browser.openBookmark) } label: {
@@ -50,7 +49,7 @@ struct HomeGrid: View {
                 }
                 .frame(width: width)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top, page.size.height / 2 - 30 + 25 + 10)
+                .padding(.top, Omnibox.under(in: page.size) + 12)
             }
         }
     }

@@ -7975,7 +7975,7 @@ final class Browser: NSObject, ObservableObject {
         }
 
         guard !typed.trimmingCharacters(in: .whitespaces).isEmpty else {
-            offers = launching && prefs.recentInNewTab ? recentPlaces() : []
+            offers = listsRecent ? recentPlaces() : []
             ending = nil
             picked = nil
             siteOffer = nil
@@ -8317,19 +8317,30 @@ final class Browser: NSObject, ObservableObject {
         return typed.trimmingCharacters(in: .whitespaces).isEmpty ? "No other tabs open" : "No open tab matches"
     }
 
-    /// ⌘T's floating field before anything is typed, with Recent places in
-    /// the new tab on in Settings (off unless asked for): the last few places
-    /// you went that aren't open in this window (⌘K is for those), so the
-    /// likeliest new tab is an arrow key away. Only from this Mac's history,
-    /// nothing asked of anybody, and nothing from a private tab, which keeps
-    /// no history to offer. Nothing is chosen until an arrow key chooses it:
-    /// Return on an empty field still opens nothing.
+    /// Whether the empty field lists where you went last: a new tab's, ⌘T's
+    /// floating one or an empty tab's own, never ⌘L's over a page. Not where
+    /// something else already stands under the field: the Home grid, or the
+    /// open tabs an empty side of a pair offers.
+    private var listsRecent: Bool {
+        guard prefs.recentInNewTab else { return false }
+        if launching { return true }
+        guard let blank = active, blank.isBlank else { return false }
+        return split(for: blank) == nil && HomeGrid.height(self) == 0
+    }
+
+    /// A new tab's field before anything is typed, with Recent places in
+    /// the new tab on in Settings: the last few places you went that aren't
+    /// open in this window (⌘K is for those), so the likeliest new tab is an
+    /// arrow key away. Only from this Mac's history, nothing asked of
+    /// anybody, and nothing from a private tab, which keeps no history to
+    /// offer. Nothing is chosen until an arrow key chooses it: Return on an
+    /// empty field still opens nothing.
     private func recentPlaces() -> [Suggestion] {
         guard active?.shy != true else { return [] }
         let open = Set(tabs.compactMap { $0.address.map(History.identity(for:)) })
         return history.recent()
             .filter { !open.contains($0.key) }
-            .prefix(3)
+            .prefix(5)
             .map { Suggestion(key: $0.address, title: $0.title, url: $0.url, kind: .visited) }
     }
 

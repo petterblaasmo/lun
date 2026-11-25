@@ -316,11 +316,11 @@ private struct OpenTabs: View {
                 }
                 // As wide as the field, its rows' text under the field's.
                 .padding(.horizontal, 12)
-                .frame(width: min(Metrics.fieldWidth, max(0, geo.size.width - 28)), alignment: .leading)
+                .frame(width: Omnibox.width(in: geo.size), alignment: .leading)
                 .frame(maxWidth: .infinity)
-                // Under the field, which stands 60 points above the middle,
-                // and under the Home grid when it stands there (#1381).
-                .offset(y: geo.size.height / 2 + 10 + below)
+                // Under the field (Omnibox.under), and under the Home grid
+                // when it stands there (#1381).
+                .offset(y: Omnibox.under(in: geo.size) + 15 + below)
             }
         }
     }
