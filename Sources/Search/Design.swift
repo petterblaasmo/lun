@@ -78,7 +78,7 @@ struct Greys {
     let washOnTile: Color
     let hoverOnTile: Color
     /// What the tab you're on lies on: beside the page's card a card of its
-    /// own, lifted off the column (see Lifted); on the white, the wash, as
+    /// own, lifted off the column (see Elevated); on the white, the wash, as
     /// white on white would be a shadow alone.
     let raised: Color
     let lifts: Bool
@@ -281,13 +281,13 @@ enum Metrics {
 /// (the tab you're on), one floating over the page (the address list, a
 /// question), one over everything (the tab switcher). A hairline round each
 /// keeps its edge where the shadow is too soft to; in the dark it is light.
-enum Height {
+enum Elevation {
     case lift, float, overlay
 }
 
-struct Lifted<S: InsettableShape>: ViewModifier {
+struct Elevated<S: InsettableShape>: ViewModifier {
     @Environment(\.colorScheme) private var scheme
-    let height: Height
+    let height: Elevation
     let shape: S
     let fill: Color
 
@@ -318,9 +318,9 @@ struct Lifted<S: InsettableShape>: ViewModifier {
 }
 
 extension View {
-    /// On a card at `height` over what it lies on (see Lifted).
-    func lifted<S: InsettableShape>(_ height: Height, in shape: S, fill: Color = Palette.raised) -> some View {
-        modifier(Lifted(height: height, shape: shape, fill: fill))
+    /// On a card at `height` over what it lies on (see Elevated).
+    func elevated<S: InsettableShape>(_ height: Elevation, in shape: S, fill: Color = Palette.raised) -> some View {
+        modifier(Elevated(height: height, shape: shape, fill: fill))
     }
 }
 
@@ -333,7 +333,7 @@ struct LiveGround: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         if greys.lifts {
-            Color.clear.lifted(.lift, in: shape, fill: greys.raised)
+            Color.clear.elevated(.lift, in: shape, fill: greys.raised)
         } else {
             shape.fill(greys.raised)
         }
