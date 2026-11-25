@@ -845,7 +845,7 @@ struct Trouble: View {
                 Pill("Try again", filled: true, large: true, action: retry)
                 if let browser, let host, browser.searchURL(for: host) != nil {
                     Pill("Search the web for it", large: true) {
-                        if let url = browser.searchURL(for: host) { tab?.web?.open(url) }
+                        if let url = browser.searchURL(for: host) { tab?.web.open(url) }
                     }
                 }
             }
