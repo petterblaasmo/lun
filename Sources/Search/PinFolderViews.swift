@@ -218,8 +218,8 @@ struct FeedItemRow: View {
             }
         }
         .foregroundStyle(prefs.highContrastText || hovering ? Palette.ink : Palette.ink.opacity(0.75))
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(hovering ? greys.hover : .clear))
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hovering ? greys.hover : .clear))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .onTapGesture { if interactive { browser.openFeedItem(item) } }
         .onHover { hovering = interactive && $0 }
         .help(compact ? item.title : item.link.absoluteString)

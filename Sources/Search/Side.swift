@@ -91,8 +91,10 @@ struct SideBar: View {
     private var width: CGFloat { live ?? prefs.columnWidth }
     private static let gap: CGFloat = 2
     private static let groupInset: CGFloat = 4
-    private static let square: CGFloat = 34
-    private static let pinGap: CGFloat = 4
+    private static let square: CGFloat = 32
+    private static let pinGap: CGFloat = 6
+    /// Between the pinned squares and the rows.
+    private static let underPins: CGFloat = 16
 
     private var onRight: Bool { prefs.sidePosition == .right }
     /// Icons only (SideIcons.swift): tiles for rows, a fixed width, the
@@ -179,7 +181,7 @@ struct SideBar: View {
 
     /// `prefs`: back, forward and reload as Settings leaves them (idea 815).
     @MainActor static func beyondHelm(_ width: CGFloat, fullScreen: Bool, fold: Bool = false, prefs: Preferences) -> CGFloat {
-        width - 20 - lights(width, fullScreen: fullScreen, fold: fold, prefs: prefs) - foldDoor(fold) - Metrics.helm(prefs)
+        width - 2 * Metrics.sideInset - lights(width, fullScreen: fullScreen, fold: fold, prefs: prefs) - foldDoor(fold) - Metrics.helm(prefs)
     }
     /// The room left of the fold door, or of back, forward and reload, for
     /// the window's buttons: what the row has after the doors, up to
@@ -187,13 +189,13 @@ struct SideBar: View {
     /// column's end once narrowed, and the column, centred, slid its rows
     /// off the left and the door under the zoom button (idea 1010).
     @MainActor static func lights(_ width: CGFloat, fullScreen: Bool, fold: Bool, prefs: Preferences) -> CGFloat {
-        fullScreen ? 0 : max(0, min(Metrics.sideLights, width - 20 - Metrics.helmDoors(prefs) - foldDoor(fold)))
+        fullScreen ? 0 : max(0, min(Metrics.sideLights, width - 2 * Metrics.sideInset - Metrics.helmDoors(prefs) - foldDoor(fold)))
     }
     /// The fold door, when asked for, only where it fits clear of the zoom
     /// button (Metrics.sideLightsLeast): narrower, it goes, as Safari's does,
     /// and ⌘S and the column's menu still fold the column.
     @MainActor static func folds(_ prefs: Preferences, width: CGFloat, fullScreen: Bool) -> Bool {
-        prefs.foldButton && (fullScreen || width - 20 - Metrics.helmDoors(prefs) - foldDoor(true) >= Metrics.sideLightsLeast)
+        prefs.foldButton && (fullScreen || width - 2 * Metrics.sideInset - Metrics.helmDoors(prefs) - foldDoor(true) >= Metrics.sideLightsLeast)
     }
     /// The door that folds the column away, between the lights and back
     /// (FoldDoor), when it is asked for: one door and the air after it.
@@ -227,13 +229,14 @@ struct SideBar: View {
             } else {
                 HStack(spacing: 0) {
                     DragStrip(menu: columnMenu)
-                        .frame(width: 10 + lights)
+                        .frame(width: Metrics.sideInset + lights)
                     // Back, forward and reload's, as tall as they are: above
                     // and below them the band is still title bar.
-                    DragStrip(reserved: SideBar.foldDoor(fold) + Metrics.helm(prefs), band: 30, menu: columnMenu)
-                        .frame(width: SideBar.foldDoor(fold) + Metrics.helm(prefs))
-                    // The doors, when they are up here, at its far end.
-                    DragStrip(trailing: doorsTop ? upRoom + 10 : 0, menu: columnMenu)
+                    DragStrip(reserved: SideBar.foldDoor(fold) + (doorsTop ? Metrics.helm(prefs) : 0), band: 30, menu: columnMenu)
+                        .frame(width: SideBar.foldDoor(fold) + (doorsTop ? Metrics.helm(prefs) : 0))
+                    // The doors, when they are up here, at its far end; back,
+                    // forward and reload otherwise.
+                    DragStrip(trailing: doorsTop ? upRoom + Metrics.sideInset : Metrics.helm(prefs) + Metrics.sideInset, menu: columnMenu)
                 }
                 .frame(height: Metrics.strip)
             }
@@ -261,8 +264,10 @@ struct SideBar: View {
                             FoldDoor(browser: browser, right: prefs.sidePosition == .right)
                                 .padding(.trailing, SideBar.foldDoor(true) - 26)
                         }
+                        // At the far end of the row, unless the doors are.
+                        if !doorsTop { Spacer(minLength: 0) }
                         Helm(browser: browser)
-                        Spacer(minLength: 0)
+                        if doorsTop { Spacer(minLength: 0) }
                     }
                     .frame(height: Metrics.strip)
                     // At the column's far end, fading out as the foot rises,
@@ -295,7 +300,7 @@ struct SideBar: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, Metrics.sideInset)
             // Clear of the foot, which sits over the sidebar's bottom edge,
             // and of what plays in another tab, over the foot.
             // The rows' end with the foot, as it rises and goes: this inset
@@ -313,13 +318,13 @@ struct SideBar: View {
                 // in the column rather than over the page (AgentBanner).
                 if agentHere, !icons {
                     AgentStatus(browser: browser, style: .row)
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, Metrics.sideInset)
                         .padding(.bottom, SideBar.playerGap)
                         .transition(.opacity)
                 }
                 if let tab = browser.player {
                     PlayerRow(browser: browser, prefs: prefs, tab: tab)
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, Metrics.sideInset)
                         .padding(.bottom, SideBar.playerGap)
                         .transition(.opacity)
                 }
@@ -327,7 +332,7 @@ struct SideBar: View {
                 // above the doors (UpdateNotice).
                 if updateHere {
                     UpdateNoticeRow(prefs: prefs)
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, Metrics.sideInset)
                         .padding(.bottom, SideBar.playerGap)
                         .transition(.opacity)
                 }
@@ -588,7 +593,7 @@ struct SideBar: View {
         let scrolled = here ? browser.mapScroll(fits: fits) : nil
         if here { browser.mapDrew = (fits, scrolled) }
         return preview(row, space: space, pill: before, scrolled: scrolled)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, Metrics.sideInset)
             .frame(width: width, alignment: .topLeading)
             .environment(\.inSpaceMap, true)
     }
@@ -617,7 +622,7 @@ struct SideBar: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if !browser.squarePins.isEmpty || ghostSquare != nil {
                         pinned
-                            .padding(.bottom, 10)
+                            .padding(.bottom, SideBar.underPins)
                             // A square carried down over the rows passes
                             // over them, not under.
                             .zIndex(carriedPin ? 1 : 0)
@@ -753,7 +758,7 @@ struct SideBar: View {
                         space: browser.spaces[index].id, pill: pill)
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, Metrics.sideInset)
         .frame(width: width, alignment: .topLeading)
     }
 
@@ -798,7 +803,7 @@ struct SideBar: View {
                         }
                     }
                 }
-                .padding(.bottom, 10)
+                .padding(.bottom, SideBar.underPins)
             }
             if showsMarks {
                 SideBookmarks(browser: browser, prefs: prefs, bookmarks: browser.bookmarks, compact: icons)
@@ -951,7 +956,7 @@ struct SideBar: View {
     /// frame late, and for one frame the whole column would drag the window.
     private var rowsEnd: CGFloat {
         let pins = browser.squarePins.count
-        let pinBlock = pins == 0 ? 0 : (pinCells(pins).map(\.maxY).max() ?? 0) + 10
+        let pinBlock = pins == 0 ? 0 : (pinCells(pins).map(\.maxY).max() ?? 0) + SideBar.underPins
         return top + pinBlock + marksHeight + rowsHeight
     }
 
@@ -1090,7 +1095,7 @@ struct SideBar: View {
     /// cell allows, never taller than the classic square: past that a cell
     /// turns into a wide, short button rather than a bigger icon.
     private func pinCells(_ count: Int) -> [CGRect] {
-        let room = width - 20
+        let room = width - 2 * Metrics.sideInset
         let gap = SideBar.pinGap
         let fits = Int((room + gap) / (SideBar.square + gap))
         let rows = SideBar.pinRows(count, most: min(4, max(1, fits)))
@@ -1538,7 +1543,7 @@ struct SideBar: View {
         let gridShown = !squares.isEmpty || ghostSquare != nil
         let rowsOn = prefs.showsPinRows
         let listedShown = rowsOn && (!browser.listedPins.isEmpty || isListedGhost || browser.showsPinFolderRows)
-        let zone = PinDrop.zone(point, width: width - 20,
+        let zone = PinDrop.zone(point, width: width - 2 * Metrics.sideInset,
                                 gridBottom: gridShown ? frames.grid?.maxY : nil,
                                 listed: listedShown ? frames.listed : nil)
         switch zone {
@@ -1666,7 +1671,7 @@ struct SideBar: View {
                 .overlay { RightClick(menu: columnMenu) }
                 .padding(.top, SideBar.gap)
         } else {
-            Quiet(icon: "plus", title: "New tab", height: rowHeight, size: prefs.sideTitle) { browser.launch() }
+            Quiet(icon: "plus", title: "New Tab", height: rowHeight, size: prefs.sideTitle) { browser.launch() }
                 .shortcutHelp("New Tab", "file.newTab")
                 .overlay { RightClick(menu: columnMenu) }
                 .padding(.top, SideBar.gap)
@@ -1765,8 +1770,8 @@ private struct SideFoot: View {
             // The column's width and never more: wider, with a button per
             // space, the column took the row's width, and centred slid its
             // rows half the overflow off the left (idea 1010).
-            .frame(width: max(0, width - 2 * 10))
-            .padding(.horizontal, 10)
+            .frame(width: max(0, width - 2 * Metrics.sideInset))
+            .padding(.horizontal, Metrics.sideInset)
             .padding(.bottom, 10)
         }
     }
@@ -1804,7 +1809,7 @@ private struct SideFoot: View {
         if prefs.showsProfileDoor { kept += 1 }
         // Up, downloads keep their place whether running or not.
         if up || FetchDoor.shows(fetches, prefs, hanging: browser.downloadsHanging) { kept += 1 }
-        let free = (up ? width : width - 2 * 10) + 2 - CGFloat(kept) * door
+        let free = (up ? width : width - 2 * Metrics.sideInset) + 2 - CGFloat(kept) * door
         return max(0, Int((free / door).rounded(.down)))
     }
 }
@@ -1896,8 +1901,8 @@ private struct PinSquare: View, Equatable {
     @ObservedObject var tab: Tab
     let live: Bool
     let pill: Namespace.ID
-    var width: CGFloat = 34
-    var height: CGFloat = 34
+    var width: CGFloat = 32
+    var height: CGFloat = 32
     /// Its letter being changed.
     private let lettering: Bool
     private let selected: Bool
@@ -1907,7 +1912,7 @@ private struct PinSquare: View, Equatable {
     private let peek: Tab?
 
     init(browser: Browser, prefs: Preferences, tab: Tab, live: Bool, pill: Namespace.ID,
-         width: CGFloat = 34, height: CGFloat = 34) {
+         width: CGFloat = 32, height: CGFloat = 32) {
         self.browser = browser
         self.prefs = prefs
         self.tab = tab
@@ -1938,7 +1943,7 @@ private struct PinSquare: View, Equatable {
 
     /// The square's grey, as `background` paints it: the unread badge's ring.
     private var squareGround: Color {
-        live ? greys.pinLive : selected ? greys.wash : hovering ? greys.hover : greys.tile
+        live ? greys.raised : selected ? greys.wash : hovering ? greys.hover : greys.tile
     }
 
     /// The pin's letter: full ink with High contrast text, otherwise the
@@ -1946,7 +1951,7 @@ private struct PinSquare: View, Equatable {
     /// pointer.
     private var pinLetter: Color {
         if live || prefs.highContrastText { return Palette.ink }
-        return hovering ? Palette.ink.opacity(0.7) : greys.muted
+        return hovering ? Palette.ink : greys.muted
     }
 
     var body: some View {
@@ -1957,21 +1962,21 @@ private struct PinSquare: View, Equatable {
                 TabShortcutNumber(number: number)
             } else if tab.loading {
                 // Its page on the way, as a row's ring says.
-                Ring(size: scale * 11 / 34)
+                Ring(size: scale * 11 / 32)
             } else if prefs.glyph == .icons, let icon = tab.icon {
-                Mark(icon: icon, letter: tab.pin ?? "", size: scale * 16 / 34, dim: tab.asleep,
+                Mark(icon: icon, letter: tab.pin ?? "", size: scale * 16 / 32, dim: tab.asleep,
                      contrast: prefs.highContrastText)
             } else {
                 Text(tab.pin ?? "")
-                    .font(.system(size: scale * 12 / 34, weight: .medium))
+                    .font(.system(size: scale * 12 / 32, weight: .medium))
                     .foregroundStyle(pinLetter.opacity(tab.asleep ? 0.45 : 1))
             }
         }
-        .frame(width: scale * 16 / 34, height: scale * 16 / 34)
+        .frame(width: scale * 16 / 32, height: scale * 16 / 32)
         // What its page counts as waiting, as a row's title would have said
         // it: from the icon, not the square (UnreadBadge).
         .unreadBadge(prefs.showsPinCounts && peek == nil && !lettering && shortcutNumbers[tab.id] == nil ? tab.unread : nil,
-                     icon: scale * 16 / 34, ring: squareGround)
+                     icon: scale * 16 / 32, ring: squareGround)
         .frame(width: width, height: height)
         .background {
             Group {
@@ -1979,11 +1984,10 @@ private struct PinSquare: View, Equatable {
                     // Darker than the resting squares' grey by as much as a live
                     // row is darker than the white it sits on (Drice: the live
                     // pin barely showed among the others).
-                    RoundedRectangle(cornerRadius: scale * 9 / 34, style: .continuous)
-                        .fill(greys.pinLive)
+                    LiveGround(radius: scale * 10 / 32)
                         .modifier(LiveMatch(id: LivePill.id(browser), in: pill))
                 } else {
-                    RoundedRectangle(cornerRadius: scale * 9 / 34, style: .continuous)
+                    RoundedRectangle(cornerRadius: scale * 10 / 32, style: .continuous)
                         .fill(selected ? greys.wash :
                               hovering ? greys.hover : greys.tile)
                 }
@@ -1992,7 +1996,7 @@ private struct PinSquare: View, Equatable {
         }
         .overlay {
             if selected {
-                RoundedRectangle(cornerRadius: scale * 9 / 34, style: .continuous)
+                RoundedRectangle(cornerRadius: scale * 10 / 32, style: .continuous)
                     .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
                     .allowsHitTesting(false)
             }
@@ -2000,12 +2004,12 @@ private struct PinSquare: View, Equatable {
         .overlay(alignment: .topTrailing) {
             // The peek opened from it, while it is up.
             if let page = peek {
-                PeekBadge(page: page, size: scale * 16 / 34)
+                PeekBadge(page: page, size: scale * 16 / 32)
                     .offset(x: scale * 4 / 34, y: -scale * 4 / 34)
             }
         }
         .animation(Motion.quick, value: peek?.id)
-        .contentShape(RoundedRectangle(cornerRadius: scale * 9 / 34, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: scale * 10 / 32, style: .continuous))
         .modifier(TabPress(enabled: !lettering && !pickedAmongOthers, active: live, selected: $selectedOnPress) {
             browser.clearTabSelection()
             browser.select(tab)
@@ -2145,7 +2149,7 @@ private struct SideRow: View, Equatable {
                     // The site's icon, or with Letters its letter: beside the
                     // title either way, as Settings says (#919).
                     if !tab.isBlank {
-                        Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: prefs.roomyTabs ? 17 : 15,
+                        Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: prefs.roomyTabs ? 18 : 16,
                              dim: putAway || dim, contrast: prefs.highContrastText)
                             // A coding agent at work here: a dot on the
                             // icon's corner, the row as it was.
@@ -2178,7 +2182,7 @@ private struct SideRow: View, Equatable {
                     // The page is translated (Translate.swift).
                     TranslateSign(tab: tab, colour: colour)
                     TitleAtRest(label: tab.label, rest: rest, shown: atRest, hovering: hovering,
-                                size: prefs.sideTitle, colour: colour, roomy: true, dim: dim)
+                                size: prefs.sideTitle, colour: colour, roomy: true, dim: dim, live: live)
                 }
             }
             // Pushed to the leading edge by its frame, not a Spacer: the
@@ -2247,10 +2251,9 @@ private struct SideRow: View, Equatable {
                         // Browser.close), and says so, as Arc's does; so is
                         // a grouped tab's page while it is open (closeTab).
                         Image(systemName: tab.pin != nil || (putsAway && !tab.asleep) ? "minus" : "xmark")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(Palette.muted)
+                            .font(.system(size: 9.5, weight: .semibold))
+                            .foregroundStyle(Palette.ink)
                             .frame(width: 15, height: 15)
-                            .background(Palette.ink.opacity(0.07), in: Circle())
                             .transition(.opacity)
                     }
                 }
@@ -2272,14 +2275,14 @@ private struct SideRow: View, Equatable {
         .background { ground.animation(Motion.quick, value: live) }
         .overlay {
             if selected {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
         .modifier(Shake(travel: shake))
         .modifier(Give(pressed: pressed && prefs.tabsGive))
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .modifier(OneClick(double: false) {
             guard interactive, !selectedOnPress, TabClick.flags.intersection([.command, .shift, .option]).isEmpty else { return }
             browser.clearTabSelection()
@@ -2321,20 +2324,20 @@ private struct SideRow: View, Equatable {
         if live {
             ZStack(alignment: .leading) {
                 // Under a pane of Liquid Glass, the glass is its ground.
-                Rectangle().fill(liquid ? Color.clear : greys.wash)
+                if !liquid { LiveGround() }
                 if prefs.showsReading {
                     GeometryReader { geo in
                         ReadingFill(meter: tab.meter, width: geo.size.width)
                     }
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             .modifier(LiveMatch(id: LivePill.id(browser), in: pill, tab: tab.id))
         } else if selected {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(greys.wash)
         } else if hovering {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(greys.hover)
         }
     }
@@ -2343,7 +2346,7 @@ private struct SideRow: View, Equatable {
         if live || prefs.highContrastText {
             return putAway ? Palette.ink.opacity(0.45) : Palette.ink
         }
-        let colour = hovering ? Palette.ink.opacity(0.7) : greys.muted
+        let colour = hovering ? Palette.ink : greys.muted
         return putAway ? colour.opacity(0.45) : colour
     }
 }
@@ -2366,23 +2369,23 @@ struct Quiet: View {
             HStack(spacing: 8) {
                 if centred { Spacer(minLength: 0) }
                 Image(systemName: icon)
-                    .font(.system(size: 10, weight: .medium))
-                    .frame(width: 15)
+                    .font(.system(size: 12))
+                    .frame(width: 16)
                 if !title.isEmpty {
                     Text(title)
                         .font(.system(size: size))
                 }
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(hovering ? Palette.ink.opacity(0.7) : greys.faint)
+            .foregroundStyle(hovering ? Palette.ink : greys.muted)
             .padding(.leading, centred ? 0 : 10)
             .frame(height: height)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(hovering ? greys.hover : .clear)
             )
-            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
@@ -2488,13 +2491,13 @@ struct Door: View {
             if opened { opened = false } else { act() }
         } label: {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12.5))
                 // At rest in the ground's own grey, as a tab's title is: the
                 // plain ground's Palette.muted, but black or white let
                 // through, so it stands off whatever it lies on. An opaque
                 // mid grey vanished on glass with Transparency up, where the
                 // ground is whatever is behind the window.
-                .foregroundStyle(on ? Palette.ink : (hovering ? Palette.ink.opacity(0.7) : greys.muted))
+                .foregroundStyle(on ? Palette.ink : (hovering ? Palette.ink : greys.muted))
                 .offset(x: nudge)
                 .frame(width: 26, height: 26)
                 .background(

@@ -83,18 +83,23 @@ struct SplitTabItem: View {
             }
         }
         .background {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(greys.tile)
-                .padding(.vertical, inset)
-                .allowsHitTesting(false)
+            Group {
+                if live {
+                    LiveGround()
+                } else {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(greys.tile)
+                }
+            }
+            .padding(.vertical, inset)
+            .allowsHitTesting(false)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Palette.hairline, lineWidth: live && greys.lifts ? 0 : 1)
                 .padding(.vertical, inset)
                 .allowsHitTesting(false)
         }
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Split tabs")
         .animation(Motion.quick, value: hovered)
@@ -239,7 +244,7 @@ private struct SplitTabHalf: View {
             .modifier(OptionClick { if interactive && !editing { browser.optionClick(tab) } })
             .overlay {
                 if browser.selectedTabIDs.contains(tab.id) {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
                         .allowsHitTesting(false)
                 }
@@ -277,7 +282,7 @@ private struct SplitTabHalf: View {
     /// The grey's shape: round, but square on the side it shares with the
     /// other half while that one is lit too.
     private var shape: UnevenRoundedRectangle {
-        let round: CGFloat = 9
+        let round: CGFloat = 10
         // Square where it meets a lit neighbour; round at the ends and
         // beside one that isn't.
         let before: CGFloat = !first && joinedBefore ? 0 : round

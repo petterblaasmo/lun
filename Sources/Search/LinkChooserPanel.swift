@@ -411,7 +411,7 @@ private struct SpaceRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
         .background(marked ? Palette.wash : hovering ? Palette.hover : .clear,
-                    in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .onHover { hovering = $0 }
         .animation(Motion.quick, value: hovering)
     }

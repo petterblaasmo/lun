@@ -838,7 +838,7 @@ struct SwipeCard: View {
                 Spacer(minLength: 0)
             }
             .frame(maxHeight: .infinity)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, Metrics.sideInset)
             .frame(width: width, alignment: .topLeading)
             .modifier(SwipeShift(offset: browser.spaceSwipeOffset, by: width, across: true))
         }

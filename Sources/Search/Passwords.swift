@@ -251,7 +251,7 @@ struct PasswordsPanel: View {
                             .padding(.horizontal, 10)
                             .padding(.vertical, 7)
                     }
-                    .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     Pill("Save", filled: true, action: keep)
                         .disabled(Vault.host(of: site).isEmpty || password.isEmpty)
                 }
@@ -273,7 +273,7 @@ struct PasswordsPanel: View {
                     .padding(.vertical, 7)
             }
             .font(.system(size: 12.5))
-            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
 
         private func keep() {

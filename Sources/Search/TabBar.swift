@@ -251,9 +251,9 @@ struct TabBar: View {
                             .frame(width: 15, height: 15)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 6)
-                            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             .background(
-                                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
                                     .fill(plussed ? Palette.hover : .clear)
                             )
                     }
@@ -1051,14 +1051,14 @@ private struct TabPill: View, Equatable {
         .background { ground.animation(Motion.quick, value: rowCarrying) }
         .overlay {
             if selected {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
         .modifier(Shake(travel: shake))
         .modifier(Give(pressed: pressed && prefs.tabsGive))
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .modifier(Pressing(down: $pressed, enabled: prefs.tabsGive))
         // Never both at once.
         //
@@ -1257,13 +1257,13 @@ private struct TabPill: View, Equatable {
                     ReadingFill(meter: tab.meter, width: span)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .modifier(LiveMatch(id: "live", in: pill, tab: pinned ? nil : tab.id))
         } else if selected {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(greys.wash)
         } else if hovering {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(greys.hover)
         } else if pinned || compact || rowCarrying {
             // A letter with nothing behind it reads as debris. A pinned tab
@@ -1278,7 +1278,7 @@ private struct TabPill: View, Equatable {
             // tab just passed lies half under the one carried, its title at
             // its left under it too, and the half left showing was nothing,
             // so it seemed gone until the hand moved on (#898).
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(greys.tile)
         }
     }

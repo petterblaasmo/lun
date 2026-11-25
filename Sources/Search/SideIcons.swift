@@ -158,13 +158,13 @@ struct IconTile: View {
         .background { if !half { ground.animation(Motion.quick, value: live) } }
         .overlay {
             if browser.selectedTabIDs.contains(tab.id) {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
         .modifier(Give(pressed: pressed && prefs.tabsGive))
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .modifier(TabPress(enabled: interactive && !browser.isPickedAmongOthers(tab), active: live, selected: $selectedOnPress, pressing: $pressed) {
             browser.clearTabSelection()
             browser.select(tab)
@@ -232,13 +232,12 @@ struct IconTile: View {
     @ViewBuilder
     private var ground: some View {
         if live {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(greys.pinLive)
+            LiveGround()
                 .modifier(LiveMatch(id: LivePill.id(browser), in: pill))
         } else if browser.selectedTabIDs.contains(tab.id) {
-            RoundedRectangle(cornerRadius: 9, style: .continuous).fill(greys.wash)
+            RoundedRectangle(cornerRadius: 10, style: .continuous).fill(greys.wash)
         } else if hovering {
-            RoundedRectangle(cornerRadius: 9, style: .continuous).fill(greys.hover)
+            RoundedRectangle(cornerRadius: 10, style: .continuous).fill(greys.hover)
         }
     }
 }
@@ -321,7 +320,7 @@ struct IconPair: View {
             .opacity(separation.leaving.map { leaving in leaving != tab.id && pages.contains { $0.id == leaving } } == true ? 0.35 : 1)
             .background {
                 if focused == tab.id {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(greys.pinLive)
                         .padding(2)
                         .modifier(LiveMatch(id: LivePill.id(browser), in: pill))

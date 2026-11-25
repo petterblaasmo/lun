@@ -88,7 +88,7 @@ struct AddressLine: View {
             .padding(.trailing, browser.editingInline || !tab.isWeb ? 10 : 4)
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: height)
-            .background(greys.hover, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .background(greys.hover, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .background(ViewAnchor(box: line))
             .contentShape(Rectangle())
             .onTapGesture { if !browser.editing { browser.edit(); browser.inlineEdit = true } }

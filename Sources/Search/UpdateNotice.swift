@@ -90,14 +90,14 @@ struct UpdateNoticeRow: View {
             .frame(height: prefs.sideRow)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(hovering ? greys.hover : .clear)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Palette.hairline, lineWidth: 1)
             )
-            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .onHover { hovering = $0 }
             .contextMenu {
                 Button(UpdateNotice.button(shown.kind)) { UpdateNotice.act(shown.kind) }

@@ -49,7 +49,7 @@ struct ExtensionsPage: View {
                             .font(.system(size: 12.5))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 7)
-                            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                             if !extensions.busy.isEmpty {
                                 Ring(size: 12)
                             } else {

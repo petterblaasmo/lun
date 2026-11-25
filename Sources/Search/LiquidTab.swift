@@ -106,7 +106,7 @@ private struct LiveLens: View {
             if let mark = marks.first(where: { $0.tab == active }) ?? marks.first,
                !over || motion.moving > 0 {
                 let aim = Aim(rect: geo[mark.anchor], tab: mark.tab, space: space)
-                LiquidPane(cornerRadius: 9, motion: over ? nil : motion)
+                LiquidPane(cornerRadius: 10, motion: over ? nil : motion)
                     .frame(width: max(0, motion.frame.width), height: max(0, motion.frame.height))
                     .scaleEffect(x: motion.stretch.width, y: motion.stretch.height)
                     .position(x: motion.frame.midX, y: motion.frame.midY)
