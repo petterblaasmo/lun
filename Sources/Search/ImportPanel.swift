@@ -469,7 +469,7 @@ struct ImportPanel: View {
         let parts = [(record.bookmarks, "bookmark"), (record.places, "place"), (record.passwords, "password"),
                      (record.spaces ?? 0, "space"), (record.pinned ?? 0, "pinned tab")]
             .filter { $0.0 > 0 }.map { count($0.0, $0.1) }
-        let what = parts.isEmpty ? "Nothing new" : ListFormatter.localizedString(byJoining: parts)
+        let what = parts.isEmpty ? "Nothing new" : ImportSource.listed(parts)
         return "\(what), \(record.date.formatted(.dateTime.day().month()))"
     }
 

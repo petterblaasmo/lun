@@ -1448,12 +1448,17 @@ enum ImportSource: Identifiable, Hashable {
         return out
     }
 
-    /// The same, as a line: "Bookmarks, history, passwords and open tabs".
-    var canBringLine: String {
-        // In the app's own language, not the Mac's: "passwords og open tabs".
+    /// "a, b and c", in the app's own language, not the Mac's: on a
+    /// Norwegian one it read "passwords og open tabs".
+    static func listed(_ parts: [String]) -> String {
         let english = ListFormatter()
         english.locale = Locale(identifier: "en")
-        let line = english.string(from: canBring) ?? canBring.joined(separator: ", ")
+        return english.string(from: parts) ?? parts.joined(separator: ", ")
+    }
+
+    /// The same, as a line: "Bookmarks, history, passwords and open tabs".
+    var canBringLine: String {
+        let line = ImportSource.listed(canBring)
         return line.prefix(1).uppercased() + line.dropFirst()
     }
 
