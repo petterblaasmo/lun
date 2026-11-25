@@ -58,7 +58,9 @@ struct AddressLine: View {
 
     var body: some View {
         // The tab says when its address changes; the browser only which tab.
-        if let tab = browser.active {
+        // A tab with nothing in it has the field in the middle of the window:
+        // a second empty one up here would only ask the same again.
+        if let tab = browser.active, !tab.isBlank {
             Shown(browser: browser, tab: tab, height: height, inColumn: inColumn).id(tab.id)
         }
     }
@@ -77,13 +79,45 @@ struct AddressLine: View {
 
         private var url: URL? { tab.page?.url ?? tab.address }
         private var rest: AtRest? { AtRest.of(url) }
+        /// What follows the site, said under the pointer: the page's own path.
+        private var path: String? {
+            guard let url, url.scheme == "http" || url.scheme == "https" else { return nil }
+            let path = url.path() + (url.query().map { "?" + $0 } ?? "")
+            return path.isEmpty || path == "/" ? nil : path.removingPercentEncoding ?? path
+        }
         private var lit: Bool { hovering || AddressLine.benchHovering }
         private var editing: Bool { browser.editingInline }
 
         var body: some View {
             HStack(spacing: 6) {
                 if let rest {
-                    AtRestLine(rest: rest, size: 12.5, ink: Palette.ink, dim: Palette.muted)
+                    if rest.kind == .notSecure {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Palette.unsafe)
+                            .help("Not secure")
+                            .accessibilityLabel("Not secure")
+                    }
+                    HStack(spacing: 0) {
+                        AtRestLine(rest: rest, size: 13, ink: Palette.ink, dim: Palette.muted, says: false, weight: .regular)
+                            .layoutPriority(1)
+                        if lit, let path {
+                            Text(path)
+                                .foregroundStyle(Palette.muted)
+                                .lineLimit(1)
+                                .fixedSize()
+                                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                                .clipped()
+                                .mask {
+                                    HStack(spacing: 0) {
+                                        Rectangle()
+                                        LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing).frame(width: 16)
+                                    }
+                                }
+                        }
+                    }
+                } else if tab.isBlank == false, let title = tab.page?.title {
+                    Text(title).foregroundStyle(Palette.ink).lineLimit(1)
                 } else {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 11, weight: .medium))
@@ -93,21 +127,21 @@ struct AddressLine: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                if tab.isWeb {
-                    // The site card (#1240), for a page on the web.
+                if tab.isWeb, lit {
+                    // The site card (#1240), for a page on the web, under
+                    // the pointer.
                     button("slider.horizontal.3", help: "Site Settings") {
-                        guard let under = line.view, let from = options.view else { return }
-                        SiteCardPanel.toggle(for: tab, in: browser, under: under, button: from)
+                        siteCard()
                     }
                     .background(ViewAnchor(box: options))
                 }
             }
-            .font(.system(size: 12.5))
-            .padding(.leading, 10)
-            .padding(.trailing, tab.isWeb ? 4 : 10)
+            .font(.system(size: 13))
+            .padding(.leading, 12)
+            .padding(.trailing, tab.isWeb && lit ? 4 : 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: height)
-            .background(lit ? greys.wash : greys.hover, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(lit ? greys.pinLive : greys.tile, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             // Under the card while it is open, which takes its place.
             .opacity(editing ? 0 : 1)
             .animation(.easeOut(duration: 0.12), value: lit)
@@ -116,24 +150,31 @@ struct AddressLine: View {
             .onHover { hovering = $0 }
             .onTapGesture { if !browser.editing { browser.edit(); browser.inlineEdit = true } }
             .shortcutHelp("Type an address or a search", "file.openAddress")
+            // The button is only there under the pointer.
+            .contextMenu { if tab.isWeb { Button("Site Settings") { siteCard() } } }
             // Where the column is to draw the card.
             .anchorPreference(key: AddressCard.Place.self, value: .bounds) { editing && inColumn ? $0 : nil }
             // Across the top nothing cuts it off: it opens where it is.
             .overlay(alignment: .topLeading) {
                 if editing && !inColumn {
-                    AddressCard(browser: browser, height: height, width: AddressCard.width(for: width))
+                    AddressCard(browser: browser, height: height, width: AddressCard.width(for: width), line: width)
                 }
             }
             .animation(.easeOut(duration: 0.15), value: editing)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         }
 
+        private func siteCard() {
+            guard let under = line.view else { return }
+            SiteCardPanel.toggle(for: tab, in: browser, under: under, button: options.view ?? under)
+        }
+
         private func button(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
             Button(action: action) {
                 Image(systemName: symbol)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Palette.muted)
-                    .frame(width: 22, height: 22)
+                    .foregroundStyle(Palette.ink)
+                    .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -143,38 +184,66 @@ struct AddressLine: View {
 }
 
 /// The address bar typed in: the field and its suggestions in one card, as
-/// a command bar is, wider than the line, a third of the column's width out
-/// over the page as Arc's is.
-/// Each row a title over its site (Omnibox.Row, stacked).
+/// a command bar is, as wide as the field in the middle of the window and so
+/// out over the page.
 struct AddressCard: View {
     @ObservedObject var browser: Browser
     /// The line's height, which the card's field row is a little taller than.
     let height: CGFloat
     let width: CGFloat
+    /// The line's own width, which the card keeps until something is typed.
+    let line: CGFloat
 
-    /// The card's width for a line this wide: in the column, about a third
-    /// of the column's width past its edge.
-    static func width(for line: CGFloat) -> CGFloat { (line * 1.4).rounded() }
+    /// The card's width for a line this wide, in a window this wide.
+    static func width(for line: CGFloat, window: CGFloat? = nil) -> CGFloat {
+        max(line, min(Metrics.fieldWidth, (window ?? .infinity) - 2 * Metrics.sideInset))
+    }
+
+    /// The icon of the place Return would go to, or the glass.
+    private var lead: NSImage? {
+        guard let picked = browser.picked ?? (browser.ending != nil ? 0 : nil), browser.offers.indices.contains(picked) else { return nil }
+        let offer = browser.offers[picked]
+        switch offer.kind {
+        case .search, .suggested, .searched, .command: return nil
+        default: return Favicons.shared.cached(for: offer.url)
+        }
+    }
+
+    /// Opened and not typed in yet: the address selected, the ring round it.
+    private var untouched: Bool { browser.offers.isEmpty && browser.siteOffer == nil && browser.switcherNote == nil }
 
     @State private var frame: CGRect = .zero
     @State private var clicks: Any?
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Palette.muted)
-                AddressField(browser: browser, size: 13.5)
+            HStack(spacing: 10) {
+                if !untouched {
+                    if let lead {
+                        Mark(icon: lead, letter: "", size: 16)
+                    } else {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Palette.muted)
+                            .frame(width: 16)
+                    }
+                }
+                AddressField(browser: browser, size: untouched ? 13 : 15)
             }
-            .padding(.horizontal, 14)
-            .frame(height: max(height, 28) + 12)
+            .padding(.horizontal, untouched ? 12 : 16)
+            .frame(height: untouched ? max(height, 32) : 48)
             Omnibox(browser: browser, over: false, listOnly: width)
         }
-        .frame(width: width, alignment: .top)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.16), radius: 24, y: 10)
+        .frame(width: untouched ? line : width, alignment: .top)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: untouched ? 10 : 16, style: .continuous))
+        .overlay {
+            if untouched {
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .strokeBorder(Color(nsColor: .controlAccentColor), lineWidth: 2)
+                    .padding(-3)
+                    .allowsHitTesting(false)
+            }
+        }
         .fixedSize(horizontal: false, vertical: true)
         .transition(.scale(scale: 0.98, anchor: .topLeading).combined(with: .opacity))
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }

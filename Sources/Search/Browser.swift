@@ -8436,7 +8436,14 @@ final class Browser: NSObject, ObservableObject {
         typed = words ?? peek?.absoluteString ?? shownAddress
         editing = true
         editingPeek = peek != nil
+        // Where the address is in sight, it is changed there.
+        inlineEdit = peek == nil && editsInLine
         focusRequest += 1
+    }
+
+    /// The address bar is on screen for the page in front, for ⌘L to open.
+    private var editsInLine: Bool {
+        prefs.addressLine && prefs.sidebar && !prefs.iconColumn && !folded && !fullScreen && active.map { !$0.isBlank } ?? false
     }
 
     func dismiss() {

@@ -285,9 +285,9 @@ struct SideBar: View {
                         }
                     }
                     // The page's address, when it is to be in sight.
-                    if prefs.addressLine {
+                    if prefs.addressLine, browser.active?.isBlank == false {
                         AddressLine(browser: browser, height: prefs.sideRow, inColumn: true)
-                            .padding(.bottom, 6)
+                            .padding(.bottom, 12)
                             // Its suggestions hang over the rows below.
                             .zIndex(1)
                     }
@@ -430,7 +430,7 @@ struct SideBar: View {
                 if let place, browser.editingInline {
                     let line = geometry[place]
                     let width = AddressCard.width(for: line.width)
-                    AddressCard(browser: browser, height: prefs.sideRow, width: width)
+                    AddressCard(browser: browser, height: prefs.sideRow, width: width, line: line.width)
                         .offset(x: prefs.sidePosition == .right ? line.maxX - width : line.minX, y: line.minY)
                 }
             }

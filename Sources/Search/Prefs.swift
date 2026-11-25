@@ -1347,7 +1347,7 @@ final class Preferences: ObservableObject {
         sideWidth = min(Metrics.sideMax, max(Metrics.sideMin, CGFloat(width)))
         cards = store.object(forKey: "layout.cards") as? Bool ?? true
         cardsInFullScreen = store.bool(forKey: "layout.cardsFullScreen")
-        addressLine = store.bool(forKey: "address.shown")
+        addressLine = store.object(forKey: "address.shown") as? Bool ?? true
         let fades = store.bool(forKey: "scrollbars.fade")
         scrollbarsFade = fades
         Scrollbars.fade = fades
@@ -1402,7 +1402,7 @@ final class Preferences: ObservableObject {
         highContrastText = store.bool(forKey: "tabs.highContrast")
         // On for everyone who never touched it (Drice, 24 Oct 2026, on
         // Security's advice); a choice made before stands.
-        showsAddress = store.object(forKey: "tabs.address") as? Bool ?? true
+        showsAddress = store.object(forKey: "tabs.address") as? Bool ?? false
         tabClickAddressOnly = store.bool(forKey: "tabs.clickAddressOnly")
         tabClickKeepsName = store.bool(forKey: "tabs.clickKeepsName")
         shielded = store.object(forKey: "shield") as? Bool ?? true
@@ -1659,7 +1659,7 @@ final class Preferences: ObservableObject {
             .flatMap { Preferences.sidePanelWidths.contains($0) ? $0 : nil }, or: 380)
         take(\.cards, "layout.cards", store.object(forKey: "layout.cards") as? Bool, or: true)
         take(\.cardsInFullScreen, store.bool(forKey: "layout.cardsFullScreen"))
-        take(\.addressLine, store.bool(forKey: "address.shown"))
+        take(\.addressLine, store.object(forKey: "address.shown") as? Bool ?? true)
         take(\.scrollbarsFade, store.bool(forKey: "scrollbars.fade"))
         take(\.addressWidth, "address.width", store.string(forKey: "address.width").flatMap(AddressWidth.init), or: .small)
         take(\.glass, store.bool(forKey: "window.glass"))
