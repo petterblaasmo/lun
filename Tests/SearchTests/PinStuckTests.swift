@@ -50,8 +50,8 @@ final class PinStuckTests: XCTestCase {
         for tab in browser.tabs.prefix(6) { browser.pin(tab) }
         let window = makeWindow(browser)
         try await settle()
-        let room = browser.prefs.sideWidth - 20
-        let x = 10 + room / 6, y = Metrics.strip + 17
+        let room = browser.prefs.sideWidth - 2 * Metrics.sideInset
+        let x = Metrics.sideInset + room / 6, y = Metrics.strip + 16
         let last = try await carry(from: point(x: x, y: y, in: window), through: [
             point(x: x + 20, y: y, in: window),
             point(x: x + 10, y: y, in: window),
@@ -86,10 +86,10 @@ final class PinStuckTests: XCTestCase {
         browser.select(t[2])
         let window = makeWindow(browser)
         try await settle()
-        let room = browser.prefs.sideWidth - 20
-        let last = try await carry(from: point(x: 10 + room / 6, y: Metrics.strip + 17, in: window), through: [
-            point(x: 10 + room / 6, y: Metrics.strip + 40, in: window),
-            point(x: 80, y: Metrics.strip + 44 + 30 + 30 + 4, in: window),
+        let room = browser.prefs.sideWidth - 2 * Metrics.sideInset
+        let last = try await carry(from: point(x: Metrics.sideInset + room / 6, y: Metrics.strip + 16, in: window), through: [
+            point(x: Metrics.sideInset + room / 6, y: Metrics.strip + 40, in: window),
+            point(x: 80, y: Metrics.strip + 48 + 34 + 34 + 4, in: window),
         ], in: window)
         iconArrives(t[0], in: browser)
         try await settle()
@@ -101,7 +101,7 @@ final class PinStuckTests: XCTestCase {
         XCTAssertEqual(browser.squarePins.map(\.id), [t[0], t[1]].map(\.id))
         let loose = browser.tabs.filter { $0.pin == nil }
         for row in [1, 2, 0] {
-            try await click(point(x: 160, y: Metrics.strip + 44 + 14 + CGFloat(row) * 30, in: window), in: window)
+            try await click(point(x: 160, y: Metrics.strip + 48 + 16 + CGFloat(row) * 34, in: window), in: window)
             XCTAssertEqual(browser.activeID, loose[row].id, "row \(row) where it was before the carry")
         }
     }
@@ -116,11 +116,11 @@ final class PinStuckTests: XCTestCase {
         browser.select(t[5])
         let window = makeWindow(browser)
         try await settle()
-        let top = Metrics.strip + 44
-        let room = browser.prefs.sideWidth - 20
-        let last = try await carry(from: point(x: 70, y: top + 14, in: window), through: [
+        let top = Metrics.strip + 48
+        let room = browser.prefs.sideWidth - 2 * Metrics.sideInset
+        let last = try await carry(from: point(x: 70, y: top + 16, in: window), through: [
             point(x: 70, y: Metrics.strip + 30, in: window),
-            point(x: 10 + room / 2, y: Metrics.strip + 17, in: window),
+            point(x: Metrics.sideInset + room / 2, y: Metrics.strip + 16, in: window),
         ], in: window)
         XCTAssertEqual(CarryGuard.count, 1, "carried")
         let empty = point(x: 100, y: 480, in: window)
@@ -131,7 +131,7 @@ final class PinStuckTests: XCTestCase {
         XCTAssertNil(t[1].pin, "not pinned")
         XCTAssertEqual(browser.squarePins.map(\.id), [t[0].id])
         // The rows where they were: no line left open among them.
-        try await click(point(x: 160, y: top + 14 + 30, in: window), in: window)
+        try await click(point(x: 160, y: top + 16 + 34, in: window), in: window)
         XCTAssertEqual(browser.activeID, t[2].id)
         // The release it never had, over the grid: nothing comes of it.
         try await send(.leftMouseUp, at: last, in: window)
@@ -195,6 +195,7 @@ final class PinStuckTests: XCTestCase {
         let browser = Browser(record: WindowRecord())
         browsers.append(browser)
         browser.prefs.sidebar = true
+        browser.prefs.addressLine = false
         browser.prefs.usesTabGroups = false
         browser.prefs.splitView = false
         browser.prefs.listsPins = false
