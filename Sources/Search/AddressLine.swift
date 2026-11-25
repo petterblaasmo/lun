@@ -188,11 +188,21 @@ struct AddressLine: View {
 /// out over the page.
 struct AddressCard: View {
     @ObservedObject var browser: Browser
+    /// What is typed and what answers it, which the browser doesn't publish.
+    @ObservedObject private var typing: FieldState
     /// The line's height, which the card's field row is a little taller than.
     let height: CGFloat
     let width: CGFloat
     /// The line's own width, which the card keeps until something is typed.
     let line: CGFloat
+
+    init(browser: Browser, height: CGFloat, width: CGFloat, line: CGFloat) {
+        self.browser = browser
+        self.typing = browser.typing
+        self.height = height
+        self.width = width
+        self.line = line
+    }
 
     /// The card's width for a line this wide, in a window this wide.
     static func width(for line: CGFloat, window: CGFloat? = nil) -> CGFloat {
