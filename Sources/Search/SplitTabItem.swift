@@ -212,7 +212,7 @@ private struct SplitTabHalf: View {
     /// With room for the site's name beside its lock and port; else the
     /// title stands in for it. A warning is said however little room.
     private var rest: AtRest? {
-        guard focused && !editing && !narrow, let said = AtRest.said(tab.restAddress, always: prefs.showsAddress) else { return nil }
+        guard focused && !editing && !narrow, let said = AtRest.said(tab.restAddress, always: prefs.saysAddressOnTab) else { return nil }
         guard let titleRoom, !said.warns else { return said }
         return titleRoom - AtRestLine.besideName(said, size: 12) >= Metrics.tabTitleRoom ? said : nil
     }
