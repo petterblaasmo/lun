@@ -167,7 +167,7 @@ struct WelcomePanel: View {
 
                 Box {
                     if importsPasswords {
-                        Choice("Passwords", "Into your Mac's keychain. macOS asks once for \(picked?.name ?? "its") key.", on: $wantsPasswords)
+                        Choice("Passwords", "Into your Mac's keychain. macOS asks once for \(picked.map { $0.name + "'s" } ?? "its") key.", on: $wantsPasswords)
                     } else {
                         Said("Passwords",
                              picked?.passwordsInPasswordsApp == true
@@ -177,7 +177,7 @@ struct WelcomePanel: View {
                     Rule(inset: 0)
                     Choice("Bookmarks", "Folders and all, behind the bookmark button.", on: $wantsBookmarks)
                     Rule(inset: 0)
-                    Choice("History", "The last few thousand places, so the address bar knows where you go.", on: $wantsHistory)
+                    Choice("History", "The last few thousand places, for finishing addresses.", on: $wantsHistory)
                 }
                 .disabled(bringing)
 
@@ -233,7 +233,7 @@ struct WelcomePanel: View {
 
     private var hold: some View {
         VStack(spacing: 24) {
-            heading("Tabs on the side, or on top.", "Titles down the side or across the top. Change your mind any time with ⇧⌘S.")
+            heading("Tabs on the side, or on top.", "Change your mind any time with ⇧⌘S.")
             HStack(spacing: 12) {
                 Way(title: "Sidebar", sidebar: true, glyph: prefs.glyph, chosen: prefs.sidebar) {
                     withAnimation(Motion.glide) { prefs.sidebar = true }
@@ -292,7 +292,7 @@ struct WelcomePanel: View {
                     .accessibilityHidden(true)
             }
             heading(isDefault ? "Lun is your default browser." : "Make Lun your default browser.",
-                    "A click in Mail, in Slack, in a PDF: macOS sends it to whichever browser is the default.")
+                    "Links you click in Mail, Slack and other apps open here.")
             if asked, !isDefault {
                 Text("macOS asks in its own dialog.")
                     .font(.system(size: 13))
@@ -475,7 +475,6 @@ struct WelcomePanel: View {
                 .lineSpacing(3)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: 400)
         }
     }
 
