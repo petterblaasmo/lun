@@ -137,15 +137,15 @@ final class PinDragTests: XCTestCase {
         try await settle()
         let page = t[3].built
         XCTAssertNotNil(page)
-        // The rows start under the grid: 34 + 10.
-        let start = point(x: 70, y: Metrics.strip + 44 + 14 + 30, in: window)
+        // The rows start under the grid: 32 + 16.
+        let start = point(x: 70, y: Metrics.strip + 48 + 16 + 34, in: window)
         // Between the two squares: the middle of three places.
-        let room = browser.prefs.sideWidth - 20
-        let middle = 10 + room / 2
+        let room = browser.prefs.sideWidth - 2 * Metrics.sideInset
+        let middle = Metrics.sideInset + room / 2
         try await drag(from: start, through: [
-            point(x: 70, y: Metrics.strip + 44, in: window),
+            point(x: 70, y: Metrics.strip + 48, in: window),
             point(x: middle, y: Metrics.strip + 30, in: window),
-            point(x: middle, y: Metrics.strip + 17, in: window),
+            point(x: middle, y: Metrics.strip + 16, in: window),
         ], in: window)
         XCTAssertEqual(browser.tabs.map(\.id), [t[0], t[3], t[1], t[2], t[4]].map(\.id))
         XCTAssertNotNil(t[3].pin, "pinned")
@@ -160,14 +160,14 @@ final class PinDragTests: XCTestCase {
         try await wake(t[0], then: t[2], in: browser)
         let window = makeWindow(browser)
         try await settle()
-        let room = browser.prefs.sideWidth - 20
-        let start = point(x: 10 + room / 6, y: Metrics.strip + 17, in: window)
+        let room = browser.prefs.sideWidth - 2 * Metrics.sideInset
+        let start = point(x: Metrics.sideInset + room / 6, y: Metrics.strip + 16, in: window)
         // Into the upper half of the second row (t[3]), as the rows stand
-        // once a line has opened for it above the first: 30 lower.
+        // once a line has opened for it above the first: 34 lower.
         try await drag(from: start, through: [
-            point(x: 10 + room / 6, y: Metrics.strip + 40, in: window),
-            point(x: 80, y: Metrics.strip + 44 + 30 + 30 + 4, in: window),
-            point(x: 80, y: Metrics.strip + 44 + 30 + 30 + 4, in: window),
+            point(x: Metrics.sideInset + room / 6, y: Metrics.strip + 40, in: window),
+            point(x: 80, y: Metrics.strip + 48 + 34 + 34 + 4, in: window),
+            point(x: 80, y: Metrics.strip + 48 + 34 + 34 + 4, in: window),
         ], in: window)
         XCTAssertNil(t[0].pin, "unpinned")
         XCTAssertEqual(browser.tabs.map(\.id), [t[1], t[2], t[0], t[3], t[4]].map(\.id))
@@ -181,17 +181,17 @@ final class PinDragTests: XCTestCase {
         try await wake(t[0], then: t[2], in: browser)
         let window = makeWindow(browser)
         try await settle()
-        let room = browser.prefs.sideWidth - 20
-        try await drag(from: point(x: 10 + room / 6, y: Metrics.strip + 17, in: window), through: [
-            point(x: 10 + room / 6, y: Metrics.strip + 40, in: window),
-            point(x: 80, y: Metrics.strip + 44 + 30 + 30 + 4, in: window),
+        let room = browser.prefs.sideWidth - 2 * Metrics.sideInset
+        try await drag(from: point(x: Metrics.sideInset + room / 6, y: Metrics.strip + 16, in: window), through: [
+            point(x: Metrics.sideInset + room / 6, y: Metrics.strip + 40, in: window),
+            point(x: 80, y: Metrics.strip + 48 + 34 + 34 + 4, in: window),
         ], in: window)
         XCTAssertNil(t[0].pin)
         XCTAssertEqual(browser.tabs.prefix(4).map(\.id), [t[1], t[2], t[0], t[3]].map(\.id))
         // And back up into the grid, first.
-        try await drag(from: point(x: 70, y: Metrics.strip + 44 + 14 + 30, in: window), through: [
+        try await drag(from: point(x: 70, y: Metrics.strip + 48 + 16 + 34, in: window), through: [
             point(x: 30, y: Metrics.strip + 30, in: window),
-            point(x: 20, y: Metrics.strip + 17, in: window),
+            point(x: 20, y: Metrics.strip + 16, in: window),
         ], in: window)
         XCTAssertEqual(browser.squarePins.map(\.id), [t[0], t[1]].map(\.id))
     }
@@ -201,7 +201,7 @@ final class PinDragTests: XCTestCase {
         let t = browser.tabs
         let window = makeWindow(browser)
         try await settle()
-        try await drag(from: point(x: 70, y: Metrics.strip + 14 + 30, in: window), through: [
+        try await drag(from: point(x: 70, y: Metrics.strip + 16 + 34, in: window), through: [
             point(x: 70, y: Metrics.strip + 4, in: window),
             point(x: 70, y: Metrics.strip - 12, in: window),
             point(x: 70, y: Metrics.strip + 10, in: window),
@@ -218,17 +218,17 @@ final class PinDragTests: XCTestCase {
         let window = makeWindow(browser)
         try await settle()
         // A row carried down its own list.
-        try await drag(from: point(x: 70, y: Metrics.strip + 44 + 14, in: window), through: [
-            point(x: 70, y: Metrics.strip + 44 + 14 + 30, in: window),
-            point(x: 70, y: Metrics.strip + 44 + 14 + 62, in: window),
+        try await drag(from: point(x: 70, y: Metrics.strip + 48 + 16, in: window), through: [
+            point(x: 70, y: Metrics.strip + 48 + 16 + 34, in: window),
+            point(x: 70, y: Metrics.strip + 48 + 16 + 70, in: window),
         ], in: window)
         XCTAssertEqual(browser.tabs.map(\.id), [t[0], t[1], t[3], t[4], t[2]].map(\.id))
         XCTAssertEqual(browser.pinnedCount, 2)
         // A square carried along the grid.
-        let room = browser.prefs.sideWidth - 20
-        try await drag(from: point(x: 10 + room / 6, y: Metrics.strip + 17, in: window), through: [
-            point(x: 10 + room / 2, y: Metrics.strip + 17, in: window),
-            point(x: 10 + room / 2 + 4, y: Metrics.strip + 17, in: window),
+        let room = browser.prefs.sideWidth - 2 * Metrics.sideInset
+        try await drag(from: point(x: Metrics.sideInset + room / 6, y: Metrics.strip + 16, in: window), through: [
+            point(x: Metrics.sideInset + room / 2, y: Metrics.strip + 16, in: window),
+            point(x: Metrics.sideInset + room / 2 + 4, y: Metrics.strip + 16, in: window),
         ], in: window)
         XCTAssertEqual(browser.tabs.prefix(2).map(\.id), [t[1], t[0]].map(\.id))
         XCTAssertEqual(browser.pinnedCount, 2)
@@ -276,20 +276,20 @@ final class PinDragTests: XCTestCase {
         browser.select(t[2])
         let window = makeWindow(browser)
         try await settle()
-        // Grid 34 + 10; the pinned row 28 + 2 under it; the line 18 + 2; the rows.
-        let rowsTop = Metrics.strip + 44 + 30 + 20
-        try await drag(from: point(x: 70, y: rowsTop + 14 + 30, in: window), through: [
+        // Grid 32 + 16; the pinned row 32 + 2 under it; the line 18 + 2; the rows.
+        let rowsTop = Metrics.strip + 48 + 34 + 20
+        try await drag(from: point(x: 70, y: rowsTop + 16 + 34, in: window), through: [
             point(x: 70, y: rowsTop, in: window),
-            point(x: 70, y: Metrics.strip + 44 + 20, in: window),
-            point(x: 70, y: Metrics.strip + 44 + 22, in: window),
+            point(x: 70, y: Metrics.strip + 48 + 20, in: window),
+            point(x: 70, y: Metrics.strip + 48 + 22, in: window),
         ], in: window)
         XCTAssertNotNil(t[3].pin)
         XCTAssertTrue(t[3].listed, "a pinned row")
         XCTAssertEqual(browser.listedPins.map(\.id), [t[1], t[3]].map(\.id))
         // And that pinned row carried up into the grid: a square, first.
-        try await drag(from: point(x: 70, y: Metrics.strip + 44 + 30 + 14, in: window), through: [
+        try await drag(from: point(x: 70, y: Metrics.strip + 48 + 30 + 14, in: window), through: [
             point(x: 40, y: Metrics.strip + 30, in: window),
-            point(x: 20, y: Metrics.strip + 17, in: window),
+            point(x: 20, y: Metrics.strip + 16, in: window),
         ], in: window)
         XCTAssertFalse(t[3].listed)
         XCTAssertEqual(browser.squarePins.map(\.id), [t[3], t[0]].map(\.id))
@@ -304,9 +304,9 @@ final class PinDragTests: XCTestCase {
         browser.select(t[3])
         let window = makeWindow(browser)
         try await settle()
-        try await drag(from: point(x: 70, y: Metrics.strip + 44 + 14, in: window), through: [
+        try await drag(from: point(x: 70, y: Metrics.strip + 48 + 16, in: window), through: [
             point(x: 70, y: Metrics.strip + 30, in: window),
-            point(x: 70, y: Metrics.strip + 17, in: window),
+            point(x: 70, y: Metrics.strip + 16, in: window),
         ], in: window)
         XCTAssertNil(t[1].pin)
         XCTAssertNil(t[2].pin)
@@ -350,6 +350,7 @@ final class PinDragTests: XCTestCase {
         let browser = Browser(record: WindowRecord())
         browsers.append(browser)
         browser.prefs.sidebar = true
+        browser.prefs.addressLine = false
         browser.prefs.usesTabGroups = false
         browser.prefs.splitView = false
         browser.prefs.listsPins = rows
@@ -422,7 +423,7 @@ final class PinDragTests: XCTestCase {
             view.cacheDisplay(in: view.bounds, to: rep)
             try rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(folder)/\(name).png"))
         }
-        let room = Shared.prefs.sideWidth - 20
+        let room = Shared.prefs.sideWidth - 2 * Metrics.sideInset
         for (name, rows) in [("row-over-grid", false), ("pin-over-rows", false), ("row-over-pinned-rows", true), ("first-pin", false), ("pair-refused", false)] {
             let browser = makeBrowser(count: 5, rows: rows)
             let t = browser.tabs
@@ -434,17 +435,17 @@ final class PinDragTests: XCTestCase {
             var last: NSPoint
             switch name {
             case "row-over-grid", "pair-refused":
-                last = try await carry(from: point(x: 70, y: Metrics.strip + 44 + 14 + (name == "pair-refused" ? 0 : 30), in: window), through: [
-                    point(x: 10 + room / 2, y: Metrics.strip + 30, in: window), point(x: 10 + room / 2, y: Metrics.strip + 17, in: window)], in: window)
+                last = try await carry(from: point(x: 70, y: Metrics.strip + 48 + 14 + (name == "pair-refused" ? 0 : 30), in: window), through: [
+                    point(x: Metrics.sideInset + room / 2, y: Metrics.strip + 30, in: window), point(x: Metrics.sideInset + room / 2, y: Metrics.strip + 16, in: window)], in: window)
             case "pin-over-rows":
-                last = try await carry(from: point(x: 10 + room / 6, y: Metrics.strip + 17, in: window), through: [
-                    point(x: 80, y: Metrics.strip + 44 + 64, in: window)], in: window)
+                last = try await carry(from: point(x: Metrics.sideInset + room / 6, y: Metrics.strip + 16, in: window), through: [
+                    point(x: 80, y: Metrics.strip + 48 + 64, in: window)], in: window)
             case "row-over-pinned-rows":
-                let rowsTop = Metrics.strip + 44 + 30 + 20
-                last = try await carry(from: point(x: 70, y: rowsTop + 14 + 30, in: window), through: [
-                    point(x: 70, y: Metrics.strip + 44 + 22, in: window)], in: window)
+                let rowsTop = Metrics.strip + 48 + 34 + 20
+                last = try await carry(from: point(x: 70, y: rowsTop + 16 + 34, in: window), through: [
+                    point(x: 70, y: Metrics.strip + 48 + 22, in: window)], in: window)
             default:
-                last = try await carry(from: point(x: 70, y: Metrics.strip + 14 + 30, in: window), through: [
+                last = try await carry(from: point(x: 70, y: Metrics.strip + 16 + 34, in: window), through: [
                     point(x: 70, y: Metrics.strip - 12, in: window), point(x: 70, y: Metrics.strip + 10, in: window)], in: window)
             }
             try await shoot(name, window)

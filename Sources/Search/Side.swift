@@ -89,6 +89,9 @@ struct SideBar: View {
     private var rowHeight: CGFloat { prefs.sideRow }
     /// The column's width: the setting, or where the edge is while it is held.
     private var width: CGFloat { live ?? prefs.columnWidth }
+    /// The air beside the rows; icons only, what centres the tiles in their
+    /// own width.
+    private var inset: CGFloat { prefs.iconColumn ? (Metrics.iconColumn - Metrics.iconTile) / 2 : Metrics.sideInset }
     private static let gap: CGFloat = 2
     private static let groupInset: CGFloat = 4
     private static let square: CGFloat = 32
@@ -300,7 +303,7 @@ struct SideBar: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, Metrics.sideInset)
+            .padding(.horizontal, inset)
             // Clear of the foot, which sits over the sidebar's bottom edge,
             // and of what plays in another tab, over the foot.
             // The rows' end with the foot, as it rises and goes: this inset
@@ -556,7 +559,7 @@ struct SideBar: View {
             SwipeCard(side: browser.swipeSide, browser: browser, at: spaceAt, width: width)
         }
             // The pages are the column's whole width, each with its own margin.
-            .padding(.horizontal, -10)
+            .padding(.horizontal, -inset)
             // The room there is, and never more: another space's rows, drawn
             // whole while they pass, run on past the foot rather than making the
             // column taller than the window. With no minimum, a long space coming
@@ -606,7 +609,7 @@ struct SideBar: View {
         let scrolled = here ? browser.mapScroll(fits: fits) : nil
         if here { browser.mapDrew = (fits, scrolled) }
         return preview(row, space: space, pill: before, scrolled: scrolled)
-            .padding(.horizontal, Metrics.sideInset)
+            .padding(.horizontal, inset)
             .frame(width: width, alignment: .topLeading)
             .environment(\.inSpaceMap, true)
     }
@@ -771,7 +774,7 @@ struct SideBar: View {
                         space: browser.spaces[index].id, pill: pill)
             }
         }
-        .padding(.horizontal, Metrics.sideInset)
+        .padding(.horizontal, inset)
         .frame(width: width, alignment: .topLeading)
     }
 
@@ -1108,7 +1111,7 @@ struct SideBar: View {
     /// cell allows, never taller than the classic square: past that a cell
     /// turns into a wide, short button rather than a bigger icon.
     private func pinCells(_ count: Int) -> [CGRect] {
-        let room = width - 2 * Metrics.sideInset
+        let room = width - 2 * inset
         let gap = SideBar.pinGap
         let fits = Int((room + gap) / (SideBar.square + gap))
         let rows = SideBar.pinRows(count, most: min(4, max(1, fits)))
@@ -1556,7 +1559,7 @@ struct SideBar: View {
         let gridShown = !squares.isEmpty || ghostSquare != nil
         let rowsOn = prefs.showsPinRows
         let listedShown = rowsOn && (!browser.listedPins.isEmpty || isListedGhost || browser.showsPinFolderRows)
-        let zone = PinDrop.zone(point, width: width - 2 * Metrics.sideInset,
+        let zone = PinDrop.zone(point, width: width - 2 * inset,
                                 gridBottom: gridShown ? frames.grid?.maxY : nil,
                                 listed: listedShown ? frames.listed : nil)
         switch zone {
