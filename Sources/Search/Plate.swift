@@ -286,8 +286,8 @@ struct SideChoice: View {
             .background(on ? Palette.fill : hovering ? Palette.hover : .clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
+        .buttonStyle(Gives(to: 0.98))
+        .hovers($hovering)
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
@@ -311,6 +311,7 @@ struct Quick: View {
     let title: String
     var tint: Color = Palette.ink
     let act: () -> Void
+    @State private var hovering = false
 
     init(_ title: String, tint: Color = Palette.ink, act: @escaping () -> Void) {
         self.title = title
@@ -329,8 +330,10 @@ struct Quick: View {
                 .fixedSize()
                 .padding(.horizontal, 10)
                 .frame(height: 22)
-                .background(Palette.fill, in: Capsule())
+                .background(hovering ? Palette.fillHover : Palette.fill, in: Capsule())
+                .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(Gives(to: 0.95))
+        .hovers($hovering)
     }
 }

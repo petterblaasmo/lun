@@ -338,22 +338,27 @@ struct SiteCard: View {
     }
 
     var body: some View {
+        // A step in slides over from the right and back: the card cut from
+        // one face to the other, and a press on Site Permissions looked to
+        // have done nothing until the eye found the new rows.
         Group {
             if showingPermissions {
-                permissions
+                permissions.transition(.face(.trailing))
             } else if deeper, let safety {
-                security(safety)
+                security(safety).transition(.face(.trailing))
             } else {
-                front
+                front.transition(.face(.leading))
             }
         }
         .padding(6)
         .frame(width: 320)
         .fixedSize()
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .background(Palette.raised, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Palette.rule, lineWidth: 0.5))
         .transition(.opacity)
-        .animation(Motion.quick, value: deeper)
+        .animation(Motion.settle, value: deeper)
+        .animation(Motion.settle, value: showingPermissions)
         .onAppear(perform: certify)
     }
 
@@ -381,13 +386,7 @@ struct SiteCard: View {
                             .lineLimit(1)
                             .truncationMode(.head)
                         if let safety {
-                            Button { deeper = true } label: {
-                                Text(safety.title + " ›")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(safety.tint)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
+                            Said(words: safety.title + " ›", tint: safety.tint) { deeper = true }
                         }
                     }
                     Spacer(minLength: 0)
@@ -448,6 +447,9 @@ struct SiteCard: View {
     @ViewBuilder private var permissions: some View {
         if let origin {
             VStack(alignment: .leading, spacing: 6) {
+                // The way back first, where the eye is when the face
+                // arrives: it was under the last row.
+                Row("Back", back: true) { showingPermissions = false }
                 Header(title: origin)
                 if tab.shy {
                     note("Permissions aren't saved in a private tab.")
@@ -464,7 +466,6 @@ struct SiteCard: View {
                         note("Saved two ways for this site. Pick one to keep.")
                     }
                 }
-                Row("Back") { showingPermissions = false }
             }
         }
     }
@@ -677,6 +678,7 @@ struct SiteCard: View {
 
     private func security(_ safety: Safety) -> some View {
         VStack(alignment: .leading, spacing: 6) {
+            Row("Back", back: true) { deeper = false }
             if let url = tab.pageAddress {
                 Header(title: SiteCard.site(url))
             }
@@ -700,7 +702,6 @@ struct SiteCard: View {
                         after { SiteCard.show(trust) }
                     }
                 }
-                Row("Back") { deeper = false }
             }
         }
     }
@@ -832,19 +833,36 @@ struct SiteCard: View {
         let title: String
         var keys = ""
         var submenu = false
+        /// The way back out of a face a step in: an arrow before it.
+        var back = false
         let act: () -> Void
 
         @State private var hovering = false
 
-        init(_ title: String, keys: String = "", submenu: Bool = false, act: @escaping () -> Void) {
+        init(_ title: String, keys: String = "", submenu: Bool = false, back: Bool = false, act: @escaping () -> Void) {
             self.title = title
             self.keys = keys
             self.submenu = submenu
+            self.back = back
             self.act = act
         }
 
+        // A button: it gives under the press and the keyboard can press it.
+        // It was a tap on a stack, with nothing to say it had been pressed.
         var body: some View {
+            Button(action: act) { line }
+                .buttonStyle(Gives(to: 0.98))
+                .hovers($hovering)
+        }
+
+        private var line: some View {
             HStack(spacing: 0) {
+                if back {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Palette.muted)
+                        .padding(.trailing, 8)
+                }
                 Text(title)
                     .font(.system(size: 13))
                     .foregroundStyle(Palette.ink)
@@ -867,9 +885,27 @@ struct SiteCard: View {
             .frame(height: 32)
             .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
-            .onTapGesture(perform: act)
-            .onHover { hovering = $0 }
-            .accessibilityAddTraits(.isButton)
+        }
+    }
+
+    /// Words that open something: underlined under the pointer, so they
+    /// read as something to press.
+    private struct Said: View {
+        let words: String
+        let tint: Color
+        let act: () -> Void
+        @State private var hovering = false
+
+        var body: some View {
+            Button(action: act) {
+                Text(words)
+                    .font(.system(size: 12))
+                    .underline(hovering)
+                    .foregroundStyle(tint)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(Gives(to: 0.97))
+            .hovers($hovering)
         }
     }
 
@@ -907,8 +943,8 @@ struct SiteCard: View {
                     .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .onHover { hovering = $0 }
+            .buttonStyle(Gives(to: 0.88))
+            .hovers($hovering)
             .shortcutHelp(help, shortcut)
         }
     }
