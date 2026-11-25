@@ -98,7 +98,7 @@ struct ProxySettingsValue: Codable, Equatable {
 /// value, a log line or an error. A test run keeps it in memory and leaves
 /// the real keychain alone.
 enum ProxySecret {
-    private static let service = "com.officecommun.search.proxy"
+    private static let service = "com.lunbrowser.lun.proxy"
     private static let account = "global"
     /// A test run's, gone when it quits, as AIKeys keeps its own.
     nonisolated(unsafe) private static var rehearsal: String?
@@ -131,7 +131,7 @@ enum ProxySecret {
         item[kSecValueData as String] = Data(password.utf8)
         item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         item[kSecAttrSynchronizable as String] = false
-        item[kSecAttrLabel as String] = "Search — proxy password"
+        item[kSecAttrLabel as String] = "Lun — proxy password"
         let status = SecItemAdd(item as CFDictionary, nil)
         guard status == errSecSuccess else {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [

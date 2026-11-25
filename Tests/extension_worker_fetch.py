@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("worker-fetch")
-BUNDLE = "com.officecommun.search.workerfetch"
+BUNDLE = "com.lunbrowser.lun.workerfetch"
 work = Path(tempfile.mkdtemp(prefix="search-workerfetch-"))
 
 FILES = {

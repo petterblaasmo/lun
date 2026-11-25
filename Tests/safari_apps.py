@@ -46,7 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("safari-apps")
-BUNDLE = "com.officecommun.search.safariapps"
+BUNDLE = "com.lunbrowser.lun.safariapps"
 work = Path(tempfile.mkdtemp(prefix="search-safari-apps-"))
 
 

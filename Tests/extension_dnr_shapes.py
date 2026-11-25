@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("sec-dnr-shapes")
-BUNDLE = "com.officecommun.search.dnrshapes"
+BUNDLE = "com.lunbrowser.lun.dnrshapes"
 work = Path(tempfile.mkdtemp(prefix="search-dnr-shapes-"))
 PORT = sv.srv.server_port
 BASE = f"http://127.0.0.1:{PORT}"

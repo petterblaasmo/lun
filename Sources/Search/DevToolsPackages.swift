@@ -102,7 +102,7 @@ struct DevToolsOffer: Equatable, Identifiable {
 @MainActor
 final class DevToolsPackages: ObservableObject {
     static let shared = DevToolsPackages()
-    nonisolated static let identifierPrefix = "com.officecommun.search.devtools."
+    nonisolated static let identifierPrefix = "com.lunbrowser.lun.devtools."
 
     enum State: Equatable {
         case idle
@@ -662,7 +662,7 @@ final class DevToolsHostBridge: NSObject, SearchDevToolsHost {
     lazy var defaults: UserDefaults = UserDefaults(suiteName: Self.suite(id)) ?? DevToolsMemoryDefaults()
 
     nonisolated static func suite(_ id: String) -> String {
-        let base = Store.testing ? "com.officecommun.search.test.\(Store.world ?? "test")" : (Bundle.main.bundleIdentifier ?? "com.officecommun.search")
+        let base = Store.testing ? "com.lunbrowser.lun.test.\(Store.world ?? "test")" : (Bundle.main.bundleIdentifier ?? "com.lunbrowser.lun")
         return "\(base).devtools.\(id)"
     }
 

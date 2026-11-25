@@ -203,10 +203,10 @@ enum Mail {
     }
 
     static func otherMailApp(for url: URL) -> URL? {
-        let ours = Bundle.main.bundleIdentifier ?? "com.officecommun.search"
+        let ours = Bundle.main.bundleIdentifier ?? "com.lunbrowser.lun"
         func isOurs(_ app: URL) -> Bool {
             app.standardizedFileURL == Bundle.main.bundleURL.standardizedFileURL
-                || Bundle(url: app)?.bundleIdentifier.map { $0 == ours || $0.hasPrefix("com.officecommun.search") } == true
+                || Bundle(url: app)?.bundleIdentifier.map { $0 == ours || $0.hasPrefix("com.lunbrowser.lun") } == true
         }
         if let first = NSWorkspace.shared.urlForApplication(toOpen: url), !isOurs(first) { return first }
         let others = NSWorkspace.shared.urlsForApplications(toOpen: url).filter { !isOurs($0) }

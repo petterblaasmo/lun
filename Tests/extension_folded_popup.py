@@ -42,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-folded-popup")
-BUNDLE = "com.officecommun.search.foldedpopup"
+BUNDLE = "com.lunbrowser.lun.foldedpopup"
 RAINDROP = "ldgfbffkinooeloadekpmfoklnobpien"
 work = Path(tempfile.mkdtemp(prefix="search-foldedpopup-"))
 NAME = "Folded"

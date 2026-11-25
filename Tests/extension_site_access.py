@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-site-access")
-BUNDLE = "com.officecommun.search.siteaccess"
+BUNDLE = "com.lunbrowser.lun.siteaccess"
 work = Path(tempfile.mkdtemp(prefix="search-siteaccess-"))
 PORT = sv.srv.server_port
 A = f"http://127.0.0.1:{PORT}"

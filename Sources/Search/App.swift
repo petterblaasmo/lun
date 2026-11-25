@@ -496,7 +496,7 @@ struct SearchApp: App {
             // What's New…, this version's card again (idea 968).
             CommandGroup(replacing: .appInfo) {
                 Button("About Search") { AboutWindow.show() }
-                UpdateMenuItem()
+                if Updater.available { UpdateMenuItem() }
                 Button("What's New…") { WhatsNew.showAgain(in: browser) }
                     .disabled(WhatsNew.current == nil)
             }

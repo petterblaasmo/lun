@@ -32,8 +32,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("native-port-page-crash")
-BUNDLE = "com.officecommun.search.nativeportpagecrash"
-HOST = "com.officecommun.search.probe.echo"
+BUNDLE = "com.lunbrowser.lun.nativeportpagecrash"
+HOST = "com.lunbrowser.lun.probe.echo"
 work = Path(tempfile.mkdtemp(prefix="search-nativeportpagecrash-"))
 log = work / "host.log"
 
@@ -183,7 +183,7 @@ def main():
         t.ok("the worker's host is stopped within a second", bool(ended) and ended[0]["t"] - crashed < 1, notes())
         app = ",".join(sorted(sv.started))
         said = subprocess.run(["/usr/bin/log", "show", "--start", since, "--style", "compact", "--predicate",
-                               f'subsystem == "com.officecommun.search" AND category == "ExtensionNative" AND processID IN {{{app}}}'],
+                               f'subsystem == "com.lunbrowser.lun" AND category == "ExtensionNative" AND processID IN {{{app}}}'],
                               capture_output=True, text=True).stdout
         lines = [l for l in said.splitlines() if "ExtensionNative" in l]
         t.ok("the log says the extension's process ended", any("An extension's process ended (crash" in l for l in lines), lines)

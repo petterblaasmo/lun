@@ -9,7 +9,7 @@ import SwiftUI
 // is sent until a button is pressed, nothing is sent again by itself, and a
 // failure says so and waits for another press.
 //
-// What goes, as JSON in one HTTPS POST to searchbrowser.app (the site's
+// What goes, as JSON in one HTTPS POST to the site (its
 // api/mac-list.js and api/ios-beta.js, open source beside this):
 //   email, a fixed source ("app-whats-new", "app-welcome" or
 //   "app-settings"), for the updates list which Mac build this is ("apple"
@@ -22,6 +22,10 @@ import SwiftUI
 // disk; it lives in the field while the view does.
 
 enum OptIn {
+    /// Off in Lun: the lists are Search's, kept on its maker's site. Nothing
+    /// offers the field and nothing is ever sent.
+    static let on = false
+
     /// Where the sign-up was pressed: the site keeps this word with the row.
     enum Source: String, CaseIterable {
         case whatsNew = "app-whats-new"
@@ -45,15 +49,16 @@ enum OptIn {
     nonisolated static let joinedKey = "optin.joined"
     nonisolated static let betaKey = "optin.iphoneBeta"
 
-    static let privacy = URL(string: "https://searchbrowser.app/privacy")!
+    static let privacy = URL(string: "https://optin.invalid/privacy")!
 
     /// The site. SEARCH_OPTIN_URL points a test run at a server of its own;
-    /// the browser people use only ever talks to searchbrowser.app.
+    /// otherwise a name that can never resolve, so nothing could leave even
+    /// if `on` were switched by a merge.
     static var base: URL {
         if Store.testing, let set = ProcessInfo.processInfo.environment["SEARCH_OPTIN_URL"], let url = URL(string: set) {
             return url
         }
-        return URL(string: "https://searchbrowser.app/api/")!
+        return URL(string: "https://optin.invalid/api/")!
     }
 
     /// Which download this is, as the site names them.
@@ -75,7 +80,7 @@ enum OptIn {
     /// Whether the card and the welcome offer the field: until an email has
     /// been given once. Closing the card without one changes nothing, so
     /// the next version's card offers it again.
-    static func offered(_ store: UserDefaults = Store.settings) -> Bool { !joined(store) }
+    static func offered(_ store: UserDefaults = Store.settings) -> Bool { on && !joined(store) }
 
     /// After a press the site said yes to: the booleans, and nothing else.
     static func remember(_ list: List, in store: UserDefaults = Store.settings) {
@@ -156,7 +161,7 @@ enum OptIn {
             switch self {
             case .notAnEmail: return "That doesn't look like an email address."
             case .tooMany: return "Too many tries just now. Wait a few minutes."
-            case .unreachable: return "Couldn't reach searchbrowser.app. Try again in a moment."
+            case .unreachable: return "Couldn't reach the site. Try again in a moment."
             }
         }
     }
@@ -165,6 +170,7 @@ enum OptIn {
     /// failure waits for the person to press again.
     static func send(email: String, list: List, source: Source, base: URL = OptIn.base, session: URLSession = OptIn.session,
                      done: @escaping (Result<Void, Failure>) -> Void) {
+        guard on || Store.testing else { done(.failure(.unreachable)); return }
         guard let email = cleaned(email) else { done(.failure(.notAnEmail)); return }
         let request = request(email: email, list: list, source: source, base: base)
         session.dataTask(with: request) { _, response, error in

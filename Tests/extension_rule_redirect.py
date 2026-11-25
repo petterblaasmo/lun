@@ -48,7 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("sec-dnr-rule-redirect")
-BUNDLE = "com.officecommun.search.ruleredirect"
+BUNDLE = "com.lunbrowser.lun.ruleredirect"
 work = Path(tempfile.mkdtemp(prefix="search-ruleredirect-"))
 PORT = sv.srv.server_port
 

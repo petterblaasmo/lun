@@ -37,7 +37,7 @@ rm -rf "$CHIP"
 # read only it, and a broken one would stop every update without a word.
 CHECK="$(mktemp -d)"
 ditto -x -k "$FROM/appcast.json.zip" "$CHECK"
-codesign --verify -R='anchor apple generic and identifier "com.officecommun.search.appcast" and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = "7BYKA895MC"' "$CHECK/appcast.json" \
+codesign --verify -R='anchor apple generic and identifier "com.lunbrowser.lun.appcast" and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = "VQL4SPXAL3"' "$CHECK/appcast.json" \
   || { rm -rf "$CHECK"; echo "$FROM/appcast.json.zip doesn't verify — not publishing" >&2; exit 1; }
 cmp -s "$CHECK/appcast.json" "$FROM/appcast.json" || { rm -rf "$CHECK"; echo "the signed appcast isn't $FROM/appcast.json — not publishing" >&2; exit 1; }
 rm -rf "$CHECK"
@@ -74,8 +74,8 @@ if [ -n "$DEVTOOLS" ]; then
     case "$NAME" in *-"$ARCH"-*.zip) ;; *) echo "$NAME isn't a $ARCH package — not publishing" >&2; exit 1 ;; esac
     UNPACKED="$(mktemp -d)"
     ditto -x -k "$PACKAGE" "$UNPACKED"
-    codesign --verify --strict -R="anchor apple generic and identifier \"com.officecommun.search.devtools.$ID\" and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = \"7BYKA895MC\"" "$UNPACKED"/*.bundle \
-      || { rm -rf "$UNPACKED"; echo "$PACKAGE isn't signed with the Developer ID as com.officecommun.search.devtools.$ID — not publishing" >&2; exit 1; }
+    codesign --verify --strict -R="anchor apple generic and identifier \"com.lunbrowser.lun.devtools.$ID\" and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = \"VQL4SPXAL3\"" "$UNPACKED"/*.bundle \
+      || { rm -rf "$UNPACKED"; echo "$PACKAGE isn't signed with the Developer ID as com.lunbrowser.lun.devtools.$ID — not publishing" >&2; exit 1; }
     rm -rf "$UNPACKED"
   done <<< "$DEVTOOLS"
   mkdir -p "$FOLDER/devtools"

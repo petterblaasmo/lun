@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-i18n-empty")
-BUNDLE = "com.officecommun.search.i18nempty"
+BUNDLE = "com.lunbrowser.lun.i18nempty"
 work = Path(tempfile.mkdtemp(prefix="search-i18n-empty-"))
 
 FILES = {

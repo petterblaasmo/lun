@@ -40,7 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("external-messaging")
-BUNDLE = "com.officecommun.search.exttest"
+BUNDLE = "com.lunbrowser.lun.exttest"
 work = Path(tempfile.mkdtemp(prefix="search-external-"))
 NOWHERE = "abcdefghijklmnopabcdefghijklmnop"
 

@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-store-update")
-BUNDLE = "com.officecommun.search.storeupdate"
+BUNDLE = "com.lunbrowser.lun.storeupdate"
 BW, UBOL = "nngceckbapebfimnlniiiahkandclblb", "ddkjiahejlhfcafbddmgiahcphecmpfh"
 OLD = "2026.10.2"
 work = Path(tempfile.mkdtemp(prefix="search-storeupdate-"))

@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-popup-link")
-BUNDLE = "com.officecommun.search.popuplink"
+BUNDLE = "com.lunbrowser.lun.popuplink"
 RAINDROP = "ldgfbffkinooeloadekpmfoklnobpien"
 work = Path(tempfile.mkdtemp(prefix="search-popuplink-"))
 PORT = sv.srv.server_port

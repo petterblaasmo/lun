@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("proxy-live")
-BUNDLE = "com.officecommun.search.proxylive"
+BUNDLE = "com.lunbrowser.lun.proxylive"
 work = Path(tempfile.mkdtemp(prefix="search-proxylive-"))
 
 seen = []           # (method, host, port, path) the proxy was asked for

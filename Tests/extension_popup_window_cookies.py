@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("popup-cookies")
-BUNDLE = "com.officecommun.search.popupcookies"
+BUNDLE = "com.lunbrowser.lun.popupcookies"
 work = Path(tempfile.mkdtemp(prefix="search-popup-cookies-"))
 SITE = f"http://127.0.0.1:{sv.srv.server_port}"
 

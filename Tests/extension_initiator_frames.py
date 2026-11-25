@@ -44,7 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("initiator-frames")
-BUNDLE = "com.officecommun.search.initiatorframes"
+BUNDLE = "com.lunbrowser.lun.initiatorframes"
 BADGER = "pkehgijcmpdhfbdbbnkijodmdjhbjlgp"
 work = Path(tempfile.mkdtemp(prefix="search-initiator-"))
 

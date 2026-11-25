@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-management")
-BUNDLE = "com.officecommun.search.extmanagement"
+BUNDLE = "com.lunbrowser.lun.extmanagement"
 work = Path(tempfile.mkdtemp(prefix="search-ext-management-"))
 
 

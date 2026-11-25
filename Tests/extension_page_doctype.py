@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-page-doctype")
-BUNDLE = "com.officecommun.search.pagedoctype"
+BUNDLE = "com.lunbrowser.lun.pagedoctype"
 work = Path(tempfile.mkdtemp(prefix="search-page-doctype-"))
 
 BODY = "<p id=t>café</p><script src=p.js></script>"

@@ -17,7 +17,7 @@ final class SyncDefaultTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        suite = "com.officecommun.search.test.sync-default-\(getpid())-\(UUID().uuidString)"
+        suite = "com.lunbrowser.lun.test.sync-default-\(getpid())-\(UUID().uuidString)"
         store = UserDefaults(suiteName: suite)
     }
 

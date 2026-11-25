@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("ext-polyfill-click")
-BUNDLE = "com.officecommun.search.extpolyfillclick"
+BUNDLE = "com.lunbrowser.lun.extpolyfillclick"
 COSMOS = "mgjneceglphcpbbfbhjplkpgfapebmdg"
 work = Path(tempfile.mkdtemp(prefix="search-extpolyfillclick-"))
 

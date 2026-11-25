@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("sec-pwl")
-LABEL = f"Search ({sv.W})"  # Vault's label in this world
+LABEL = f"Lun ({sv.W})"  # Vault's label in this world
 PORT = 8797
 
 LOGIN = """<!doctype html><title>sign in</title>

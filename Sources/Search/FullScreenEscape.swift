@@ -43,7 +43,7 @@ import WebKit
 @MainActor
 final class FullScreenEscape {
     static let shared = FullScreenEscape()
-    private static let log = Logger(subsystem: "com.officecommun.search", category: "Escape")
+    private static let log = Logger(subsystem: "com.lunbrowser.lun", category: "Escape")
 
     /// How long after the first press a second one still leaves.
     static let within: TimeInterval = 2

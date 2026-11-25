@@ -100,12 +100,12 @@ try:
     t.ok("and it is the compose page", mail()["seen"][-1].startswith("page: "), mail()["seen"])
     t.ok("no blank tab left", all(x["url"] for x in now), [(x["url"][:40], x["shy"]) for x in now])
 
-    # Send Feedback: compose directly, the version in its subject.
+    # Send Feedback: a draft issue, the version in its body.
     mail(action="feedback"); time.sleep(1)
     seen = mail()["seen"]
     q = parse_qs(urlsplit(seen[-1].split(": ", 1)[1]).query) if seen[-1].startswith("feedback: ") else {}
-    t.ok("Send Feedback opens Gmail's compose page", q.get("to") == ["hello@searchbrowser.app"]
-         and q.get("su", [""])[0].startswith("Search feedback"), seen[-1])
+    t.ok("Send Feedback opens a draft issue", seen[-1].startswith("feedback: https://github.com/petterblaasmo/lun/issues/new?")
+         and "Lun " in q.get("body", [""])[0], seen[-1])
     sv.quit()
 
     # A small window for links from other apps: compose in one.
@@ -130,7 +130,7 @@ try:
     t.ok("None: a click in a page is handed off as before", sv.cmd({"do": "probe"})["handedOff"][-1:] == ["mailto: asked"],
          sv.cmd({"do": "probe"})["handedOff"])
     mail(action="feedback")
-    t.ok("None: Send Feedback goes to the mail app", mail()["seen"][-1] == "feedback: system", mail()["seen"])
+    t.ok("None: Send Feedback opens the draft issue too", mail()["seen"][-1].startswith("feedback: https://github.com/"), mail()["seen"])
 finally:
     t.done(); sv.finish(); unregister()
 sys.exit(1 if t.failed else 0)

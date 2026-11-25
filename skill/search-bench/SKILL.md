@@ -21,9 +21,9 @@ Every command goes to one world. Pass the same flag on every call.
 
 | Flag | Whose browser | Socket folder |
 |---|---|---|
-| `--test` | World `test` | `~/Library/Application Support/Search (test)/` |
-| `--world NAME` | World `NAME` (lowercase letters, digits, hyphens) | `~/Library/Application Support/Search (NAME)/` |
-| none | The installed browser they actually use | `~/Library/Application Support/Search/` |
+| `--test` | World `test` | `~/Library/Application Support/Lun (test)/` |
+| `--world NAME` | World `NAME` (lowercase letters, digits, hyphens) | `~/Library/Application Support/Lun (NAME)/` |
+| none | The installed browser they actually use | `~/Library/Application Support/Lun/` |
 
 Use a test world for any work that changes chrome, installs or removes extensions, resizes, sends real key events, or selects a tab. A `swift build` binary under `.build/` is always world `test`, even with no `SEARCH_PROBE`. `./fresh.sh` launches `build/Search.app` with `SEARCH_PROBE` set, which is also a test world.
 
@@ -40,7 +40,7 @@ One process per world. Quit a process only after its executable path is this rep
    - Nothing running for that world: `defaults write SUITE bench -bool true`, then `./fresh.sh again`. For a named world, `SEARCH_PROBE=NAME ./fresh.sh again`.
    - A test process is up but the socket is dead: write the default, terminate that pid, then `./fresh.sh again`. The switch is read at launch.
 3. Retry `./bench --test tabs` until it prints. Launch takes a moment.
-4. The suite is `com.officecommun.search.test`, or `com.officecommun.search.test.NAME` for a named world.
+4. The suite is `com.lunbrowser.lun.test`, or `com.lunbrowser.lun.test.NAME` for a named world.
 
 `./fresh.sh` with no argument deletes that world's folder, settings suite, and WebKit store, then opens it. The suite delete clears the `bench` switch, so a wipe has to be followed by the defaults write, a quit of the process it just opened, and `./fresh.sh again`. Wipe only when they asked for a clean browser.
 

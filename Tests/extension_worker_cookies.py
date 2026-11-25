@@ -48,7 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("ext-worker-cookies")
-BUNDLE = "com.officecommun.search.extworkercookies"
+BUNDLE = "com.lunbrowser.lun.extworkercookies"
 work = Path(tempfile.mkdtemp(prefix="search-extworkercookies-"))
 NAMES = ("shop.test", "other.test")  # known to the proxy alone
 

@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("ext-background-page")
-BUNDLE = "com.officecommun.search.extbackgroundpage"
+BUNDLE = "com.lunbrowser.lun.extbackgroundpage"
 work = Path(tempfile.mkdtemp(prefix="search-extbackgroundpage-"))
 
 FILES = {

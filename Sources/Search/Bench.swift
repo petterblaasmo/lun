@@ -139,7 +139,7 @@ final class Bench {
     /// nothing of yours, and scripts set them up with a defaults write.
     @MainActor
     enum Consent {
-        private static let mark = SwitchMark(service: "com.officecommun.search.bench")
+        private static let mark = SwitchMark(service: "com.lunbrowser.lun.bench")
         static var given: Bool { mark.given }
         static func grant() { mark.grant() }
         static func revoke() { mark.revoke() }
@@ -2802,7 +2802,7 @@ final class Bench {
             // takes what the other wrote (ONLY: records whose names start
             // so), "stop". Test runs only.
             guard Store.testing else { answer(["error": "icloudpair only works on a --test run"]); return }
-            let suite = "com.officecommun.search.icloudpair.\(getpid())"
+            let suite = "com.lunbrowser.lun.icloudpair.\(getpid())"
             func state(_ extra: [String: Any] = [:]) -> [String: Any] {
                 var out: [String: Any] = ["joined": Bench.pair?.sync.joined ?? false,
                                           "records": (Bench.pair?.sync.ledger.values.keys.sorted() ?? [])]

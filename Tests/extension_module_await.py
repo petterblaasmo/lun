@@ -44,7 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("hub-sp-modules")
-BUNDLE = "com.officecommun.search.hubspmodules"
+BUNDLE = "com.lunbrowser.lun.hubspmodules"
 work = Path(tempfile.mkdtemp(prefix="search-modules-"))
 
 FILES = {

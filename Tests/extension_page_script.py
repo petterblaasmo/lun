@@ -42,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("ext-page-script")
-BUNDLE = "com.officecommun.search.extpagescript"
+BUNDLE = "com.lunbrowser.lun.extpagescript"
 LR, AL = "hoombieeljmmljlkjmnheibnpciblicm", "paponcgjfojgemddooebbgniglhkajkj"
 work = Path(tempfile.mkdtemp(prefix="search-extpagescript-"))
 

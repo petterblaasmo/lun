@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-monarch")
-BUNDLE = "com.officecommun.search.monarch"
+BUNDLE = "com.lunbrowser.lun.monarch"
 ID = "imfcckkmcklambpijbgcebggegggkgla"
 work = Path(tempfile.mkdtemp(prefix="search-stylus-"))
 

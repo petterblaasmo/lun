@@ -38,8 +38,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("native-port-idle")
-BUNDLE = "com.officecommun.search.nativeportidle"
-HOST = "com.officecommun.search.probe.echo"
+BUNDLE = "com.lunbrowser.lun.nativeportidle"
+HOST = "com.lunbrowser.lun.probe.echo"
 IDLE = int(os.environ.get("IDLE", "170"))
 work = Path(tempfile.mkdtemp(prefix="search-nativeportidle-"))
 log = work / "host.log"

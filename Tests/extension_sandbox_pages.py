@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("sec-sandbox-pages")
-BUNDLE = "com.officecommun.search.sandboxpages"
+BUNDLE = "com.lunbrowser.lun.sandboxpages"
 work = Path(tempfile.mkdtemp(prefix="search-sandbox-pages-"))
 PRIVATE = sv.BASE + "/private"
 

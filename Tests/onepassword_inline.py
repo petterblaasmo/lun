@@ -42,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("onepassword-inline")
-BUNDLE = "com.officecommun.search.onepasswordinline"
+BUNDLE = "com.lunbrowser.lun.onepasswordinline"
 ONEPASSWORD = "aeblfdkhhhdcdjpifhhbdiojplfjncoa"
 GATE = "inlineDisabled:!r.inlineEnabled||$a.has(e.tab)||!o,"
 # Where the worker's configuration comes back to the page (injected.js).

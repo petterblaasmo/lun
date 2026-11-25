@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-open-popup")
-BUNDLE = "com.officecommun.search.openpopup"
+BUNDLE = "com.lunbrowser.lun.openpopup"
 work = Path(tempfile.mkdtemp(prefix="search-openpopup-"))
 
 FILES = {

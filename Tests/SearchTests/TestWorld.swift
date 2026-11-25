@@ -9,7 +9,7 @@ import NoWindows
 /// Store.world and Store.folder are read once, so every test of a run lives
 /// in whichever world was asked for first — the run is one world however
 /// many test classes name their own. It used to be a folder under
-/// ~/Library/Application Support, "Search (<first class>-<pid>)", left
+/// ~/Library/Application Support, "Lun (<first class>-<pid>)", left
 /// behind by every run. And since no test brings back last launch's windows,
 /// the run never left "launching": each Browsers.save() wrote the windows
 /// open and then everything already in windows.json again (see
@@ -60,7 +60,7 @@ enum TestWorld {
             Disk.drain()
             try? FileManager.default.removeItem(at: home)
             if let world = Store.world {
-                let suite = "com.officecommun.search.test.\(world)"
+                let suite = "com.lunbrowser.lun.test.\(world)"
                 UserDefaults.standard.removePersistentDomain(forName: suite)
                 CFPreferencesAppSynchronize(suite as CFString)
                 // The emptied file too, from the real home: this run's own.

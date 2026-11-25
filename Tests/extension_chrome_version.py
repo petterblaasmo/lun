@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("bug-chrome-version")
-BUNDLE = "com.officecommun.search.chromeversion"
+BUNDLE = "com.lunbrowser.lun.chromeversion"
 work = Path(tempfile.mkdtemp(prefix="search-chromeversion-"))
 FILES = {
     "manifest.json": json.dumps({

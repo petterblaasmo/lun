@@ -16,7 +16,7 @@ final class SpaceGradientTests: XCTestCase {
     override class func tearDown() {
         if let world = Store.world, world.hasPrefix("space-gradient-") {
             try? FileManager.default.removeItem(at: Store.folder)
-            UserDefaults.standard.removePersistentDomain(forName: "com.officecommun.search.test.\(world)")
+            UserDefaults.standard.removePersistentDomain(forName: "com.lunbrowser.lun.test.\(world)")
         }
         super.tearDown()
     }
