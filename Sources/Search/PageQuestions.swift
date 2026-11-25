@@ -26,7 +26,7 @@ struct CaptureQuestion: View {
             }
         }
         .padding(14)
-        .frame(width: ask.once && ask.keeps ? 340 : 280)
+        .frame(width: ask.once && ask.keeps ? 360 : 280)
         .elevated(.float, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .accessibilityElement(children: .contain)
     }
