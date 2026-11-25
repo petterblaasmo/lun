@@ -75,7 +75,7 @@ struct ExtensionsPage: View {
                 }
 
                 if extensions.installed.isEmpty {
-                    Card { Nothing("No extensions yet.") }
+                    Card { Nothing("No extensions yet. Open the Store above, or bring over the ones another browser has.") }
                 } else {
                     Card {
                         ForEach(Array(extensions.installed.enumerated()), id: \.element.id) { index, item in

@@ -262,7 +262,7 @@ enum SettingsIndex {
               words: ["toolbar", "buttons", "navigation", "hide", "back", "forward", "reload", "minimal", "clean"], kind: .wide),
         .init(id: "foot.shown", group: "tablook", icon: "square.grid.3x1.below.line.grid.1x2",
               title: "Buttons under the column", detail: "Untick extensions, bookmarks or your profile to hide its button",
-              more: "Across the top, the same buttons at the row's end. A pinned extension keeps its own button, and Bookmarks and Settings › Extensions are still in the menus.",
+              more: "Across the top, the same buttons at the row's end. A pinned extension keeps its own button, and Bookmarks and Extensions… are still in the menus.",
               keys: ["foot.extensions.hidden", "foot.bookmarks.hidden", "foot.profile.hidden"],
               words: ["toolbar", "buttons", "footer", "bottom", "hide", "extensions", "puzzle", "bookmarks", "profile", "customise", "customize", "minimal", "clean"], kind: .wide),
         .init(id: "sidebar.foldButton", group: "tablook", icon: "sidebar.left",

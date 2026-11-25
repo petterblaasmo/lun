@@ -503,6 +503,8 @@ struct SearchApp: App {
             CommandGroup(after: .appSettings) {
                 Button("Settings…") { browser.tuning = true }
                     .shortcut("app.settings")
+                Button("Extensions…") { browser.showExtensions() }
+                    .shortcut("app.extensions")
                 Button("Welcome…") { browser.welcoming = true }
                     .shortcut("app.welcome")
                 Button("Passwords…") { browser.managing = true }
