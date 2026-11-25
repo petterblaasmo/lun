@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Everything there is to set. Sections down the left, under a field that
 /// finds any setting by its words (⌘F); one section at a time on the right,
-/// in titled groups, each a card of rows. A row says what it is with a small
-/// icon and a line of plain words, the rest behind its (i). Every row of a
+/// in titled groups, each a card of rows. A row says what it is and, on a line
+/// of plain words, what it does, the rest behind its (i). Every row of a
 /// card stands at the same level, hairlines from edge to edge; a row that
 /// only counts while another is on is only there while it counts. Every
 /// row comes from SettingsIndex, so what the find field finds is exactly
@@ -96,15 +96,13 @@ struct SettingsPanel: View {
     }
 
     private static let rail: CGFloat = 196
+    private static let between: CGFloat = 32
     private static let column: CGFloat = 600
     private static let width: CGFloat = 720
     private static let height: CGFloat = 540
-    /// Where a row's words start, past its icon. What goes under a row's
-    /// words (pictures, lists, fields) starts there too.
-    static let textInset: CGFloat = 52
-    /// A list under a row's words starts this far in, its lines adding
-    /// their own 14 to reach textInset.
-    static let listInset: CGFloat = textInset - 14
+    /// Where a row's words start. What goes under a row's words (lists,
+    /// fields) starts there too.
+    static let textInset: CGFloat = 16
 
     var body: some View {
         Group {
@@ -118,12 +116,17 @@ struct SettingsPanel: View {
     /// left, the window's whole height, and the section down the middle of
     /// the rest.
     private var tabbed: some View {
-        HStack(spacing: 0) {
-            pages
-            Rectangle().fill(Palette.hairline).frame(width: 1)
-            content
-                .padding(.top, 26)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // The two together in the middle of the window, as far as it is wide
+        // enough; the scrolling reaches its far edge all the same.
+        GeometryReader { geometry in
+            let both = SettingsPanel.rail + SettingsPanel.between + SettingsPanel.column
+            HStack(spacing: 0) {
+                pages
+                    .padding(.leading, max(16, (geometry.size.width - both) / 2))
+                content
+                    .padding(.top, 14)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { follow(asked) }
@@ -164,34 +167,22 @@ struct SettingsPanel: View {
     private var pages: some View {
         let counts = Dictionary(grouping: hits, by: \.page).mapValues(\.count)
         return VStack(alignment: .leading, spacing: 2) {
-            Text("Settings")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Palette.ink)
-                .padding(.horizontal, 10)
-                .padding(.top, 14)
-                .padding(.bottom, 10)
             FindField(text: $query, focus: $finding)
                 .padding(.bottom, 10)
-            ForEach(Array(Page.blocks.enumerated()), id: \.offset) { index, block in
-                if index > 0 {
-                    Rectangle().fill(Palette.hairline).frame(height: 1)
-                        .padding(.horizontal, 10).padding(.vertical, 7)
-                }
-                ForEach(block) { item in
-                    PageRow(page: item, on: !searching && page == item,
-                            count: searching ? counts[item] ?? 0 : nil, chosen: chosen) {
-                        query = ""
-                        page = item
-                    }
+            ForEach(Page.blocks.flatMap { $0 }) { item in
+                PageRow(page: item, on: !searching && page == item,
+                        count: searching ? counts[item] ?? 0 : nil, chosen: chosen) {
+                    query = ""
+                    page = item
                 }
             }
             Spacer(minLength: 0)
         }
         .animation(slide, value: page)
-        .padding(8)
-        .frame(width: SettingsPanel.rail, alignment: .leading)
+        .padding(.top, asTab ? 32 : 16)
+        .padding(.leading, asTab ? 0 : 16)
+        .frame(width: SettingsPanel.rail + (asTab ? 0 : 16), alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Palette.wash.opacity(0.45), in: Rectangle())
     }
 
     /// The white's move: the tab column's glide, a touch longer and with a
@@ -208,13 +199,13 @@ struct SettingsPanel: View {
         var focus: FocusState<Bool>.Binding
 
         var body: some View {
-            HStack(spacing: 7) {
+            HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
                 ZStack(alignment: .leading) {
                     if text.isEmpty {
-                        Text("Find a setting").foregroundStyle(Palette.muted.opacity(0.8))
+                        Text("Search").foregroundStyle(Palette.muted)
                     }
                     TextField("", text: $text)
                         .textFieldStyle(.plain)
@@ -223,12 +214,8 @@ struct SettingsPanel: View {
                         .onExitCommand { text = "" }
                         .accessibilityLabel("Find a setting")
                 }
-                .font(.system(size: 12.5))
-                if text.isEmpty {
-                    Text("⌘F")
-                        .font(.system(size: 10.5, design: .rounded))
-                        .foregroundStyle(Palette.muted.opacity(0.8))
-                } else {
+                .font(.system(size: 13))
+                if !text.isEmpty {
                     Button { text = "" } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 11))
@@ -237,10 +224,10 @@ struct SettingsPanel: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 9)
-            .frame(height: 28)
-            .background(Palette.ground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background(Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .help("Find a setting   ⌘F")
         }
     }
 
@@ -256,9 +243,6 @@ struct SettingsPanel: View {
         var body: some View {
             Button(action: act) {
                 HStack(spacing: 9) {
-                    Image(systemName: page.icon)
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 16)
                     Text(page.title)
                         .font(.system(size: 13, weight: on ? .medium : .regular))
                     Spacer(minLength: 0)
@@ -268,21 +252,20 @@ struct SettingsPanel: View {
                             .foregroundStyle(Palette.ink)
                             .padding(.horizontal, 6)
                             .frame(height: 17)
-                            .background(Palette.ground, in: Capsule())
+                            .background(Palette.fill, in: Capsule())
                     }
                 }
-                .foregroundStyle(on ? Palette.ink : (hovering ? Palette.ink.opacity(0.75) : Palette.muted))
+                .foregroundStyle(on ? Palette.ink : (hovering ? Palette.ink : Palette.muted))
                 .opacity(count == 0 ? 0.4 : 1)
                 .padding(.horizontal, 10)
                 .frame(height: 30)
                 .background {
                     if on {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Palette.ground)
-                            .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Palette.fill)
                             .matchedGeometryEffect(id: "chosen", in: chosen)
                     } else if hovering {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .fill(Palette.hover)
                     }
                 }
@@ -299,11 +282,6 @@ struct SettingsPanel: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                if !searching {
-                    Image(systemName: page.icon)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(Palette.ink)
-                }
                 Text(searching ? "Settings matching “\(query.trimmingCharacters(in: .whitespaces))”" : page.title)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Palette.ink)
@@ -313,23 +291,25 @@ struct SettingsPanel: View {
                     Door(icon: "xmark", help: "Done   esc") { browser.tuning = false }
                 }
             }
-            .padding(.bottom, 18)
-            .padding(.horizontal, 24)
-            .frame(maxWidth: asTab ? SettingsPanel.column : .infinity)
-            .frame(maxWidth: .infinity)
+            .padding(.bottom, 24)
+            .padding(.horizontal, 16)
+            .padding(.leading, SettingsPanel.between)
+            .padding(.trailing, 16)
+            .frame(maxWidth: asTab ? SettingsPanel.column + SettingsPanel.between + 16 : .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             ScrollViewReader { reader in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 24) {
                         if searching { results } else { section(page) }
                     }
-                    .environment(\.ruleInset, 0)
                     .padding(.bottom, 24)
                     // Keep the rows narrow, not the scroll view: the empty
                     // space beside them must receive scrolling too.
-                    .padding(.horizontal, 24)
-                    .frame(maxWidth: asTab ? SettingsPanel.column : .infinity)
-                    .frame(maxWidth: .infinity)
+                    .padding(.leading, SettingsPanel.between)
+                    .padding(.trailing, 16)
+                    .frame(maxWidth: asTab ? SettingsPanel.column + SettingsPanel.between + 16 : .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .onAppear { if let lit { reader.scrollTo(lit, anchor: .center) } }
             }
@@ -431,14 +411,12 @@ struct SettingsPanel: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { withAnimation(Motion.quick) { lit = nil } }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: group.icon).font(.system(size: 10.5, weight: .medium))
-                        Text("\(group.page.title)  ›  \(group.title)".uppercased())
-                            .font(.system(size: 10.5, weight: .semibold))
-                            .tracking(0.4)
+                        Text("\(group.page.title) › \(group.title)")
+                            .font(.system(size: 12))
                         Image(systemName: "arrow.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
                     }
                     .foregroundStyle(Palette.muted)
-                    .padding(.leading, 2)
+                    .padding(.leading, 16)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -448,14 +426,10 @@ struct SettingsPanel: View {
         }
         if !always.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle").font(.system(size: 10.5, weight: .medium))
-                    Text("Always on, nothing to set".uppercased())
-                        .font(.system(size: 10.5, weight: .semibold))
-                        .tracking(0.4)
-                }
-                .foregroundStyle(Palette.muted)
-                .padding(.leading, 2)
+                Text("Always on, nothing to set")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.muted)
+                    .padding(.leading, 16)
                 Card { rows(always, searched: true) }
             }
         }
@@ -609,28 +583,24 @@ struct SettingsPanel: View {
     private func appearanceControl(_ id: String) -> some View {
         switch id {
         case "look":
-            Pictures(options: Look.allCases.map { look in
-                (look, look == .system ? "Auto" : look.title, AnyView(LookPicture(look: look)))
-            }, selection: $prefs.look)
+            Segmented(options: Look.allCases.map { ($0, $0 == .system ? "Auto" : $0.title) }, selection: $prefs.look)
         case "pages.dusk": Switch(on: $prefs.darkensPages)
         case "inspector.chrome": Switch(on: $prefs.inspectorChrome)
         case "inspector.dark": Switch(on: $prefs.inspectorDark)
         case "tabs.layout":
-            Pictures(options: TabsLayout.allCases.map { ($0, $0.title, AnyView(LayoutPicture(layout: $0))) },
-                     selection: Binding(
+            Segmented(options: TabsLayout.allCases.map { ($0, $0.title) },
+                      selection: Binding(
                         get: { prefs.tabsLayout },
                         set: { layout in withAnimation(Motion.glide) { prefs.tabsLayout = layout } }
-                     ))
+                      ))
         case "sidebar.hides": Switch(on: $prefs.sideHides)
         case "sidebar.slides": Switch(on: $prefs.slidesColumn)
         case "sidebar.foldIcons": Switch(on: $prefs.foldsToIcons)
         case "layout.cards":
-            Pictures(options: [(true, "As a card", AnyView(CardPicture(card: true))),
-                               (false, "Edge to edge", AnyView(CardPicture(card: false)))],
-                     selection: Binding(
-                        get: { prefs.cards },
-                        set: { on in withAnimation(Motion.glide) { prefs.cards = on } }
-                     ))
+            Switch(on: Binding(
+                get: { prefs.cards },
+                set: { on in withAnimation(Motion.glide) { prefs.cards = on } }
+            ))
         case "layout.cardsFullScreen": Switch(on: $prefs.cardsInFullScreen)
         case "address.shown": Switch(on: $prefs.addressLine)
         case "scrollbars.fade": Switch(on: $prefs.scrollbarsFade)
@@ -922,7 +892,8 @@ struct SettingsPanel: View {
         case "updates.version": versionControl
         case "updates.auto": Switch(on: $prefs.installsUpdates)
         case "updates.notice": Switch(on: $prefs.showsUpdateReady)
-        case "about.feedback": Pill("Send Feedback") { Links.writeFeedback() }
+        case "about.licences": Pill("Show Licences…") { LicencesWindow.show() }
+        case "about.feedback": Pill("Send Feedback…") { Links.writeFeedback() }
         case "about.notes": Pill("What's New…") { browser.lead(to: InternalPage(.notes)) }
         case "bench": Switch(on: $prefs.bench)
         case "agents": Switch(on: $prefs.agents)
@@ -1272,15 +1243,11 @@ struct SettingsPanel: View {
 
 private extension View {
     /// A list under a row's words (sites, profiles, languages): its lines
-    /// start where the row's title does, and its hairlines are pulled back
-    /// out to the card's left edge, as every other one in Settings.
-    func under() -> some View {
-        padding(.leading, SettingsPanel.listInset)
-            .environment(\.ruleInset, -SettingsPanel.listInset)
-    }
+    /// start where the row's title does.
+    func under() -> some View { self }
 }
 
-/// A group of a section: its small heading with an icon, then its card.
+/// A group of a section: its small heading, then its card.
 /// No line under the heading: the rows say what they do.
 struct GroupBlock<Content: View>: View {
     let title: String
@@ -1289,21 +1256,17 @@ struct GroupBlock<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 10.5, weight: .semibold))
-                Text(title.uppercased())
-                    .font(.system(size: 10.5, weight: .semibold))
-                    .tracking(0.5)
-            }
-            .foregroundStyle(Palette.ink.opacity(0.62))
-            .padding(.leading, 2)
+            Text(title)
+                .font(.system(size: 12))
+                .foregroundStyle(Palette.muted)
+                .padding(.leading, 16)
+                .accessibilityAddTraits(.isHeader)
             content()
         }
     }
 }
 
-/// One setting: its icon in a soft tile, what it is, one line on what it
+/// One setting: what it is, one line on what it
 /// does (the rest behind the (i)), and its control. A wide control goes
 /// under the words.
 struct SettingRow<Control: View>: View {
@@ -1319,13 +1282,8 @@ struct SettingRow<Control: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Palette.ink.opacity(0.78))
-                    .frame(width: 26, height: 26)
-                    .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 5) {
                         Text(title)
                             .font(.system(size: 13))
@@ -1345,14 +1303,14 @@ struct SettingRow<Control: View>: View {
                     }
                     if !detail.isEmpty {
                         Text(detail)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     if open, let more {
                         Text(more)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.top, 3)
@@ -1364,12 +1322,10 @@ struct SettingRow<Control: View>: View {
             }
             if wide {
                 control()
-                    .padding(.leading, 38)
             }
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(lit ? Palette.hover : .clear)
     }
 }
@@ -1384,194 +1340,6 @@ struct Always: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(Palette.wash, in: Capsule())
-    }
-}
-
-/// Choices shown as small pictures, as macOS's own Appearance pane has
-/// them: a ring around the one picked, its name under each.
-struct Pictures<Option: Hashable>: View {
-    let options: [(Option, String, AnyView)]
-    @Binding var selection: Option
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            ForEach(options, id: \.0) { option, title, picture in
-                let on = option == selection
-                Button { withAnimation(Motion.settle) { selection = option } } label: {
-                    VStack(spacing: 6) {
-                        picture
-                            .frame(width: 76, height: 50)
-                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                    .strokeBorder(Palette.hairline, lineWidth: 1)
-                            )
-                            .padding(3)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 9.5, style: .continuous)
-                                    .strokeBorder(on ? Palette.ink : .clear, lineWidth: 2)
-                            )
-                        Text(title)
-                            .font(.system(size: 11.5, weight: on ? .medium : .regular))
-                            .foregroundStyle(on ? Palette.ink : Palette.muted)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(title)
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
-        }
-    }
-}
-
-/// A window in miniature with the tabs where a layout puts them.
-private struct LayoutPicture: View {
-    let layout: TabsLayout
-
-    var body: some View {
-        let tab = Palette.ink.opacity(0.22)
-        let lit = Palette.ink.opacity(0.55)
-        ZStack {
-            Palette.wash
-            switch layout {
-            case .top:
-                VStack(spacing: 4) {
-                    HStack(spacing: 3) {
-                        lights
-                        Capsule().fill(lit).frame(width: 14, height: 4)
-                        Capsule().fill(tab).frame(width: 14, height: 4)
-                        Capsule().fill(tab).frame(width: 10, height: 4)
-                        Spacer(minLength: 0)
-                    }
-                    page
-                }
-                .padding(5)
-            case .left, .right:
-                HStack(spacing: 4) {
-                    if layout == .right { page }
-                    VStack(alignment: .leading, spacing: 3) {
-                        if layout == .left { lights } else { Color.clear.frame(height: 3) }
-                        Capsule().fill(lit).frame(width: 16, height: 3.5)
-                        Capsule().fill(tab).frame(width: 16, height: 3.5)
-                        Capsule().fill(tab).frame(width: 12, height: 3.5)
-                        Spacer(minLength: 0)
-                    }
-                    .frame(width: 18)
-                    if layout == .left { page }
-                }
-                .padding(5)
-            case .icons:
-                // A narrow column of squares, one under the other: the
-                // tabs' icons, no titles.
-                HStack(spacing: 4) {
-                    VStack(spacing: 3) {
-                        VStack(spacing: 1.5) {
-                            ForEach(0..<3) { _ in Circle().fill(Palette.ink.opacity(0.25)).frame(width: 3, height: 3) }
-                        }
-                        .padding(.bottom, 1)
-                        RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(lit).frame(width: 6, height: 6)
-                        RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(tab).frame(width: 6, height: 6)
-                        RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(tab).frame(width: 6, height: 6)
-                        Spacer(minLength: 0)
-                    }
-                    .frame(width: 8)
-                    page
-                }
-                .padding(5)
-            }
-        }
-    }
-
-    private var lights: some View {
-        HStack(spacing: 1.5) {
-            ForEach(0..<3) { _ in Circle().fill(Palette.ink.opacity(0.25)).frame(width: 3, height: 3) }
-        }
-    }
-
-    private var page: some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(Palette.ground)
-            .overlay(alignment: .topLeading) {
-                VStack(alignment: .leading, spacing: 2.5) {
-                    Capsule().fill(Palette.ink.opacity(0.18)).frame(width: 22, height: 3)
-                    Capsule().fill(Palette.ink.opacity(0.1)).frame(width: 30, height: 2.5)
-                    Capsule().fill(Palette.ink.opacity(0.1)).frame(width: 26, height: 2.5)
-                }
-                .padding(5)
-            }
-    }
-}
-
-/// The page as a card, or reaching the window's edges.
-private struct CardPicture: View {
-    let card: Bool
-
-    var body: some View {
-        HStack(spacing: card ? 4 : 0) {
-            VStack(alignment: .leading, spacing: 3) {
-                Capsule().fill(Palette.ink.opacity(0.55)).frame(width: 15, height: 3.5)
-                Capsule().fill(Palette.ink.opacity(0.22)).frame(width: 15, height: 3.5)
-                Capsule().fill(Palette.ink.opacity(0.22)).frame(width: 11, height: 3.5)
-                Spacer(minLength: 0)
-            }
-            .padding(.top, 8)
-            .padding(.leading, card ? 0 : 5)
-            .frame(width: card ? 17 : 22, alignment: .leading)
-            if !card { Rectangle().fill(Palette.hairline).frame(width: 1) }
-            RoundedRectangle(cornerRadius: card ? 4 : 0, style: .continuous)
-                .fill(Palette.ground)
-                .shadow(color: .black.opacity(card ? 0.12 : 0), radius: 1.5, y: 0.5)
-        }
-        .padding(card ? 5 : 0)
-        .background(card ? Palette.wash : Palette.ground)
-    }
-}
-
-/// Light, dark, or both halves for Auto: drawn in the look itself, not in
-/// the one Search is in now.
-private struct LookPicture: View {
-    let look: Look
-
-    var body: some View {
-        switch look {
-        case .light: Window(dark: false)
-        case .dark: Window(dark: true)
-        default:
-            ZStack {
-                Window(dark: false)
-                Window(dark: true).mask(HStack(spacing: 0) { Color.clear; Color.black })
-            }
-        }
-    }
-
-    private struct Window: View {
-        let dark: Bool
-        var body: some View {
-            let ground = Color(white: dark ? 0.11 : 1)
-            let wash = Color(white: dark ? 0.17 : 0.93)
-            let ink = Color(white: dark ? 0.93 : 0.09)
-            HStack(spacing: 4) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Capsule().fill(ink.opacity(0.55)).frame(width: 14, height: 3.5)
-                    Capsule().fill(ink.opacity(0.2)).frame(width: 14, height: 3.5)
-                    Spacer(minLength: 0)
-                }
-                .padding(.top, 8)
-                .frame(width: 16)
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(ground)
-                    .overlay(alignment: .topLeading) {
-                        VStack(alignment: .leading, spacing: 2.5) {
-                            Capsule().fill(ink.opacity(0.4)).frame(width: 20, height: 3)
-                            Capsule().fill(ink.opacity(0.18)).frame(width: 28, height: 2.5)
-                        }
-                        .padding(5)
-                    }
-            }
-            .padding(5)
-            .background(wash)
-        }
     }
 }
 
@@ -1813,13 +1581,12 @@ private struct PermissionSiteRow: View {
                 Image(systemName: expanded ? "chevron.down" : "chevron.right")
                     .font(.system(size: 10, weight: .semibold)).foregroundStyle(Palette.muted)
             }
-            .padding(.leading, 14 + SettingsPanel.listInset)
+            .padding(.leading, 16)
             .padding(.trailing, 14).frame(minHeight: 44)
             .contentShape(Rectangle())
             .background(hovering ? Palette.hover : .clear)
         }
         .buttonStyle(.plain)
-        .padding(.leading, -SettingsPanel.listInset)
         .onHover { hovering = $0 }
         .accessibilityLabel("\(origin), \(count)")
         .accessibilityValue(expanded ? "Expanded" : "Collapsed")

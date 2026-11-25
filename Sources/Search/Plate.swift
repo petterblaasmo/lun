@@ -115,12 +115,8 @@ struct Card<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) { content() }
-            .background(Palette.ground)
-            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .strokeBorder(Palette.hairline, lineWidth: 1)
-            )
+            .background(Palette.fill)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
@@ -130,19 +126,17 @@ struct Rule: View {
     var inset: CGFloat? = nil
     @Environment(\.ruleInset) private var standard
     var body: some View {
-        Rectangle().fill(Palette.hairline).frame(height: 1).padding(.leading, inset ?? standard)
+        Rectangle().fill(Palette.rule).frame(height: 1).padding(.leading, inset ?? standard).padding(.trailing, max(0, inset ?? standard))
     }
 }
 
 private struct RuleInsetKey: EnvironmentKey {
-    static let defaultValue: CGFloat = 14
+    static let defaultValue: CGFloat = 16
 }
 
 extension EnvironmentValues {
-    /// Where a Rule without an inset of its own starts. Settings sets 0, so
-    /// every hairline in its cards runs from edge to edge, those drawn by
-    /// the lists it borrows from other panels too. A list drawn further in
-    /// sets minus its own indent, so its hairlines still reach the edge.
+    /// Where a Rule without an inset of its own starts and ends: under the
+    /// text, as far from the card's edges as it is.
     var ruleInset: CGFloat {
         get { self[RuleInsetKey.self] }
         set { self[RuleInsetKey.self] = newValue }
@@ -163,13 +157,13 @@ struct Line<Control: View>: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 13))
                     .foregroundStyle(Palette.ink)
                 if let detail {
                     Text(detail)
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -178,8 +172,8 @@ struct Line<Control: View>: View {
             Spacer(minLength: 8)
             control()
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 }
 
@@ -189,9 +183,9 @@ struct Caption: View {
     init(_ text: String) { self.text = text }
     var body: some View {
         Text(text)
-            .font(.system(size: 11.5, weight: .medium))
+            .font(.system(size: 12))
             .foregroundStyle(Palette.muted)
-            .padding(.leading, 2)
+            .padding(.leading, 16)
     }
 }
 
@@ -204,11 +198,11 @@ struct Hunt: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.muted)
             ZStack(alignment: .leading) {
                 if text.isEmpty {
-                    Text(prompt).foregroundStyle(Palette.muted.opacity(0.7))
+                    Text(prompt).foregroundStyle(Palette.muted)
                 }
                 TextField("", text: $text)
                     .textFieldStyle(.plain)
@@ -225,9 +219,9 @@ struct Hunt: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.horizontal, 10)
+        .frame(height: 32)
+        .background(Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 

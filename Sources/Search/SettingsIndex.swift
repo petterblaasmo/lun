@@ -98,7 +98,7 @@ enum SettingsIndex {
         .init(id: "mouse", page: .keyboard, title: "Mouse and trackpad", icon: "computermouse"),
         .init(id: "anywhere", page: .keyboard, title: "From any app", icon: "macwindow.on.rectangle"),
 
-        .init(id: "updates", page: .about, title: "Updates", icon: "arrow.triangle.2.circlepath"),
+        .init(id: "updates", page: .about, title: "Lun", icon: "arrow.triangle.2.circlepath"),
         .init(id: "news", page: .about, title: "News by email", icon: "envelope.open"),
         .init(id: "developer", page: .about, title: "Developer", icon: "hammer"),
 
@@ -171,7 +171,7 @@ enum SettingsIndex {
         // Appearance
         .init(id: "look", group: "theme", icon: "circle.lefthalf.filled",
               title: "Appearance", detail: "Light, dark, or whatever the Mac is doing. Pages follow it too",
-              keys: ["look"], words: ["dark mode", "light mode", "theme", "system"], kind: .wide),
+              keys: ["look"], words: ["dark mode", "light mode", "theme", "system"]),
         .init(id: "pages.dusk", group: "theme", icon: "moon",
               title: "Darken pages that stay light", detail: "Pages with no dark look of their own are darkened too",
               more: "Sites with a dark look of their own already follow it. ⇧⌘D for the site you're on, ⌥⇧⌘D to pause everywhere.",
@@ -190,7 +190,7 @@ enum SettingsIndex {
               more: "Icons only is a narrow column of each tab's icon, the title in a tooltip. Nothing grows under the pointer.",
               keys: ["sidebar", "sidebar.position", "sidebar.icons"],
               words: ["sidebar", "vertical tabs", "column", "left", "right", "top", "tab bar", "position",
-                      "icons only", "compact", "collapsed", "narrow", "favicons"], kind: .wide),
+                      "icons only", "compact", "collapsed", "narrow", "favicons"]),
         .init(id: "sidebar.hides", group: "window", icon: "sidebar.squares.left",
               title: "Hide the column until the pointer reaches the edge", detail: "The page takes the whole window; ⌘S keeps the tabs out",
               keys: ["sidebar.hides"], words: ["auto hide", "sidebar"], parent: "tabs.layout"),
@@ -209,8 +209,8 @@ enum SettingsIndex {
               keys: ["fold.loadingLine"], words: ["loading", "progress", "bar", "spinner", "indicator", "hidden sidebar", "folded", "arc"]),
         .init(id: "layout.cards", group: "window", icon: "rectangle.inset.filled",
               title: "The page as a card", detail: "A little room around the page, with rounded corners",
-              more: "Off, the page reaches the window's edges and the column is white with its hairline.",
-              keys: ["layout.cards"], words: ["edge to edge", "rounded", "margin"], kind: .wide, parent: "tabs.layout"),
+              more: "Off, the page reaches the window's edges, and the tabs lie on its white.",
+              keys: ["layout.cards"], words: ["edge to edge", "rounded", "margin"], parent: "tabs.layout"),
         .init(id: "layout.cardsFullScreen", group: "window", icon: "arrow.up.left.and.arrow.down.right",
               title: "Keep the card in full screen", detail: "Off, the page goes edge to edge when the window fills the screen",
               keys: ["layout.cardsFullScreen"], words: ["full screen", "fullscreen", "card", "margin", "rounded", "zen", "arc"],
@@ -691,10 +691,13 @@ enum SettingsIndex {
               title: "Show when an update is ready", detail: "\"Update ready\" and Restart at the foot of the column, or a pill by the tabs",
               more: "Only while a new version is waiting. Its × or right-click › Hide puts it away until the next version; Restart is also in the Lun menu.",
               keys: [UpdateNotice.key], words: ["update ready", "restart to update", "update notice", "new version"]),
-        .init(id: "about.feedback", group: "updates", icon: "envelope",
-              title: "Found something wrong?", detail: "Opens a draft with the version already in it", words: ["bug", "feedback", "report"]),
         .init(id: "about.notes", group: "updates", icon: "sparkles",
               title: "What's new", detail: "Every version's notes, newest first", words: ["release notes", "changelog"]),
+        .init(id: "about.feedback", group: "updates", icon: "envelope",
+              title: "Found something wrong?", detail: "Opens a draft with the version already in it", words: ["bug", "feedback", "report"]),
+        .init(id: "about.licences", group: "updates", icon: "doc.text",
+              title: "Licences", detail: "The open-source code Lun is made from",
+              words: ["license", "licence", "open source", "copyright", "acknowledgements", "third party"]),
         // An email field each, never sent without a press (OptIn.swift).
         // Only booleans are kept, never the address.
         .init(id: "news.updates", group: "news", icon: "envelope",
@@ -825,7 +828,7 @@ enum SettingsIndex {
         case "pages.dusk": return prefs.look != .light
         case "inspector.dark": return prefs.look != .dark
         case "sidebar.roomy", "sidebar.player", "sidebar.doorsUp", "sidebar.foldButton", "sidebar.narrowIcons": return prefs.sidebar && !prefs.sideIcons
-        case "sidebar.hides", "sidebar.slides", "layout.cards", "pins.list": return prefs.sidebar
+        case "sidebar.hides", "sidebar.slides", "pins.list": return prefs.sidebar
         case "layout.cardsFullScreen": return prefs.sidebar && prefs.cards
         // The address has the row under the tabs to itself (AddressRow).
         case "address.width": return false
