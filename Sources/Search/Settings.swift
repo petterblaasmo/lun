@@ -1185,20 +1185,24 @@ struct SettingsPanel: View {
     // MARK: - about
 
     private var aboutHeader: some View {
-        HStack(spacing: 14) {
+        VStack(spacing: 8) {
             Logomark()
-                .fill(Palette.ink, style: FillStyle(eoFill: true))
+                .fill(Palette.ink)
                 .aspectRatio(Logomark.canvas.width / Logomark.canvas.height, contentMode: .fit)
-                .frame(height: 34)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Search")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
-                Text("by Office Commun · version \(Updater.version)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.muted)
-            }
+                .frame(height: 50)
+                .accessibilityElement()
+                .accessibilityLabel("Lun")
+            Text("Version \(Updater.version)")
+                .font(.system(size: 12))
+                .monospacedDigit()
+                .foregroundStyle(Palette.muted)
+            Text("A small, fast, quiet browser for the Mac.")
+                .font(.system(size: 13))
+                .foregroundStyle(Palette.muted)
+                .padding(.top, 8)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
     }
 
     /// The version line follows the newer build from found to fetched to
