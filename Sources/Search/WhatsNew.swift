@@ -956,7 +956,7 @@ struct ReleaseNotesPanel: View {
                             .font(.system(size: 22, weight: .semibold))
                             .kerning(-0.3)
                             .foregroundStyle(Palette.ink)
-                        Text("Here are three things that were already in it, switched off, worth a try.")
+                        Text("Here are three things in it worth a try.")
                             .font(.system(size: 13))
                             .foregroundStyle(Palette.muted)
                     }

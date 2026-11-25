@@ -254,7 +254,8 @@ struct HistoryPanel: View {
         for day in grouped.keys.sorted(by: >) {
             let rows = grouped[day]!.sorted { $0.last > $1.last }
             let named = calendar.isDateInToday(day) || calendar.isDateInYesterday(day)
-            let long = day.formatted(.dateTime.weekday(.wide).day().month(.wide))
+            // In English, as the words around it are.
+            let long = day.formatted(Date.FormatStyle(locale: Locale(identifier: "en_GB")).weekday(.wide).day().month(.wide))
             made.append(Listed(id: "day " + day.description, kind: .day(named ? When.day(day) : long, named ? long : "")))
             for (index, trace) in rows.enumerated() {
                 made.append(Listed(id: trace.id, kind: .trace(trace, first: index == 0, last: index == rows.count - 1)))
