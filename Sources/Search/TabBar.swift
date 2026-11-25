@@ -2267,10 +2267,12 @@ struct Pressing: ViewModifier {
 /// it. Nothing moves with Reduce Motion on.
 struct Give: ViewModifier {
     let pressed: Bool
+    /// How far it gives.
+    var to: CGFloat = Motion.give
 
     func body(content: Content) -> some View {
         content.animation(pressed ? Motion.quick : Motion.settle) {
-            $0.scaleEffect(pressed && !Motion.reduced ? Motion.give : 1)
+            $0.scaleEffect(pressed && !Motion.reduced ? to : 1)
         }
     }
 }
