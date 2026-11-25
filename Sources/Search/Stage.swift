@@ -894,7 +894,7 @@ struct Trouble: View {
                     .frame(width: 40, height: 40)
                     .elevated(.lift, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 Text(host).font(.system(size: 12)).foregroundStyle(Palette.ink).lineLimit(1).truncationMode(.middle)
-                Text(verdict).font(.system(size: 11)).foregroundStyle(Palette.unsafe)
+                Text(verdict).font(.system(size: 12)).foregroundStyle(Palette.unsafe)
             }
             .frame(maxWidth: .infinity)
         }
@@ -912,7 +912,7 @@ struct Trouble: View {
                 .frame(width: 40, height: 40)
                 .elevated(.lift, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             Text(name).font(.system(size: 12)).foregroundStyle(Palette.ink)
-            Text(says).font(.system(size: 11)).foregroundStyle(good ? Palette.safe : Palette.unsafe)
+            Text(says).font(.system(size: 12)).foregroundStyle(good ? Palette.safe : Palette.unsafe)
         }
         .frame(maxWidth: .infinity)
     }

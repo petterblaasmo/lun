@@ -113,7 +113,7 @@ struct ApplePairingCard: View {
                         .font(.system(size: 12.5))
                         .foregroundStyle(Palette.ink)
                     Text(detail)
-                        .font(.system(size: 10.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)

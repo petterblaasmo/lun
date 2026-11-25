@@ -269,7 +269,7 @@ struct OptInForm: View {
                 }
                 if case .failed(let failure) = phase {
                     Text(failure.line)
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.unsafe)
                         .transition(.opacity)
                 }
@@ -475,7 +475,7 @@ struct OptInWelcomePage: View {
             } else {
                 Text("You're offline. Settings › About has the same field for later.")
                     .font(.system(size: 13))
-                    .foregroundStyle(Palette.faint)
+                    .foregroundStyle(Palette.muted)
             }
         }
     }

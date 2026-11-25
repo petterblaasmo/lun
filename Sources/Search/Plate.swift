@@ -241,7 +241,7 @@ struct Hunt: View {
                 Button { text = "" } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 11))
-                        .foregroundStyle(Palette.faint)
+                        .foregroundStyle(Palette.muted)
                 }
                 .buttonStyle(.plain)
             }

@@ -16,7 +16,7 @@ struct TabShortcutNumber: View {
 
     var body: some View {
         Text(String(number))
-            .font(.system(size: 11, weight: .medium))
+            .font(.system(size: 12, weight: .medium))
             .monospacedDigit()
             .foregroundStyle(Palette.ink.opacity(0.65))
             .frame(width: 15, height: 15)

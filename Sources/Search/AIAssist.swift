@@ -270,9 +270,9 @@ struct AssistantPanel: View {
             Rectangle().fill(Palette.hairline).frame(height: 1)
             HStack(spacing: 8) {
                 if drawn {
-                    Text("Ask about this page…").font(.system(size: 12.5)).foregroundStyle(Palette.faint)
+                    Text("Ask about this page…").font(.system(size: 12.5)).foregroundStyle(Palette.muted)
                 } else {
-                    TextField("", text: $assistant.draft, prompt: Text("Ask about this page…").foregroundStyle(Palette.faint))
+                    TextField("", text: $assistant.draft, prompt: Text("Ask about this page…").foregroundStyle(Palette.muted))
                         .textFieldStyle(.plain)
                         .font(.system(size: 12.5))
                         .foregroundStyle(Palette.ink)
@@ -284,8 +284,8 @@ struct AssistantPanel: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             Text("AI — may be wrong · \(assistant.place)")
-                .font(.system(size: 10.5))
-                .foregroundStyle(Palette.faint)
+                .font(.system(size: 12))
+                .foregroundStyle(Palette.muted)
                 .lineLimit(1)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 10)
@@ -319,7 +319,7 @@ struct AssistantPanel: View {
     private func caution(_ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Image(systemName: "exclamationmark.triangle").font(.system(size: 10, weight: .medium))
-            Text(verbatim: text).font(.system(size: 11.5)).fixedSize(horizontal: false, vertical: true)
+            Text(verbatim: text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
         }
         .foregroundStyle(Palette.muted)
         .padding(8)
@@ -369,7 +369,7 @@ struct AssistantPanel: View {
                         .foregroundStyle(Palette.muted)
                 }
                 if turn.answer.isEmpty, !turn.done {
-                    Text("…").font(.system(size: 13)).foregroundStyle(Palette.faint)
+                    Text("…").font(.system(size: 13)).foregroundStyle(Palette.muted)
                 }
                 // As written, and never as markdown: no link to follow, no
                 // picture to fetch.
@@ -389,7 +389,7 @@ struct AssistantPanel: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 10, weight: .medium))
                         Text(verbatim: "Not on the page: " + turn.strays.joined(separator: ", "))
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .foregroundStyle(Palette.muted)
@@ -514,7 +514,7 @@ struct AISettings: View {
         } else {
             Line("Key", provider == .openRouter ? "Paste one, or sign in and OpenRouter makes one for you" : "Paste your API key") {
                 HStack(spacing: 6) {
-                    SecureField("", text: $pasted, prompt: Text("Key").foregroundStyle(Palette.faint))
+                    SecureField("", text: $pasted, prompt: Text("Key").foregroundStyle(Palette.muted))
                         .textFieldStyle(.plain)
                         .font(.system(size: 12))
                         .frame(width: 130)
@@ -540,7 +540,7 @@ struct AISettings: View {
             } else {
             TextField("", text: Binding(get: { prefs.aiModels[provider.rawValue] ?? "" },
                                         set: { prefs.setAIModel($0, for: provider) }),
-                      prompt: Text(provider.defaultModel).foregroundStyle(Palette.faint))
+                      prompt: Text(provider.defaultModel).foregroundStyle(Palette.muted))
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .frame(width: 170)
@@ -559,7 +559,7 @@ struct AISettings: View {
         init(_ text: String, menu: Bool = false, width: CGFloat? = nil) { self.text = text; self.menu = menu; self.width = width }
         var body: some View {
             HStack(spacing: 5) {
-                Text(text).font(.system(size: 12)).foregroundStyle(menu ? Palette.ink : Palette.faint)
+                Text(text).font(.system(size: 12)).foregroundStyle(menu ? Palette.ink : Palette.muted)
                 if menu { Image(systemName: "chevron.up.chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(Palette.muted) }
             }
             .frame(width: width, alignment: .leading)

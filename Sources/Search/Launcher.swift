@@ -589,7 +589,7 @@ private struct LauncherField: NSViewRepresentable {
         field.cell?.isScrollable = true
         field.placeholderAttributedString = NSAttributedString(
             string: "Search or enter a web address",
-            attributes: [.font: Self.font, .foregroundColor: NSColor(Palette.ink.opacity(0.3))]
+            attributes: [.font: Self.font, .foregroundColor: Palette.NS.muted]
         )
         field.setAccessibilityLabel("Address, opened in Lun")
         return field
@@ -723,7 +723,7 @@ struct LauncherKeyBox: View {
         HStack(spacing: 8) {
             if let refusal = launcher.refusal, !listening {
                 Text(refusal)
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundStyle(Color.red.opacity(0.8))
                     .lineLimit(1)
             }

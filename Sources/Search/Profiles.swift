@@ -276,7 +276,7 @@ struct ProfileBadge: View {
     var body: some View {
         Button { ProfileMenu.show(for: browser) } label: {
             Text(String(name.prefix(1)).uppercased())
-                .font(.system(size: 10.5, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(hovering ? Palette.ink : Palette.muted)
                 .frame(width: 17, height: 17)
                 .background(Circle().strokeBorder(hovering ? Palette.ink.opacity(0.5) : Palette.muted.opacity(0.6), lineWidth: 1.2))

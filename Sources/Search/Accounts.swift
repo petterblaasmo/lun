@@ -73,10 +73,10 @@ struct AccountList: View {
                 Image(systemName: contactsOnly ? "person.crop.rectangle" : "key")
                     .font(.system(size: 9, weight: .medium))
                 Text(footer)
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 12))
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(Palette.faint)
+            .foregroundStyle(Palette.muted)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .background(Palette.wash.opacity(0.5))
@@ -106,8 +106,8 @@ struct AccountList: View {
             ForEach(Array(choices.enumerated()), id: \.offset) { at, choice in
                 if at == asked.othersFrom {
                     Text("Other accounts on \(Vault.registrable(asked.host))")
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(Palette.faint)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 5)
@@ -207,7 +207,7 @@ struct AccountList: View {
                             .font(.system(size: 9, weight: .medium))
                             .frame(width: 22)
                         Text("Use your Apple passwords?")
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .lineLimit(1)
                         Spacer(minLength: 0)
                     }
@@ -219,7 +219,7 @@ struct AccountList: View {
                 Button(action: never) {
                     Image(systemName: "xmark")
                         .font(.system(size: 7.5, weight: .semibold))
-                        .foregroundStyle(Palette.faint)
+                        .foregroundStyle(Palette.muted)
                         .frame(width: 16, height: 16)
                         .background(Palette.ink.opacity(onCross ? 0.07 : 0), in: Circle())
                         .contentShape(Circle())
@@ -253,7 +253,7 @@ struct AccountList: View {
                 HStack(spacing: 10) {
                     Group {
                         switch mark {
-                        case .letter(let letter): Text(letter).font(.system(size: 11, weight: .medium))
+                        case .letter(let letter): Text(letter).font(.system(size: 12, weight: .medium))
                         case .symbol(let name): Image(systemName: name).font(.system(size: 10, weight: .medium))
                         }
                     }
@@ -266,7 +266,7 @@ struct AccountList: View {
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
                         Text(detail)
-                            .font(.system(size: 10.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(1)
                     }

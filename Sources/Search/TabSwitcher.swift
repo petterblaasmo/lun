@@ -509,8 +509,8 @@ struct TabSwitcherOverlay: View {
         return HStack(spacing: 14) {
             ForEach(keys, id: \.0) { key, name in
                 HStack(spacing: 4) {
-                    Text("⌃" + key).font(.system(size: 10.5, weight: .medium)).foregroundStyle(Palette.ink)
-                    Text(name).font(.system(size: 10.5)).foregroundStyle(Palette.muted)
+                    Text("⌃" + key).font(.system(size: 12, weight: .medium)).foregroundStyle(Palette.ink)
+                    Text(name).font(.system(size: 12)).foregroundStyle(Palette.muted)
                 }
             }
         }
@@ -657,7 +657,7 @@ struct TabSwitcherOverlay: View {
 
                 HStack(spacing: 4) {
                     Text(tab.label)
-                        .font(.system(size: 10.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.ink)
                         .lineLimit(1)
                     if tab.muted { mutedMark }
@@ -666,7 +666,7 @@ struct TabSwitcherOverlay: View {
             }
             .padding(6)
             .frame(width: width, alignment: .topLeading)
-            .background(selected ? Palette.faint : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .background(selected ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .animation(Motion.glide, value: selected)
             .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }

@@ -621,7 +621,7 @@ struct SpaceLookPicker: View {
                             .font(.system(size: 9, weight: .semibold))
                             .rotationEffect(.degrees(customOpen ? 90 : 0))
                         Text("Custom gradient")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 12, weight: .medium))
                         if choice == .custom {
                             Circle().fill(Palette.ink.opacity(0.7)).frame(width: 5, height: 5)
                                 .accessibilityLabel("Chosen")
@@ -665,7 +665,7 @@ struct SpaceLookPicker: View {
                 .foregroundStyle(none ? Palette.muted : Palette.ink)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             Text(space.lookName)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Palette.muted)
                 .padding(.horizontal, 10)
                 .padding(.bottom, 8)
@@ -688,7 +688,7 @@ struct SpaceLookPicker: View {
                 let on = current == strength
                 Button { browser.setSpaceStrength(id, to: strength) } label: {
                     Text(strength.name)
-                        .font(.system(size: 11, weight: on ? .medium : .regular))
+                        .font(.system(size: 12, weight: on ? .medium : .regular))
                         .foregroundStyle(on ? Palette.ink : Palette.muted)
                         .frame(maxWidth: .infinity)
                         .frame(height: 22)
@@ -792,7 +792,7 @@ struct SpaceLookPicker: View {
     private func section(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Palette.muted)
             content()
         }

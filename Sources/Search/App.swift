@@ -1380,7 +1380,7 @@ struct ContentView: View {
     /// as the mode does, which is how you know you are still in it.
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11.5))
+            .font(.system(size: 12))
             .foregroundStyle(Palette.ground.opacity(0.92))
             .padding(.horizontal, 15)
             .padding(.vertical, 9)
@@ -2450,7 +2450,7 @@ private struct ImportProgress: View {
         HStack {
             if let total = job.total, total > 0 {
                 Text("\(job.completed.formatted()) of \(total.formatted())")
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
             }
             Spacer(minLength: 0)

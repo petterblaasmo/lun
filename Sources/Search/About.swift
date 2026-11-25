@@ -55,7 +55,7 @@ struct AboutView: View {
                 .padding(.bottom, 8)
                 .accessibilityHidden(true)
             Text(verbatim: "Lun, version \(Updater.version)")
-                .font(.system(size: 11))
+                .font(.system(size: 12))
                 .monospacedDigit()
                 .foregroundStyle(Palette.muted)
                 .textSelection(.enabled)

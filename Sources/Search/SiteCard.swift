@@ -604,7 +604,7 @@ struct SiteCard: View {
             Line("Play Sound by Itself") {
                 if on != was {
                     Text("from the next page")
-                        .font(.system(size: 11))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .fixedSize()
                 }
