@@ -368,7 +368,9 @@ struct SettingsPanel: View {
     }
 
     private func groups(of page: Page) -> some View {
-        ForEach(SettingsIndex.groups(of: page)) { group in
+        // A group whose every row is left out (SettingsIndex.offered) has
+        // no heading either.
+        ForEach(SettingsIndex.groups(of: page).filter { !SettingsIndex.items(in: $0.id).isEmpty }) { group in
             GroupBlock(title: group.title, icon: group.icon) {
                 Card { rows(SettingsIndex.items(in: group.id).filter(shown), searched: false) }
             }

@@ -40,8 +40,8 @@
 #   - a notarytool profile: xcrun notarytool store-credentials "search"
 #     (SEARCH_NOTARY_PROFILE names it; default "search")
 #   - SEARCH_DOWNLOAD_URL, the https folder the three files are served from,
-#     for the appcast. Default https://officecommun.com/search, which is
-#     where Updater.feed in Updater.swift looks.
+#     for the appcast. No default: Updater.feed in Updater.swift has none
+#     until Lun has a site.
 #
 # NOTES.md, next to this script, is what's new: newest release first, one
 # paragraph each. The first paragraph goes into the appcast, and from there
@@ -491,7 +491,7 @@ echo "packed: $ZIP"
 # characters JSON minds escaped, is the line under the version in Settings.
 # Written last — after notarisation has stapled its ticket to the DMG, which
 # changes it — so the DMG's hash is the one people download.
-BASE="${SEARCH_DOWNLOAD_URL:-https://officecommun.com/search}"
+BASE="${SEARCH_DOWNLOAD_URL:?the https folder the files are served from; Lun has no site yet}"
 BASE="${BASE%/}$SUBFOLDER"
 NOTES=""
 if [ -f NOTES.md ]; then

@@ -29,27 +29,22 @@ import Security
 final class Updater: ObservableObject {
     static let shared = Updater()
 
-    /// Where the file lives. SEARCH_FEED, for a test run, points somewhere
-    /// else — and is the only way plain http is accepted, so a build that
-    /// was not handed the variable only ever listens to the real site.
-    /// SEARCH_FEED points a test run at a feed of its own. Only a test run:
-    /// the browser people use reads Office Commun's feed whatever the
-    /// environment it was started with says.
-    static let feed: URL = {
+    /// Where the file lives. None yet: Lun has no site to serve updates from,
+    /// and must never read Search's. Nothing is fetched and no update row or
+    /// menu item is shown until there is one.
+    /// SEARCH_FEED points a test run at a feed of its own, and is the only
+    /// way plain http is accepted. Only a test run: the browser people use
+    /// ignores it.
+    nonisolated static let feed: URL? = {
         if overridden, let set = ProcessInfo.processInfo.environment["SEARCH_FEED"], let url = URL(string: set) {
             return url
         }
-        // An Intel Mac has a download of its own from 1.0.5 (build.sh,
-        // SEARCH_ARCH=x86_64) and a feed beside it naming only Intel builds,
-        // so neither kind of Mac is ever offered the other's.
-        #if arch(x86_64)
-        return URL(string: "https://officecommun.com/search/intel/appcast.json")!
-        #else
-        return URL(string: "https://officecommun.com/search/appcast.json")!
-        #endif
+        return nil
     }()
 
-    static var overridden: Bool {
+    nonisolated static var available: Bool { feed != nil }
+
+    nonisolated static var overridden: Bool {
         Store.testing && ProcessInfo.processInfo.environment["SEARCH_FEED"] != nil
     }
 
@@ -132,6 +127,7 @@ final class Updater: ObservableObject {
     /// checks every time.
     func checkIfDue(then say: @escaping (String) -> Void) {
         self.say = say
+        guard Updater.available else { return }
         Swap.sweep()
         // And again every hour for as long as the app is up — a browser that
         // is left open for a week would otherwise never look.
@@ -179,6 +175,7 @@ final class Updater: ObservableObject {
     /// names, or nil when this is the latest; what becomes of it after that
     /// is said through the line handed to `checkIfDue`.
     func check(then done: @escaping (Release?) -> Void) {
+        guard Updater.available else { done(nil); return }
         guard !checking else { return }
         checking = true
         Task { [weak self] in
@@ -239,7 +236,7 @@ final class Updater: ObservableObject {
                     if Store.testing { Updater.diskVerdict = "verified" } else { NSWorkspace.shared.open(dmg) }
                 case .failure(let error):
                     Updater.diskVerdict = "refused: \(error)"
-                    say?("That download didn't check out — get Search from searchbrowser.app")
+                    say?("That download didn't check out — try again later")
                 }
             }
         }
@@ -323,7 +320,7 @@ final class Updater: ObservableObject {
         // plain one older builds read, holding the same file with its code
         // signature (build.sh). Only what comes out of it, checked, is read:
         // a feed a server or a hijacked answer made up is no feed at all.
-        guard let packed = await get(feed.appendingPathExtension("zip"), limit: 1 << 20),
+        guard let feed, let packed = await get(feed.appendingPathExtension("zip"), limit: 1 << 20),
               let data = await Task.detached(priority: .utility, operation: { Updater.opened(packed) }).value,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let version = json["version"] as? String,
@@ -417,7 +414,7 @@ final class Updater: ObservableObject {
     private static func link(_ value: Any?) -> URL? {
         guard let url = (value as? String).flatMap(URL.init(string:)) else { return nil }
         guard url.scheme == "https" || (overridden && url.scheme == "http") else { return nil }
-        guard url.host == feed.host else { return nil }
+        guard let feed, url.host == feed.host else { return nil }
         return url
     }
 }

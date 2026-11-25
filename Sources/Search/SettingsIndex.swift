@@ -699,12 +699,12 @@ enum SettingsIndex {
         // Only booleans are kept, never the address.
         .init(id: "news.updates", group: "news", icon: "envelope",
               title: "News by email", detail: "Rare emails: useful new features and big updates, nothing else",
-              more: "Your email goes to searchbrowser.app with the word app-settings and which Mac download this is, and through Resend, our email service. Every email has a link to stop them. This Mac remembers only that you joined, never the address.",
+              more: "Your email goes to the site with the word app-settings and which Mac download this is, and through Resend, our email service. Every email has a link to stop them. This Mac remembers only that you joined, never the address.",
               keys: [OptIn.joinedKey],
               words: ["newsletter", "email", "mailing list", "subscribe", "news", "updates by email"], kind: .wide),
         .init(id: "news.iphone", group: "news", icon: "iphone",
               title: "Search for iPhone beta", detail: "Ask for the iPhone beta, sent to your email",
-              more: "Your email goes to searchbrowser.app with the word app-settings, for your beta access and now and then news about the beta. Every email has a link to stop them. This Mac remembers only that you asked, never the address.",
+              more: "Your email goes to the site with the word app-settings, for your beta access and now and then news about the beta. Every email has a link to stop them. This Mac remembers only that you asked, never the address.",
               keys: [OptIn.betaKey],
               words: ["iphone", "ios", "beta", "testflight", "mobile", "phone", "email"], kind: .wide),
         .init(id: "devtools", group: "developer", icon: "hammer",
@@ -789,6 +789,9 @@ enum SettingsIndex {
         case "privacy.clickIDs": return ClickIDs.possible
         case "privacy.gpc": return PrivacySignal.possible
         case "privacy.httpsFirst": return HTTPSFirst.possible
+        // Both come with the signed feed (Updater), which Lun doesn't have yet.
+        case "updates.version", "updates.auto", "updates.notice", "devtools": return Updater.available || Store.testing
+        case "news.updates", "news.iphone": return OptIn.on
         default: return true
         }
     }

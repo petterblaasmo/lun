@@ -10,7 +10,7 @@ import SwiftUI
 //     it is seen.
 //
 // Every place is the same press as Settings › About's iPhone beta field
-// (OptIn.swift): one POST to searchbrowser.app/api/ios-beta with the email
+// (OptIn.swift): one POST to the site's api/ios-beta with the email
 // and a fixed source (app-about, app-help, app-newtab), sent only when the
 // button is pressed. Nothing else is sent, nothing is counted.
 //
@@ -25,7 +25,7 @@ import SwiftUI
 
 enum IPhoneAsk {
     /// The one switch for every place.
-    static let on = true
+    static let on = false
 
     /// "Not now", pressed in any place: never offered again anywhere.
     nonisolated static let dismissedKey = "iphoneask.dismissed"

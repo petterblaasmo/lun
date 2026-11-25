@@ -9,14 +9,16 @@ final class IPhoneAskTests: XCTestCase {
     private var store: UserDefaults!
     private let suite = "com.lunbrowser.lun.iphoneask-tests-\(getpid())"
 
-    override func setUp() {
-        super.setUp()
+    /// Off in Lun (OptIn.on): what it did is only checked when switched on.
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        try XCTSkipUnless(IPhoneAsk.on)
         store = UserDefaults(suiteName: suite)
         store.removePersistentDomain(forName: suite)
     }
 
     override func tearDown() {
-        store.removePersistentDomain(forName: suite)
+        store?.removePersistentDomain(forName: suite)
         super.tearDown()
     }
 

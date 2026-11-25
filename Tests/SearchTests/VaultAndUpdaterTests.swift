@@ -119,6 +119,14 @@ final class VaultAndUpdaterTests: XCTestCase {
         XCTAssertTrue(release(minimum: "soon").runsHere)
     }
 
+    /// Lun must never read Search's feed, or offer its lists.
+    func testNothingIsFetchedFromSearch() {
+        XCTAssertNil(Updater.feed)
+        XCTAssertFalse(OptIn.offered(UserDefaults(suiteName: "com.lunbrowser.lun.test.optin-off")!))
+        XCTAssertNil(SettingsIndex.item("news.updates"))
+        XCTAssertNil(SettingsIndex.item("news.iphone"))
+    }
+
     func testGarbageIsNotAFeed() {
         XCTAssertNil(Updater.opened(Data("not a zip".utf8)))
         XCTAssertNil(Updater.opened(Data()))
