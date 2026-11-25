@@ -482,17 +482,6 @@ enum Motion {
 
     nonisolated static let instantKey = "motion.instant"
 
-    /// `seconds`, or none with Reduce animations on: for the fades that run
-    /// on a length of their own rather than on the animations below.
-    static func seconds(_ seconds: TimeInterval) -> TimeInterval {
-        instant ? 0 : seconds
-    }
-
-    /// `animation`, or none with Reduce animations on, the same way.
-    static func timed(_ animation: Animation) -> Animation? {
-        instant ? nil : animation
-    }
-
     /// Whether the Mac is short of power: Low Power Mode is on, or it is hot
     /// enough that macOS is holding its processors back. Then the two springs
     /// below become a short ease-out. A spring keeps moving long after it
@@ -564,6 +553,18 @@ enum Motion {
         reduced ? nil : .easeInOut(duration: 0.9)
     }
 
+    /// What a swipe between spaces lets go of, carried the rest of the way:
+    /// the rows, and the space's sign with them. A length of its own, and
+    /// no spring, since something is waiting for it to finish.
+    static var carry: Animation? {
+        reduced ? nil : .easeOut(duration: 0.22)
+    }
+
+    /// The column fading in place where it doesn't slide (fadesColumn).
+    static var columnFade: Animation? {
+        fadesColumn ? .easeInOut(duration: fade) : nil
+    }
+
     /// A refusal: the field shivers and stops (Shake, whose travel this
     /// takes from 0 to 1).
     static var shake: Animation? {
@@ -574,6 +575,9 @@ enum Motion {
     /// length and a curve rather than an Animation.
     enum Kind {
         case quick, settle, glide, dissolve, slow
+        /// A page or what covered it fading: shorter than a dissolve, so
+        /// the page is there sooner. Kept under Reduce Motion, as a fade is.
+        case reveal
     }
 
     /// How long a kind takes, nought when nothing should move: for an
@@ -585,6 +589,7 @@ enum Motion {
         case .glide: return reduced ? 0 : light ? 0.16 : 0.34
         case .dissolve: return instant ? 0 : 0.2
         case .slow: return reduced ? 0 : light ? 0.16 : 0.45
+        case .reveal: return instant ? 0 : 0.12
         }
     }
 
@@ -593,7 +598,7 @@ enum Motion {
     /// panes (PaneStage), and reads the same.
     static func timing(_ kind: Kind) -> CAMediaTimingFunction {
         switch kind {
-        case .quick, .dissolve: return CAMediaTimingFunction(name: .easeOut)
+        case .quick, .dissolve, .reveal: return CAMediaTimingFunction(name: .easeOut)
         case .settle, .glide: return CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
         case .slow: return CAMediaTimingFunction(name: .easeInEaseOut)
         }

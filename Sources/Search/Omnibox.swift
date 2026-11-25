@@ -117,7 +117,7 @@ struct Omnibox: View {
                 card
                     .frame(width: width)
                     .padding(.top, top)
-                    .transition(.scale(scale: 0.97, anchor: .top).combined(with: .opacity))
+                    .transition(.card(from: .top))
                     // The list's arrival and its leaving are animated from here,
                     // briefly: nothing that changes the suggestions does it inside
                     // an animation of its own. Its rows follow what was typed or
@@ -173,7 +173,7 @@ struct Omnibox: View {
             .onChange(of: browser.refusals) { _, _ in
                 shake = 0
                 refused = true
-                withAnimation(.easeOut(duration: 0.5)) { shake = 1 }
+                withAnimation(Motion.shake) { shake = 1 }
             }
             .onChange(of: browser.typed) { _, _ in
                 withAnimation(Motion.quick) { refused = false }
@@ -184,7 +184,7 @@ struct Omnibox: View {
         HStack(spacing: 12) {
             if let site = browser.siteChip {
                 SiteChip(site: site)
-                    .transition(.scale(scale: 0.9, anchor: .leading).combined(with: .opacity))
+                    .transition(.row(from: .leading))
             } else {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 16, weight: .medium))

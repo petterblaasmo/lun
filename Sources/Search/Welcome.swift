@@ -93,10 +93,7 @@ struct WelcomePanel: View {
                 }
                 .frame(maxWidth: WelcomePanel.column, maxHeight: .infinity)
                 .id(page)
-                .transition(.asymmetric(
-                    insertion: .offset(x: forward ? 40 : -40).combined(with: .opacity),
-                    removal: .offset(x: forward ? -40 : 40).combined(with: .opacity)
-                ))
+                .transition(.page(forward: forward))
                 foot
             }
             // Clear of the window's own buttons, which stay over this.
@@ -146,7 +143,7 @@ struct WelcomePanel: View {
         }
         .onAppear {
             // After the mark, which takes about a second to write.
-            withAnimation(Motion.reduced ? nil : .easeOut(duration: 0.5).delay(0.85)) { said = true }
+            withAnimation(Motion.slow?.delay(0.85)) { said = true }
         }
     }
 
@@ -560,7 +557,7 @@ struct WelcomePanel: View {
                 .frame(height: height)
                 .onAppear {
                     guard drawn < 1 else { return }
-                    withAnimation(.easeInOut(duration: 0.9).delay(0.1)) { drawn = 1 }
+                    withAnimation(Motion.drawn?.delay(0.1)) { drawn = 1 }
                 }
         }
     }
@@ -717,7 +714,7 @@ struct WelcomePanel: View {
                             .frame(width: 17, height: 17)
                             .background(done ? Palette.muted : Palette.ink, in: Circle())
                             .padding(7)
-                            .transition(.scale(scale: 0.6).combined(with: .opacity))
+                            .transition(.pop)
                     }
                 }
                 .contentShape(shape)

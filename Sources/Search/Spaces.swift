@@ -933,7 +933,7 @@ struct SpaceDot: View {
             let symbol = symbol
             DispatchQueue.main.async {
                 // With Reduce Motion on, the new icon is simply there.
-                withAnimation(Motion.reduced ? nil : .easeOut(duration: 0.22)) { shown = (now, symbol) }
+                withAnimation(Motion.carry) { shown = (now, symbol) }
             }
         }
         // Not where another profile's window brought you: that is a change
@@ -958,7 +958,7 @@ struct SpaceDot: View {
                     .shadow(color: .black.opacity(0.10), radius: 10, y: 3)
                     .offset(x: browser.prefs.sidebar ? 0 : SpaceDot.width + 4, y: browser.prefs.sidebar ? -30 : 0)
                     .allowsHitTesting(false)
-                    .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: browser.prefs.sidebar ? .bottomLeading : .leading)))
+                    .transition(.row(from: browser.prefs.sidebar ? .bottomLeading : .leading))
             }
         }
         .animation(Motion.quick, value: hovering)

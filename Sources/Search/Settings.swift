@@ -189,7 +189,7 @@ struct SettingsPanel: View {
     /// little give at the end, so the eye follows it down the rail. None
     /// with Reduce Motion, and a plain ease in Low Power Mode, as glide.
     private var slide: Animation? {
-        Motion.reduced ? nil : Motion.light ? .easeOut(duration: 0.2) : .spring(response: 0.45, dampingFraction: 0.72)
+        Motion.glide
     }
 
     /// Find a setting: the wash, the glass, ⌘F beside it until something
@@ -319,7 +319,12 @@ struct SettingsPanel: View {
             // A page of its own opens at its top. One scroll view kept for
             // them all opened Tabs as far down as General had been read.
             .id(searching ? "found" : page.rawValue)
+            // One page fades into the next: they changed in a frame, the
+            // only screen that moved nowhere between its parts.
+            .transition(.opacity)
         }
+        .animation(Motion.dissolve, value: page)
+        .animation(Motion.dissolve, value: searching)
         .padding(.top, 18)
         .padding(.bottom, 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

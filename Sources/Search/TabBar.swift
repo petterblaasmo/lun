@@ -1096,10 +1096,10 @@ private struct TabPill: View, Equatable {
         .onChange(of: refusals) { _, _ in
             guard editing else { return }
             shake = 0
-            withAnimation(.easeOut(duration: 0.5)) { shake = 1 }
+            withAnimation(Motion.shake) { shake = 1 }
         }
         // Arriving and leaving from the strip rather than from nowhere.
-        .transition(.scale(scale: 0.9, anchor: .leading).combined(with: .opacity))
+        .transition(.row(from: .leading))
     }
 
     @ViewBuilder

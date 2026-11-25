@@ -226,7 +226,7 @@ struct IconTile: View {
         .animation(Motion.quick, value: tab.loading)
         .animation(Motion.quick, value: speaker)
         .animation(Motion.quick, value: tab.recording)
-        .transition(.scale(scale: 0.9).combined(with: .opacity))
+        .transition(.row(from: .center))
     }
 
     @ViewBuilder

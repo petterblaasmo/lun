@@ -706,7 +706,7 @@ struct ContentView: View {
             if !browser.prefs.sidebar, !browser.folded, fullscreenTab == nil {
                 TabBar(browser: browser)
                     .environment(\.greys, topCard ? .frame : .white)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(.bar(.top))
             }
             if addressRow > 0 {
                 AddressRow(browser: browser)
@@ -786,15 +786,17 @@ struct ContentView: View {
                 .overlay(alignment: .topTrailing) {
                     if browser.finding {
                         FindBar(browser: browser)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .transition(.bar(.top))
                     }
                 }
+                // Outside the `if`: on the bar itself nothing carried it in.
+                .animation(Motion.settle, value: browser.finding)
                 .overlay(alignment: .topTrailing) {
                     if let assistant = browser.assisting, assistant.tab == tab.id {
                         AssistantPanel(browser: browser, assistant: assistant)
                             .padding(.top, browser.finding ? 64 : 14)
                             .padding(.trailing, 14)
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                            .transition(.bar(.trailing))
                     }
                 }
                 .animation(Motion.settle, value: browser.assisting?.id)
@@ -1010,12 +1012,12 @@ struct ContentView: View {
             AgentBar(browser: browser)
             if let ask = browser.asking, ask.screen {
                 ScreenQuestion(browser: browser, ask: ask)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.bar(.bottom))
             }
             StoreOffer(browser: browser)
             if browser.veiling {
                 hint("Click anything to hide it   ↑↓ wider, narrower   ⌘Z undo   esc done")
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.bar(.bottom))
             }
         }
         .padding(.bottom, 30)
@@ -1033,11 +1035,11 @@ struct ContentView: View {
         return VStack(alignment: beside && sideOnRight ? .trailing : .leading, spacing: 8) {
             if let ask = browser.asking, !ask.screen {
                 CaptureQuestion(browser: browser, ask: ask)
-                    .transition(.scale(scale: 0.97, anchor: .top).combined(with: .opacity))
+                    .transition(.card(from: .top))
             }
             if let offer = browser.offering {
                 PasswordOffer(browser: browser, offer: offer)
-                    .transition(.scale(scale: 0.97, anchor: .top).combined(with: .opacity))
+                    .transition(.card(from: .top))
             }
         }
         .padding(.top, beside ? Metrics.strip + (browser.prefs.addressLine ? browser.prefs.sideRow + 8 : 0)
@@ -1117,7 +1119,7 @@ struct ContentView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { browser.reviewing = false }
                 HiddenPanelPlace(browser: browser)
-                    .transition(.scale(scale: 0.97, anchor: .top).combined(with: .opacity))
+                    .transition(.card(from: .top))
             }
             .ignoresSafeArea()
             .transition(.opacity)
@@ -1132,7 +1134,7 @@ struct ContentView: View {
                     .id(host)
                     .padding(.top, Metrics.strip + addressRow + 8)
                     .padding(.trailing, 14)
-                    .transition(.scale(scale: 0.97, anchor: .topTrailing).combined(with: .opacity))
+                    .transition(.card(from: .topTrailing))
             }
             .ignoresSafeArea()
             .transition(.opacity)
@@ -1207,8 +1209,12 @@ struct ContentView: View {
             .overlay { panels }
             .overlay { switcherOverlay }
             .overlay(alignment: .topTrailing) {
-                if let job = browser.fileImport { ImportProgress(browser: browser, job: job) }
+                if let job = browser.fileImport {
+                    ImportProgress(browser: browser, job: job)
+                        .transition(.card(from: .topTrailing))
+                }
             }
+            .animation(Motion.settle, value: browser.fileImport != nil)
             .environment(\.tabShortcutNumbers, browser.tabShortcutNumbers)
             // One gradient across the column, the bars and the ground alike.
             .environment(\.washRoom, CGSize(width: across, height: tall))
@@ -1343,8 +1349,8 @@ struct ContentView: View {
     // MARK: - the window
 
     /// A line that rises from the bottom, says one thing, and leaves.
-    @ViewBuilder
     private var announcement: some View {
+        ZStack {
         if let text = browser.announcement {
             HStack(spacing: 8) {
                 Text(text)
@@ -1363,9 +1369,11 @@ struct ContentView: View {
                 .padding(.horizontal, 18)
                 .frame(height: 36)
                 .elevated(.float, in: Capsule())
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(Motion.settle, value: browser.announcement)
+                .transition(.bar(.bottom))
         }
+        }
+        // Here, not on the line: there it was inserted with it and never ran.
+        .animation(Motion.settle, value: browser.announcement)
     }
 
     /// A dark pill, for the one mode this browser has. It stays up for as long
@@ -1396,7 +1404,7 @@ struct ContentView: View {
                 .ignoresSafeArea()
                 .onTapGesture(perform: close)
             panel()
-                .transition(.scale(scale: 0.97).combined(with: .opacity))
+                .transition(.card)
         }
         .transition(.opacity)
     }

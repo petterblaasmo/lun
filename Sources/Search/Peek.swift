@@ -164,15 +164,15 @@ extension Browser {
     /// and once there it is the tab, in place — the zoom seen to its end.
     func openPeekGrown() {
         guard peekTab != nil, !peekFill else { return }
-        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+        if Motion.reduced {
             peekPinch = 0
             return keepPeek(instant: true)
         }
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.92)) {
+        withAnimation(Motion.settle) {
             peekFill = true
             peekPinch = 0
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + Motion.duration(.settle)) { [weak self] in
             guard let self, self.peekFill else { return }
             self.keepPeek(instant: true)
         }
@@ -224,7 +224,7 @@ struct PeekLayer: View {
             }
             if browser.peekInFront, let tab = browser.peekTab {
                 PeekPanel(browser: browser, tab: tab)
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .transition(.card)
             }
         }
     }
@@ -321,7 +321,7 @@ struct PeekBadge: View {
             .overlay(RoundedRectangle(cornerRadius: size * 0.3, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 0.5))
             .shadow(color: .black.opacity(0.12), radius: 1.5, y: 0.5)
             .allowsHitTesting(false)
-            .transition(.scale(scale: 0.6).combined(with: .opacity))
+            .transition(.pop)
     }
 }
 
@@ -366,7 +366,7 @@ struct PeekSkeleton: View {
         .allowsHitTesting(false)
         .task {
             try? await Task.sleep(for: .milliseconds(150))
-            withAnimation(Motion.timed(.easeOut(duration: 0.2))) { shown = true }
+            withAnimation(Motion.dissolve) { shown = true }
         }
     }
 

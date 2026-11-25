@@ -358,7 +358,7 @@ final class SpaceSwipe {
     /// snaps back without moving (Motion.settle).
     private func carry(_ browser: Browser, to offset: CGFloat, then arrived: @escaping () -> Void) {
         guard !Motion.reduced else { return arrived() }
-        withAnimation(.easeOut(duration: 0.22), completionCriteria: .removed) {
+        withAnimation(Motion.carry, completionCriteria: .removed) {
             browser.spaceSwipe = offset
         } completion: {
             arrived()

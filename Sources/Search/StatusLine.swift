@@ -152,6 +152,6 @@ struct LinkBubble: View {
             }
         }
         .allowsHitTesting(false)
-        .animation(Motion.timed(.easeOut(duration: 0.12)), value: status.destination == nil)
+        .animation(Motion.dissolve, value: status.destination == nil)
     }
 }

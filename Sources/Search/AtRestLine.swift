@@ -116,7 +116,7 @@ struct TitleAtRest: View {
             }
         }
         .opacity(dim ? 0.45 : 1)
-        .animation(Motion.reduced ? nil : .easeInOut(duration: 0.22), value: on)
+        .animation(Motion.dissolve, value: on)
         .animation(Motion.quick, value: dim)
         .animation(nil, value: hovering)
     }

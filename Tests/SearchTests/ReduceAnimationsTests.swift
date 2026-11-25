@@ -57,8 +57,14 @@ final class ReduceAnimationsTests: XCTestCase {
         XCTAssertNil(Motion.quick)
         XCTAssertNil(Motion.folding(out: true))
         XCTAssertNil(Motion.folding(out: false))
-        XCTAssertNil(Motion.timed(.easeOut(duration: 0.2)))
-        XCTAssertEqual(Motion.seconds(0.12), 0)
+        XCTAssertNil(Motion.dissolve)
+        XCTAssertNil(Motion.slow)
+        XCTAssertNil(Motion.drawn)
+        XCTAssertNil(Motion.shake)
+        XCTAssertNil(Motion.carry)
+        XCTAssertEqual(Motion.duration(.reveal), 0)
+        XCTAssertEqual(Motion.duration(.dissolve), 0)
+        XCTAssertEqual(Motion.duration(.glide), 0)
         // Low Power Mode's short ease-out is still a movement.
         Motion.testLowPower = true
         Store.settings.set(true, forKey: Motion.lightKey)
@@ -73,8 +79,12 @@ final class ReduceAnimationsTests: XCTestCase {
         XCTAssertNotNil(Motion.settle)
         XCTAssertNotNil(Motion.quick)
         XCTAssertNotNil(Motion.folding(out: true))
-        XCTAssertNotNil(Motion.timed(.easeOut(duration: 0.2)))
-        XCTAssertEqual(Motion.seconds(0.12), 0.12)
+        XCTAssertNotNil(Motion.dissolve)
+        XCTAssertNotNil(Motion.slow)
+        XCTAssertNotNil(Motion.shake)
+        XCTAssertEqual(Motion.duration(.reveal), 0.12)
+        XCTAssertEqual(Motion.duration(.quick), 0.14)
+        XCTAssertEqual(Motion.duration(.settle), 0.30)
     }
 
     /// Reduce Motion alone keeps its fades; Reduce animations takes those too.
@@ -82,8 +92,34 @@ final class ReduceAnimationsTests: XCTestCase {
         Motion.testReduceMotion = true
         XCTAssertTrue(Motion.reduced)
         XCTAssertNil(Motion.glide)
-        XCTAssertEqual(Motion.seconds(0.12), 0.12)
+        XCTAssertNil(Motion.slow)
+        XCTAssertEqual(Motion.duration(.settle), 0)
+        XCTAssertNotNil(Motion.dissolve)
+        XCTAssertEqual(Motion.duration(.reveal), 0.12)
+        XCTAssertEqual(Motion.duration(.dissolve), 0.2)
         Motion.instant = true
-        XCTAssertEqual(Motion.seconds(0.12), 0)
+        XCTAssertNil(Motion.dissolve)
+        XCTAssertEqual(Motion.duration(.reveal), 0)
+    }
+
+    /// No view writes a curve of its own: an Animation literal belongs in
+    /// `enum Motion` (Design.swift), so one switch quiets them all.
+    func testNoAnimationIsWrittenOutsideTheVocabulary() throws {
+        let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/Search", isDirectory: true)
+        let literal = try NSRegularExpression(pattern: #"\.(easeOut|easeIn|easeInOut|linear|spring|timingCurve|interactiveSpring|bouncy|smooth|snappy)\("#)
+        var found: [String] = []
+        for file in try FileManager.default.contentsOfDirectory(at: sources, includingPropertiesForKeys: nil)
+        where file.pathExtension == "swift" && file.lastPathComponent != "Design.swift" {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            for (number, line) in text.components(separatedBy: "\n").enumerated() {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard !trimmed.hasPrefix("//") else { continue }
+                if literal.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) != nil {
+                    found.append("\(file.lastPathComponent):\(number + 1)")
+                }
+            }
+        }
+        XCTAssertEqual(found, [], "Use a member of Motion, or add one")
     }
 }
