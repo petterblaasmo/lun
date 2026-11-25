@@ -344,7 +344,7 @@ private struct SplitTabHalf: View {
         } else {
             HStack(spacing: stacked ? 8 : 5) {
                 if prefs.glyph == .icons || !tab.isBlank || narrow {
-                    Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: stacked ? 15 : 13, dim: tab.asleep)
+                    Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: stacked ? 16 : 13, dim: tab.asleep, globe: prefs.glyph == .icons)
                         .frame(width: stacked ? 15 : 13, height: stacked ? 15 : 13)
                 }
                 if tab.shy {

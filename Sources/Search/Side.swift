@@ -2148,9 +2148,9 @@ private struct SideRow: View, Equatable {
                 } else {
                     // The site's icon, or with Letters its letter: beside the
                     // title either way, as Settings says (#919).
-                    if !tab.isBlank {
+                    if !tab.isBlank || prefs.glyph == .icons {
                         Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: prefs.roomyTabs ? 18 : 16,
-                             dim: putAway || dim, contrast: prefs.highContrastText)
+                             dim: putAway || dim, contrast: prefs.highContrastText, globe: prefs.glyph == .icons)
                             // A coding agent at work here: a dot on the
                             // icon's corner, the row as it was.
                             .overlay(alignment: .bottomTrailing) { AgentMark(tab: tab) }

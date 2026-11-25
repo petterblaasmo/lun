@@ -1120,7 +1120,7 @@ private struct TabPill: View, Equatable {
                     Ring()
                 } else {
                     Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: 15, dim: tab.asleep,
-                         contrast: prefs.highContrastText)
+                         contrast: prefs.highContrastText, globe: prefs.glyph == .icons)
                         .overlay(alignment: .bottomTrailing) { AgentMark(tab: tab) }
                 }
             }
@@ -1147,7 +1147,7 @@ private struct TabPill: View, Equatable {
             } else {
                 if !tab.isBlank {
                     Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: Metrics.tabMark, dim: dim,
-                         contrast: prefs.highContrastText)
+                         contrast: prefs.highContrastText, globe: prefs.glyph == .icons)
                         .overlay(alignment: .bottomTrailing) { AgentMark(tab: tab) }
                 }
                 if tab.bench, !tab.agent {
