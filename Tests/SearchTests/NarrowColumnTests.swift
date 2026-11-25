@@ -186,9 +186,9 @@ final class NarrowColumnTests: XCTestCase {
             XCTAssertGreaterThan(last, 0, "width \(Int(width)): the title is drawn")
             let trail = pill.upperBound - CGFloat(last + 1) / shot.scale
             print(String(format: "width %.0f: title ends %.1f from the row's end", width, trail))
-            // The icon sits 10 in; the ellipsis ends within part of a letter of
-            // that (19.5 to 25 before, as the Spacer's spacing held it off).
-            XCTAssertLessThanOrEqual(trail, 10 + 5, "width \(Int(width)): the title runs as near the right as the icon the left")
+            // The icon sits 10 in, and the title's room ends as far from the
+            // right; its last 16 points fade, so its full ink ends before.
+            XCTAssertLessThanOrEqual(trail, 10 + 16, "width \(Int(width)): the title runs as near the right as the icon the left")
         }
     }
 
