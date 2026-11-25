@@ -1552,7 +1552,7 @@ struct Carried: ViewModifier {
         let point = TabDrag.shared.pointer(in: browser)
         // The column's rows are measured from 10 inside its edges.
         let off = browser.isPastEdge(point) || (vertical
-            ? location.x < -10 - slack || location.x > browser.prefs.columnWidth - 10 + slack
+            ? location.x < -Metrics.sideInset - slack || location.x > browser.prefs.columnWidth - Metrics.sideInset + slack
             : location.y < -slack || location.y > Metrics.strip + slack)
         if off != lifted { lifted = off }
         if off {
