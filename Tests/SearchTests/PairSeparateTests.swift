@@ -40,15 +40,15 @@ final class PairSeparateTests: XCTestCase {
         try await super.tearDown()
     }
 
-    // The rows: one 0–28, the pair 30–86 (two 30–58, three 58–86), four
-    // 88–116, five 118–146. "three" is held 4 points above the pair's foot
+    // The rows: one 0–32, the pair 34–98 (two 34–66, three 66–98), four
+    // 100–132, five 134–166. "three" is held 4 points above the pair's foot
     // and carried 12 down: past the pair's edge, over "four".
 
     func testCarriedOnWithoutStoppingStaysAPair() async throws {
         let (browser, t, window) = try await setUpColumn()
-        try await carry(from: 82, to: 94, in: window)
+        try await carry(from: 94, to: 106, in: window)
         XCTAssertNil(PairSeparation.shared.leaving, "nothing shown")
-        try await send(.leftMouseUp, at: 94, in: window)
+        try await send(.leftMouseUp, at: 106, in: window)
         try await settle()
         XCTAssertNotNil(browser.split(for: t[1]), "still a pair")
         XCTAssertEqual(browser.tabs.map(\.id), t.map(\.id))
@@ -56,10 +56,10 @@ final class PairSeparateTests: XCTestCase {
 
     func testAtRestOverAnotherTabShowsItThenSeparates() async throws {
         let (browser, t, window) = try await setUpColumn()
-        try await carry(from: 82, to: 94, in: window)
+        try await carry(from: 94, to: 106, in: window)
         try await Task.sleep(for: .milliseconds(500))
         XCTAssertEqual(PairSeparation.shared.leaving, t[2].id, "the half held is the one leaving")
-        try await send(.leftMouseUp, at: 94, in: window)
+        try await send(.leftMouseUp, at: 106, in: window)
         try await settle()
         XCTAssertNil(browser.split(for: t[1]), "apart, as shown")
         XCTAssertNil(PairSeparation.shared.leaving, "nothing shown once let go")
@@ -67,14 +67,14 @@ final class PairSeparateTests: XCTestCase {
 
     func testBackOverItsOwnPlaceTakesTheSeparationBack() async throws {
         let (browser, t, window) = try await setUpColumn()
-        try await carry(from: 82, to: 94, in: window)
+        try await carry(from: 94, to: 106, in: window)
         try await Task.sleep(for: .milliseconds(500))
         XCTAssertEqual(PairSeparation.shared.leaving, t[2].id)
-        for y in stride(from: CGFloat(90), through: 78, by: -4) {
+        for y in stride(from: CGFloat(102), through: 90, by: -4) {
             try await send(.leftMouseDragged, at: y, in: window)
         }
         XCTAssertNil(PairSeparation.shared.leaving, "taken back")
-        try await send(.leftMouseUp, at: 78, in: window)
+        try await send(.leftMouseUp, at: 90, in: window)
         try await settle()
         XCTAssertNotNil(browser.split(for: t[1]), "still a pair")
     }
@@ -85,11 +85,11 @@ final class PairSeparateTests: XCTestCase {
     /// is down.
     func testEscapedStaysPutDownUntilLetGo() async throws {
         let (browser, t, window) = try await setUpColumn()
-        try await carry(from: 82, to: 94, in: window)
+        try await carry(from: 94, to: 106, in: window)
         XCTAssertEqual(CarryGuard.count, 1, "carried")
         TabDrag.shared.cancel()
         try await settle()
-        for y in stride(from: CGFloat(98), through: 106, by: 4) {
+        for y in stride(from: CGFloat(110), through: 118, by: 4) {
             try await send(.leftMouseDragged, at: y, in: window)
         }
         XCTAssertEqual(CarryGuard.count, 0, "not picked up again")
@@ -99,10 +99,10 @@ final class PairSeparateTests: XCTestCase {
         XCTAssertEqual(browser.tabs.map(\.id), t.map(\.id))
 
         // The next carry is its own, not the cancelled one.
-        try await carry(from: 82, to: 94, in: window)
+        try await carry(from: 94, to: 106, in: window)
         try await Task.sleep(for: .milliseconds(500))
         XCTAssertEqual(PairSeparation.shared.leaving, t[2].id)
-        try await send(.leftMouseUp, at: 94, in: window)
+        try await send(.leftMouseUp, at: 106, in: window)
         try await settle()
         XCTAssertNil(browser.split(for: t[1]), "apart, as shown")
     }
@@ -117,11 +117,11 @@ final class PairSeparateTests: XCTestCase {
             view.cacheDisplay(in: view.bounds, to: rep)
             try rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(folder)/\(name).png"))
         }
-        try await carry(from: 82, to: 94, in: window)
+        try await carry(from: 94, to: 106, in: window)
         try shoot("carried")
         try await Task.sleep(for: .milliseconds(500))
         try shoot("shown")
-        try await send(.leftMouseUp, at: 94, in: window)
+        try await send(.leftMouseUp, at: 106, in: window)
         try await settle()
         try shoot("after")
     }
@@ -140,6 +140,7 @@ final class PairSeparateTests: XCTestCase {
         let browser = Browser(record: WindowRecord())
         browsers.append(browser)
         browser.prefs.sidebar = true
+        browser.prefs.addressLine = false
         browser.prefs.usesTabGroups = false
         browser.prefs.splitView = true
         browser.prefs.listsPins = false

@@ -61,6 +61,7 @@ final class NarrowColumnTests: XCTestCase {
              prefs.sidePosition) = previous
         }
         prefs.sidebar = true
+        prefs.addressLine = false
         // On the left, where the lights are: a test before this one may have
         // left the column on the right, and its edge's line then drawn at x 0.
         prefs.sidePosition = .left
@@ -107,10 +108,10 @@ final class NarrowColumnTests: XCTestCase {
                 try await Task.sleep(for: .milliseconds(500))
                 let shot = try picture(host, width: width)
                 let label = "space buttons \(buttons), fold door \(fold), width \(Int(width))\(letGo ? " let go" : "")"
-                let row = try XCTUnwrap(shot.span(56), "\(label): the tab's row is drawn")
+                let row = try XCTUnwrap(shot.span(54), "\(label): the tab's row is drawn")
                 let lead = row.lowerBound, trail = width - row.upperBound
                 print(String(format: "%@: row lead %.1f trail %.1f, first door %.1f (zoom ends %.1f), foot %.1f–%.1f",
-                             label, lead, trail, shot.span(26)?.lowerBound ?? -1, zoom,
+                             label, lead, trail, shot.span(24)?.lowerBound ?? -1, zoom,
                              shot.span(Self.height - 23)?.lowerBound ?? -1, shot.span(Self.height - 23)?.upperBound ?? -1))
                 if let usual {
                     XCTAssertEqual(lead, usual.lead, accuracy: 1, "\(label): the row keeps its left inset")
@@ -121,7 +122,7 @@ final class NarrowColumnTests: XCTestCase {
                 }
                 // The first door's glyph, at least 4 in from its box: the box
                 // clear of the zoom button.
-                let door = try XCTUnwrap(shot.span(26), "\(label): the lights' row has its doors")
+                let door = try XCTUnwrap(shot.span(24), "\(label): the lights' row has its doors")
                 XCTAssertGreaterThanOrEqual(door.lowerBound, zoom + 4, "\(label): the first door is clear of the zoom button")
                 XCTAssertLessThanOrEqual(door.upperBound, width - 6, "\(label): and the last inside the column")
                 if let foot = shot.span(Self.height - 23) {
@@ -145,6 +146,7 @@ final class NarrowColumnTests: XCTestCase {
             (prefs.sidebar, prefs.usesSpaces, prefs.sideWidth, prefs.sideHides, prefs.sidePosition) = previous
         }
         prefs.sidebar = true
+        prefs.addressLine = false
         prefs.sidePosition = .left
         prefs.sideHides = false
         prefs.usesSpaces = false
@@ -170,9 +172,9 @@ final class NarrowColumnTests: XCTestCase {
             window.setFrame(NSRect(x: -20_000, y: -20_000, width: width, height: Self.height), display: false)
             try await Task.sleep(for: .milliseconds(400))
             let shot = try picture(host, width: width)
-            let pill = try XCTUnwrap(shot.span(56), "width \(Int(width)): the tab's row is drawn")
+            let pill = try XCTUnwrap(shot.span(54), "width \(Int(width)): the tab's row is drawn")
             // The title's ink: what is far darker than the row's grey.
-            let ground = shot.colour(Int((pill.lowerBound + 3) * shot.scale), 66)
+            let ground = shot.colour(Int((pill.lowerBound + 3) * shot.scale), 64)
             var last = -1
             for y in stride(from: 58.0, through: 74.0, by: 0.5) {
                 for x in Int((pill.lowerBound + 30) * shot.scale)..<Int((pill.upperBound - 1) * shot.scale) {

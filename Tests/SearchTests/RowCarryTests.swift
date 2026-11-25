@@ -75,13 +75,13 @@ final class RowCarryTests: XCTestCase {
         browser.select(t[4])
         let window = makeWindow(browser)
         try await settle()
-        // one 0–28, the pair 30–86, four 88–116, five 118–146.
-        let grab: CGFloat = 102
+        // one 0–32, the pair 34–98, four 100–132, five 134–166.
+        let grab: CGFloat = 116
         try await send(.leftMouseDown, at: point(y: grab, in: window), in: window)
-        for y in stride(from: grab - 2, through: grab - 60, by: -2) {
+        for y in stride(from: grab - 2, through: grab - 70, by: -2) {
             try await send(.leftMouseDragged, at: point(y: y, in: window), in: window)
         }
-        try await send(.leftMouseUp, at: point(y: grab - 60, in: window), in: window)
+        try await send(.leftMouseUp, at: point(y: grab - 70, in: window), in: window)
         try await settle()
         XCTAssertEqual(browser.tabs.map(\.id), [t[0], t[3], t[1], t[2], t[4]].map(\.id))
         XCTAssertNotNil(browser.split(for: t[1]), "the pair stays a pair")
@@ -98,8 +98,8 @@ final class RowCarryTests: XCTestCase {
         browser.select(t[0])
         let window = makeWindow(browser)
         try await settle()
-        // five's middle: 132.
-        let path = Array(stride(from: CGFloat(132), through: 10, by: -2)) + Array(stride(from: CGFloat(12), through: 132, by: 2))
+        // five's middle: 150.
+        let path = Array(stride(from: CGFloat(150), through: 10, by: -2)) + Array(stride(from: CGFloat(12), through: 150, by: 2))
         try await send(.leftMouseDown, at: point(y: path[0], in: window), in: window)
         for (n, y) in path.enumerated() {
             try await send(.leftMouseDragged, at: point(y: y, in: window), in: window)
@@ -207,8 +207,8 @@ final class RowCarryTests: XCTestCase {
         let window = makeWindow(browser)
         browser.window = window
         try await settle()
-        // The pair 30–86: its second half from 58.
-        let y: CGFloat = 72
+        // The pair 34–98: its second half from 66.
+        let y: CGFloat = 82
         TabDrag.testPointer = NSPoint(x: window.frame.minX + 70, y: window.frame.minY + point(y: y, in: window).y)
         defer { TabDrag.testPointer = nil }
         try await send(.leftMouseDown, at: point(y: y, in: window), in: window)
@@ -274,7 +274,7 @@ final class RowCarryTests: XCTestCase {
         TabDrag.testPointer = NSPoint(x: window.frame.midX, y: window.frame.midY)
         defer { TabDrag.testPointer = nil }
         let width = browser.prefs.columnWidth
-        let y = point(y: 14, in: window).y
+        let y = point(y: 16, in: window).y
         try await send(.leftMouseDown, at: NSPoint(x: 70, y: y), in: window)
         try await send(.leftMouseDragged, at: NSPoint(x: 60, y: y), in: window)
         try await send(.leftMouseDragged, at: NSPoint(x: -1, y: y), in: window)
@@ -368,6 +368,7 @@ final class RowCarryTests: XCTestCase {
         let browser = Browser(record: WindowRecord())
         browsers.append(browser)
         browser.prefs.sidebar = true
+        browser.prefs.addressLine = false
         browser.prefs.usesTabGroups = false
         browser.prefs.splitView = true
         browser.prefs.listsPins = false
