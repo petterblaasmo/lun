@@ -84,7 +84,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = str(ROOT / "build" / "Search.app")
+APP = str(ROOT / "build" / "Lun.app")
 W = "blocker-bench"
 HOME = os.path.expanduser("~")
 SUPPORT = f"{HOME}/Library/Application Support/Lun ({W})"

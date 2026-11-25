@@ -268,7 +268,7 @@ struct ThemesPage: View {
                         if prefs.homeTheme == .custom { prefs.homeTheme = .off }
                     }
                 }
-                Text("A copy is kept inside Search.")
+                Text("A copy is kept inside Lun.")
                     .font(.system(size: 11)).foregroundStyle(Palette.muted)
             }
         }

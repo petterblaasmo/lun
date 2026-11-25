@@ -69,7 +69,7 @@ try:
     # 968: Search › What's New… brings the card back, as after an update.
     again = sv.cmd({"do": "news", "again": True})
     t.ok("Search menu: About, Check for Updates…, What's New… in that order",
-         again["menu"][0] == "About Search" and again["menu"][1].startswith("Check") and again["menu"][2] == "What's New…", again["menu"])
+         again["menu"][0] == "About Lun" and again["menu"][1].startswith("Check") and again["menu"][2] == "What's New…", again["menu"])
     t.ok("What's New… is enabled and shows the card", again["enabled"] and again["showing"], again)
     sv.cmd({"do": "news", "on": False})
     about = f"{SHOTS or sv.SUPPORT}/about.png"

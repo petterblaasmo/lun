@@ -14,8 +14,8 @@ enum DeveloperApplicationMore {
         var errorDescription: String? {
             switch self {
             case .pageChanged: "Wait for the current website to finish loading, then try again."
-            case .couldNotLeave: "Search could not navigate away from the page to test it."
-            case .couldNotReturn: "Search could not come back to the page. Use Back to return to it."
+            case .couldNotLeave: "Lun could not navigate away from the page to test it."
+            case .couldNotReturn: "Lun could not come back to the page. Use Back to return to it."
             case .unavailable: "The inspected page could not provide this information."
             case .saveFailed: "The extension did not save the change."
             case .message(let text): text

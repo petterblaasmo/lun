@@ -104,8 +104,8 @@ struct UpdateNoticeRow: View {
                 Button("Hide") { prefs.updateHiddenBuild = shown.build }
             }
             .help(shown.kind == .ready
-                  ? "A new version of Search is ready. Restart to use it, or it starts the next time you open Search."
-                  : "A new version of Search is out. Install fetches it; it starts at the next launch.")
+                  ? "A new version of Lun is ready. Restart to use it, or it starts the next time you open Lun."
+                  : "A new version of Lun is out. Install fetches it; it starts at the next launch.")
             .animation(Motion.quick, value: hovering)
         }
     }
@@ -155,8 +155,8 @@ struct UpdateNoticePill: View {
                 Button("Hide") { prefs.updateHiddenBuild = shown.build }
             }
             .help(shown.kind == .ready
-                  ? "A new version of Search is ready. Click to restart and use it."
-                  : "A new version of Search is out. Click to install it.")
+                  ? "A new version of Lun is ready. Click to restart and use it."
+                  : "A new version of Lun is out. Click to install it.")
             .animation(Motion.quick, value: hovering)
         }
     }

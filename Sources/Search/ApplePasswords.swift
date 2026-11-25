@@ -225,7 +225,7 @@ final class ApplePasswords: ObservableObject {
             .sink { [weak self] on in if !on { self?.disconnect(because: "turned off in Settings") } }
             .store(in: &bag)
         NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
-            .sink { [weak self] _ in MainActor.assumeIsolated { self?.disconnect(because: "Search quit") } }
+            .sink { [weak self] _ in MainActor.assumeIsolated { self?.disconnect(because: "Lun quit") } }
             .store(in: &bag)
         let workspace = NSWorkspace.shared.notificationCenter
         workspace.publisher(for: NSWorkspace.willSleepNotification)
@@ -247,7 +247,7 @@ final class ApplePasswords: ObservableObject {
         if let lastEnd {
             Self.log.notice("Pairing again: the last pairing ended \(Int(began.timeIntervalSince(lastEnd.at)), privacy: .public)s ago because \(lastEnd.why, privacy: .public)")
         } else {
-            Self.log.notice("Pairing: no pairing before this one since Search started")
+            Self.log.notice("Pairing: no pairing before this one since Lun started")
         }
         state = .starting
         do {
@@ -278,9 +278,9 @@ final class ApplePasswords: ObservableObject {
             // (a launch constraint violation, signal 9 after 0s).
             if case ApplePasswordsError.gone? = error as? ApplePasswordsError, !heard,
                Date().timeIntervalSince(began) < 1, entitled {
-                Self.log.notice("The helper was stopped as it started: its launch constraint doesn't admit Search on this macOS")
+                Self.log.notice("The helper was stopped as it started: its launch constraint doesn't admit Lun on this macOS")
                 refused = true
-                fail(Unavailable(errorDescription: "Apple's Passwords helper isn't available to Search on this version of macOS"), stop: true)
+                fail(Unavailable(errorDescription: "Apple's Passwords helper isn't available to Lun on this version of macOS"), stop: true)
                 return
             }
             fail(error, stop: true)
@@ -334,7 +334,7 @@ final class ApplePasswords: ObservableObject {
 
     /// Back to nothing: the helper told goodbye and stopped, every secret
     /// dropped. Also when the switch goes off and when Search quits.
-    func disconnect(because why: String = "asked in Search") {
+    func disconnect(because why: String = "asked in Lun") {
         if link != nil || state != .idle {
             Self.log.notice("Disconnecting: \(why, privacy: .public), \(self.context, privacy: .public)")
         }
@@ -585,10 +585,10 @@ final class ApplePasswords: ObservableObject {
         switch error {
         case let error as Unavailable: return error.errorDescription ?? "Apple Passwords isn't available"
         case ApplePasswordsError.timedOut: return "Apple's Passwords helper didn't answer"
-        case ApplePasswordsError.gone: return "Apple's Passwords helper wouldn't run for this copy of Search"
+        case ApplePasswordsError.gone: return "Apple's Passwords helper wouldn't run for this copy of Lun"
         case ApplePasswordsError.notTheHelper: return "The pairing couldn't be checked. Connect again."
         case ApplePasswordsError.badHello, ApplePasswordsError.malformed:
-            return "Apple's Passwords helper answered in a way Search doesn't know"
+            return "Apple's Passwords helper answered in a way Lun doesn't know"
         default: return "Apple Passwords isn't available on this Mac"
         }
     }

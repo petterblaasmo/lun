@@ -2,7 +2,7 @@
 """An extension's sandbox pages may eval, apart from its own pages, as in Chrome — in a hidden probe.
 
 Build first (`./build.sh`), then `python3 Tests/extension_sandbox_pages.py`.
-Same harness as extension_install_event.py: a copy of build/Search.app under
+Same harness as extension_install_event.py: a copy of build/Lun.app under
 a bundle id of its own, in a world of its own, started hidden; the copy, its
 WebKit folders and the world are removed afterwards.
 
@@ -141,8 +141,8 @@ BACKGROUND = {
 
 
 def probe_copy():
-    app = work / "Search.app"
-    shutil.copytree(Path(sv.ROOT, "build", "Search.app"), app, symlinks=True)
+    app = work / "Lun.app"
+    shutil.copytree(Path(sv.ROOT, "build", "Lun.app"), app, symlinks=True)
     subprocess.run(["/usr/libexec/PlistBuddy", "-c", f"Set :CFBundleIdentifier {BUNDLE}", str(app / "Contents/Info.plist")], check=True)
     (app / "Contents/embedded.provisionprofile").unlink(missing_ok=True)
     subprocess.run(["codesign", "-f", "-s", "-", "--entitlements", str(Path(sv.ROOT, "Search.entitlements")), "--deep", str(app)],

@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleIdentifier</key><string>com.lunbrowser.lun.ai-engine</string>
-  <key>CFBundleName</key><string>Search AI engine</string>
+  <key>CFBundleName</key><string>Lun AI engine</string>
   <key>CFBundleShortVersionString</key><string>1</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>

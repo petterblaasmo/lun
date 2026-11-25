@@ -237,8 +237,8 @@ final class DevToolsPackages: ObservableObject {
             case .missing: "The package's files are missing."
             case .hash: "The package isn't the one the feed lists."
             case .signature: "The package's signature doesn't hold up."
-            case .searchTooOld: "This package needs a newer Search. Update Search."
-            case .packageTooOld: "This package is too old for this Search. Update the package."
+            case .searchTooOld: "This package needs a newer Lun. Update Lun."
+            case .packageTooOld: "This package is too old for this Lun. Update the package."
             case .notAPackage: "This isn't a developer tools package."
             case .layout: "The download isn't laid out as a package should be."
             }
@@ -859,9 +859,9 @@ struct DevToolsPackageList: View {
                 }
             }
         case .removedLoaded:
-            Line(offer.name, "Removed. Restart Search to unload it.") { Pill("Restart") { Updater.shared.relaunch() } }
+            Line(offer.name, "Removed. Restart Lun to unload it.") { Pill("Restart") { Updater.shared.relaunch() } }
         case .updatedLoaded:
-            Line(offer.name, "Updated. Restart Search to use the new version.") { Pill("Restart") { Updater.shared.relaunch() } }
+            Line(offer.name, "Updated. Restart Lun to use the new version.") { Pill("Restart") { Updater.shared.relaunch() } }
         case .idle:
             Line(offer.name + (installed.map { " \($0.offer.display)" } ?? ""), "\(offer.summary)\(adds)\n\(version)") {
                 HStack(spacing: 6) {

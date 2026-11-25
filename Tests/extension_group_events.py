@@ -4,7 +4,7 @@ the browser and not from a timer of the shim's (ExtensionWatch.swift), in a
 hidden probe.
 
 Build first (`./build.sh debug`), then `python3 Tests/extension_group_events.py`.
-It runs a copy of build/Search.app under a bundle id of its own, hidden, in
+It runs a copy of build/Lun.app under a bundle id of its own, hidden, in
 a world of its own with split_view.py's harness; the copy, its WebKit
 folders and the world are removed afterwards.
 
@@ -83,8 +83,8 @@ ASK = """(function (ext, type) {
 
 
 def probe_copy():
-    app = work / "Search.app"
-    shutil.copytree(Path(sv.ROOT, "build", "Search.app"), app, symlinks=True)
+    app = work / "Lun.app"
+    shutil.copytree(Path(sv.ROOT, "build", "Lun.app"), app, symlinks=True)
     subprocess.run(["/usr/libexec/PlistBuddy", "-c", f"Set :CFBundleIdentifier {BUNDLE}", str(app / "Contents/Info.plist")], check=True)
     (app / "Contents/embedded.provisionprofile").unlink(missing_ok=True)
     subprocess.run(["codesign", "-f", "-s", "-", "--entitlements", str(Path(sv.ROOT, "Search.entitlements")), "--deep", str(app)],

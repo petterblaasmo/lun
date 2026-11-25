@@ -609,8 +609,8 @@ final class ApplePasswordsTests: XCTestCase {
 
         let third = FakeHelper(code: "112233")
         let quit = await paired(third)
-        quit.disconnect(because: "Search quit")
-        XCTAssertEqual(quit.lastEnd?.why, "Search quit")
+        quit.disconnect(because: "Lun quit")
+        XCTAssertEqual(quit.lastEnd?.why, "Lun quit")
 
         // Only a pairing that was made counts: a code given up on is not one.
         let fourth = FakeHelper(code: "445566")
@@ -625,7 +625,7 @@ final class ApplePasswordsTests: XCTestCase {
     func testQuitStillDropsTheKey() async {
         let fake = FakeHelper(code: "246810")
         let apple = await paired(fake, keepAliveEvery: 0.02)
-        apple.disconnect(because: "Search quit")
+        apple.disconnect(because: "Lun quit")
         XCTAssertEqual(apple.state, .idle)
         XCTAssertTrue(fake.ended)
         XCTAssertTrue(fake.stopped)

@@ -5,11 +5,11 @@
 #
 #   ./build.sh                 debug-free release build, ad-hoc signed: runs here
 #   SEARCH_DEV=1 ./build.sh    the same as a dev build: yellow icon, named for
-#                              the branch (Search-split-view from
+#                              the branch (Lun-split-view from
 #                              claude/split-view-4a6927)
 #   SEARCH_DEV=1 SEARCH_FEATURE=name ./build.sh
-#                              the same, named Search-name
-#   ./build.sh release dmg     + build/Search.dmg, build/Search.zip and
+#                              the same, named Lun-name
+#   ./build.sh release dmg     + build/Lun.dmg, build/Lun.zip and
 #                                build/appcast.json, signed with Developer ID
 #                                if there is one in the keychain
 #   ./build.sh release ship    + both notarised, the DMG stapled
@@ -57,14 +57,14 @@ case "$ARCH" in
   x86_64) OUT="build/intel"; SUBFOLDER="/intel" ;;
   *) echo "SEARCH_ARCH is arm64 or x86_64, not “$ARCH”" >&2; exit 1 ;;
 esac
-APP="$OUT/Search.app"
-NAME="Search"
+APP="$OUT/Lun.app"
+NAME="Lun"
 # Asked for with SEARCH_DEV=1, a dev build, on a yellow plate and named for
-# the feature it's built from: "Search-split-view" in the menu bar, the Dock
+# the feature it's built from: "Lun-split-view" in the menu bar, the Dock
 # and ⌘Tab, so it's never taken for the installed app beside it, or for the
 # dev build from another worktree. Only the name people see changes. The
 # bundle id stays, so it shares the real app's settings, and so does the
-# folder, build/Search.app, which fresh.sh and the tests open. Not by
+# folder, build/Lun.app, which fresh.sh and the tests open. Not by
 # default: a plain ./build.sh is also the Search people here use every day
 # and the release candidates. What goes in a DMG or a ZIP is never one.
 case "${SEARCH_DEV:-}" in
@@ -218,7 +218,7 @@ cp Search.sdef "$APP/Contents/Resources/"
 # what the app weighed (6.5 MB of binary, 2.7 without them), and nothing the
 # app reads while it runs. They are kept beside the build instead, as a dSYM
 # that turns the addresses in a crash report back into names (Console, or
-# atos -o build/Search.app.dSYM/Contents/Resources/DWARF/Search).
+# atos -o build/Lun.app.dSYM/Contents/Resources/DWARF/Search).
 if [ "$CONFIG" = "release" ]; then
   rm -rf "$APP.dSYM"
   dsymutil "$BINARY" -o "$APP.dSYM" 2>/dev/null || echo "no dSYM this time" >&2
@@ -277,7 +277,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   $ICONNAME
   <key>LSMinimumSystemVersion</key><string>$MINIMUM</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
-  <key>NSHumanReadableCopyright</key><string>© Office Commun · Search</string>
+  <key>NSHumanReadableCopyright</key><string>Lun</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSAppleScriptEnabled</key><true/>
   <key>OSAScriptingDefinition</key><string>Search.sdef</string>
@@ -348,33 +348,33 @@ cat > "$APP/Contents/Info.plist" <<PLIST
        not browsed for, and that list is only for browsing. Chrome lists
        one, _googlecast._tcp, for casting; Safari, part of macOS, needs none. -->
   <key>NSLocalNetworkUsageDescription</key>
-  <string>Search uses the local network to open pages on devices and servers in your home or office, such as .local addresses.</string>
+  <string>Lun uses the local network to open pages on devices and servers in your home or office, such as .local addresses.</string>
   <!-- A browser is asked for these by the pages it shows, not by itself. macOS
        still wants a sentence to put in its own prompt, and touching the APIs
        without one is a crash rather than a refusal. -->
   <key>NSCameraUsageDescription</key>
-  <string>Websites you visit can ask to use your camera. Search asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
+  <string>Websites you visit can ask to use your camera. Lun asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Websites you visit can ask to use your microphone. Search asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
+  <string>Websites you visit can ask to use your microphone. Lun asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
   <!-- Location: the first key is the one macOS has always read; the second
        is the one CoreLocation's requestWhenInUseAuthorization documents.
        Same sentence in both. -->
   <key>NSLocationUsageDescription</key>
-  <string>Websites you visit can ask for your location. Search asks you each time a site does, unless you choose Always allow for it; Settings › Privacy forgets those choices.</string>
+  <string>Websites you visit can ask for your location. Lun asks you each time a site does, unless you choose Always allow for it; Settings › Privacy forgets those choices.</string>
   <key>NSLocationWhenInUseUsageDescription</key>
-  <string>Websites you visit can ask for your location. Search asks you each time a site does, unless you choose Always allow for it; Settings › Privacy forgets those choices.</string>
+  <string>Websites you visit can ask for your location. Lun asks you each time a site does, unless you choose Always allow for it; Settings › Privacy forgets those choices.</string>
   <key>NSDownloadsFolderUsageDescription</key>
   <string>Files you download are saved to your Downloads folder.</string>
   <!-- Only once you turn on Settings › Passwords › Fill in your contact
        details: your own card, never anyone else's (MeCard.swift). -->
   <key>NSContactsUsageDescription</key>
-  <string>Search fills in forms with the details on your own card in Contacts, once you pick them under a box. It reads no one else's card and saves no copy of yours.</string>
+  <string>Lun fills in forms with the details on your own card in Contacts, once you pick them under a box. It reads no one else's card and saves no copy of yours.</string>
 </dict>
 </plist>
 PLIST
 # A dev build's name, as a localised one: under the icon in the Dock, in
 # ⌘Tab and in Finder, macOS shows the bundle's folder name otherwise. The
-# plain names above stay "Search", matching the folder, since a folder named
+# plain names above stay "Lun", matching the folder, since a folder named
 # otherwise reads to macOS as renamed by hand, and then the folder wins.
 if [ "$DEV" = 1 ]; then
   mkdir -p "$APP/Contents/Resources/en.lproj"

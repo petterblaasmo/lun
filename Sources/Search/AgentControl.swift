@@ -403,8 +403,8 @@ final class AgentSession: ObservableObject, Identifiable {
 
     /// Why "Always allow" isn't offered, or nil when it is.
     var noAlways: String? {
-        guard AgentTrust.shared.usable else { return "this copy of Search has nowhere safe to keep it" }
-        guard let launcher else { return "Search couldn't tell which program started it" }
+        guard AgentTrust.shared.usable else { return "this copy of Lun has nowhere safe to keep it" }
+        guard let launcher else { return "Lun couldn't tell which program started it" }
         return launcher.unrememberable
     }
 
@@ -579,7 +579,7 @@ final class AgentControl: ObservableObject {
             let busy = session != nil
             let refusal = AgentRefusal(
                 code: busy ? "busy" : "not_now",
-                message: busy ? "Another agent is using Search" : "Search was just told no, or stopped",
+                message: busy ? "Another agent is using Lun" : "Lun was just told no, or stopped",
                 hint: busy ? "Wait for it to finish." : "Ask again in a few seconds, once."
             )
             Self.write(refusal.said, to: fd)
@@ -763,8 +763,8 @@ final class AgentControl: ObservableObject {
         switch code {
         case "hello_first": return "Say hello first"
         case "said_hello": return "Already said"
-        case "not_allowed": return "You were not allowed to use Search"
-        default: return "Stopped in Search"
+        case "not_allowed": return "You were not allowed to use Lun"
+        default: return "Stopped in Lun"
         }
     }
 
@@ -784,7 +784,7 @@ final class AgentControl: ObservableObject {
             AgentTrust.shared.suspend(client: session.client, also: session.admittedBy)
             Self.log.notice("stopped: \(session.client, privacy: .public) is asked about again from now on")
         }
-        session.hello?(AgentRefusal(code: "stopped", message: "Stopped in Search").said)
+        session.hello?(AgentRefusal(code: "stopped", message: "Stopped in Lun").said)
         session.hello = nil
         session.consent.end()
         // What was said last goes if the socket takes it now; nothing waits.
@@ -927,7 +927,7 @@ final class AgentControl: ObservableObject {
             began(session)
             pump(session)
         } else {
-            hello?(AgentRefusal(code: "not_allowed", message: "You were not allowed to use Search").said)
+            hello?(AgentRefusal(code: "not_allowed", message: "You were not allowed to use Lun").said)
             // Said, then gone.
             DispatchQueue.main.async { [weak self, weak session] in
                 if let self, let session { self.end(session, "not allowed") }
@@ -1010,7 +1010,7 @@ final class AgentControl: ObservableObject {
             // Said first, so the client knows to ask again when it next
             // needs Search, rather than taking it for Stop.
             say(["error": ["code": "idle", "message": "Let go after a while with nothing asked",
-                           "hint": "Connect again when you next need Search."]], to: session)
+                           "hint": "Connect again when you next need Lun."]], to: session)
             end(session, "idle")
         }
     }
@@ -1073,7 +1073,7 @@ final class AgentControl: ObservableObject {
             session.client = AgentRules.clientName(request["client"])
             session.browser = Browsers.all.first { $0.window?.isKeyWindow == true } ?? Browsers.primary
             guard session.browser != nil else {
-                refuse(AgentRefusal(code: "no_window", message: "Search has no window open"))
+                refuse(AgentRefusal(code: "no_window", message: "Lun has no window open"))
                 end(session, "no window")
                 return
             }
@@ -1150,7 +1150,7 @@ final class AgentControl: ObservableObject {
                     throw AgentRefusal(code: "bad_key", message: "Not a key this can press",
                                        hint: "Enter, Tab, Escape, Backspace, an arrow, or one character, after shift+, alt+ or ctrl+. Never cmd.")
                 }
-                guard live(session) else { throw AgentRefusal(code: "stopped", message: "Stopped in Search") }
+                guard live(session) else { throw AgentRefusal(code: "stopped", message: "Stopped in Lun") }
                 PageRoom.shared.house(tab)
                 PageHands.key(tab.web, code: key.code, characters: key.characters, flags: key.flags)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
@@ -1166,7 +1166,7 @@ final class AgentControl: ObservableObject {
                 answer(["bye": true])
                 DispatchQueue.main.async { [weak self] in self?.end(session, "it said goodbye") }
             default:
-                throw AgentRefusal(code: "no_verb", message: "Search doesn't do “\(verb)” for an agent")
+                throw AgentRefusal(code: "no_verb", message: "Lun doesn't do “\(verb)” for an agent")
             }
         } catch let refusal as AgentRefusal {
             refuse(refusal)
@@ -1177,7 +1177,7 @@ final class AgentControl: ObservableObject {
 
     private static let badAddress = AgentRefusal(
         code: "refused_address", message: "Only http and https addresses",
-        hint: "Search's own pages, Settings, extensions and files are not for agents."
+        hint: "Lun's own pages, Settings, extensions and files are not for agents."
     )
 
     /// The tab a request's page handle names, if it may be used that way.
@@ -1221,7 +1221,7 @@ final class AgentControl: ObservableObject {
     private func page(_ tab: Tab, _ session: AgentSession, _ script: String,
                       _ done: @escaping (Result<[String: Any], AgentRefusal>) -> Void) {
         guard live(session) else {
-            done(.failure(AgentRefusal(code: "stopped", message: "Stopped in Search")))
+            done(.failure(AgentRefusal(code: "stopped", message: "Stopped in Lun")))
             return
         }
         let web: WKWebView
@@ -1236,7 +1236,7 @@ final class AgentControl: ObservableObject {
         }
         web.evaluateJavaScript(script, in: nil, in: Web.world) { [weak self] result in
             guard let self, live(session) else {
-                done(.failure(AgentRefusal(code: "stopped", message: "Stopped in Search")))
+                done(.failure(AgentRefusal(code: "stopped", message: "Stopped in Lun")))
                 return
             }
             switch result {
@@ -1340,7 +1340,7 @@ final class AgentControl: ObservableObject {
             switch result {
             case .failure(let refusal): answer(refusal.said)
             case .success(let seen):
-                guard self.live(session) else { return answer(AgentRefusal(code: "stopped", message: "Stopped in Search").said) }
+                guard self.live(session) else { return answer(AgentRefusal(code: "stopped", message: "Stopped in Lun").said) }
                 guard let at = seen["at"] as? [Double], PageHands.click(tab.web, at: at) else {
                     answer(AgentRefusal(code: "not_clicked", message: "The page had nowhere to click").said)
                     return
@@ -1390,7 +1390,7 @@ final class AgentControl: ObservableObject {
             touch("focus", text) { focused in
                 let web = tab.web
                 if web.window === PageRoom.shared.window { web.window?.makeFirstResponder(web) }
-                guard self.live(session) else { return answer(AgentRefusal(code: "stopped", message: "Stopped in Search").said) }
+                guard self.live(session) else { return answer(AgentRefusal(code: "stopped", message: "Stopped in Lun").said) }
                 PageHands.type(text, into: web)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     touch("verify", focused["want"] as? String) { finish($0) }
@@ -1492,7 +1492,7 @@ final class AgentControl: ObservableObject {
             }
             guard self.live(session) else {
                 putBack()
-                return answer(AgentRefusal(code: "stopped", message: "Stopped in Search").said)
+                return answer(AgentRefusal(code: "stopped", message: "Stopped in Lun").said)
             }
             PageHands.snapshot(tab.web, width: width) { taken in
                 putBack()

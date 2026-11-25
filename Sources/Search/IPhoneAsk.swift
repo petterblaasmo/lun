@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// "Want Search on your iPhone?" — the iPhone beta's waitlist, offered in a
+// "Want Lun on your iPhone?" — the iPhone beta's waitlist, offered in a
 // few more quiet places, just for now:
 //
 //   · the About window: one line under the version, with an inline field;
@@ -33,12 +33,12 @@ enum IPhoneAsk {
     nonisolated static let newTabSinceKey = "iphoneask.newtab.since"
     static let newTabDays = 3
 
-    static let pitch = "Want Search on your iPhone? Leave your email and we'll send you the beta."
-    static let short = "Want Search on your iPhone?"
+    static let pitch = "Want Lun on your iPhone? Leave your email and we'll send you the beta."
+    static let short = "Want Lun on your iPhone?"
     static let action = "Get the beta"
     static let notNow = "Not now"
-    static let menuTitle = "Search for iPhone…"
-    static let cardTitle = "Search for iPhone"
+    static let menuTitle = "Lun for iPhone…"
+    static let cardTitle = "Lun for iPhone"
 
     /// Where the line is, and the word the site keeps with the address.
     enum Spot: String, CaseIterable {

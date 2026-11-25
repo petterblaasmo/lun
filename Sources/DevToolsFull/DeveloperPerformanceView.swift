@@ -344,7 +344,7 @@ struct DeveloperPerformanceView: View {
                     .padding(.bottom, 10)
                 landing("record.circle", "Click Record or press ⌘E to start a new recording.")
                 landing("arrow.clockwise", "Click Start profiling and reload page or press ⇧⌘E to record the page load.")
-                landing("arrow.up.to.line", "Click Load profile or press ⌘O to open a saved profile, from Search or Chrome.")
+                landing("arrow.up.to.line", "Click Load profile or press ⌘O to open a saved profile, from Lun or Chrome.")
                 HStack {
                     Button("Record") { record() }
                     Button("Record and reload") { reloadAndRecord() }

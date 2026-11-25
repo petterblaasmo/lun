@@ -21,7 +21,7 @@ struct ApplePasswordsCard: View {
             } else {
                 Card {
                     Line("Passwords from Apple's Passwords app",
-                         "Accounts and verification codes saved in the Passwords app, under their box. Unofficial: Search talks to the helper Apple made for its Chrome extension, as that extension. Never in private tabs.") {
+                         "Accounts and verification codes saved in the Passwords app, under their box. Unofficial: Lun talks to the helper Apple made for its Chrome extension, as that extension. Never in private tabs.") {
                         Switch(on: $prefs.applePasswords)
                     }
                     if prefs.applePasswords {
@@ -43,10 +43,10 @@ struct ApplePasswordsCard: View {
             // One row for both, its button kept and only greyed while
             // starting: a start that fails at once leaves it as it was (idea 781).
             if apple.refused {
-                Line(apple.trouble ?? "Not connected", "macOS stops Apple's helper the moment Search starts it. The iCloud Passwords extension needs that helper too.") { EmptyView() }
+                Line(apple.trouble ?? "Not connected", "macOS stops Apple's helper the moment Lun starts it. The iCloud Passwords extension needs that helper too.") { EmptyView() }
             } else {
                 Line(ApplePasswords.title(state: apple.state, trouble: apple.trouble, connecting: apple.connecting),
-                     "Your Mac shows a code, and you type it here. Once per launch of Search, and only when you first want an account: under a sign-in box, Connect Apple Passwords… asks for it there.") {
+                     "Your Mac shows a code, and you type it here. Once per launch of Lun, and only when you first want an account: under a sign-in box, Connect Apple Passwords… asks for it there.") {
                     Pill("Connect…") { Task { await apple.connect() } }
                         .disabled(apple.state == .starting)
                 }
@@ -75,7 +75,7 @@ struct ApplePasswordsCard: View {
                 }
             }
         case .paired:
-            Line("Connected", "Until Search quits. Accounts show under sign-in boxes, marked Apple Passwords; macOS may ask for Touch ID before one is filled.") {
+            Line("Connected", "Until Lun quits. Accounts show under sign-in boxes, marked Apple Passwords; macOS may ask for Touch ID before one is filled.") {
                 Pill("Disconnect") { apple.disconnect() }
             }
         }
@@ -175,7 +175,7 @@ struct ApplePairingCard: View {
     private var detail: String {
         switch apple.state {
         case .starting: return "Your Mac shows a six-digit code in a moment"
-        case .code, .checking: return "Six digits, from the Passwords window. Once per launch of Search."
+        case .code, .checking: return "Six digits, from the Passwords window. Once per launch of Lun."
         default: return "Apple Passwords"
         }
     }

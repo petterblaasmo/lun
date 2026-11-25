@@ -136,7 +136,7 @@ enum ProxySecret {
         guard status == errSecSuccess else {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [
                 NSLocalizedDescriptionKey: status == errSecMissingEntitlement
-                    ? "This copy of Search can't keep a password in the keychain."
+                    ? "This copy of Lun can't keep a password in the keychain."
                     : "The proxy password couldn't be kept in the keychain (\(status)).",
             ])
         }
@@ -323,9 +323,9 @@ struct ProxySettings: View {
 
     private var note: String {
         """
-        What Search fetches goes through it: pages, favicons, search \
+        What Lun fetches goes through it: pages, favicons, search \
         suggestions, copied pictures, extensions and the Web Store, the AI \
-        add-on and Search's own updates. A video call is the exception: \
+        add-on and Lun's own updates. A video call is the exception: \
         WebRTC sends its own traffic over UDP, which a proxy tunnel doesn't \
         carry, so a call can still show a site your address. This Mac and \
         .local names stay direct, so a local server still opens; a router \
@@ -337,7 +337,7 @@ struct ProxySettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Line("Send everything through a proxy", draft.mode == .system ? "Off: Search follows the Mac's own network settings." : note) {
+            Line("Send everything through a proxy", draft.mode == .system ? "Off: Lun follows the Mac's own network settings." : note) {
                 Picker("Proxy", selection: $draft.mode) {
                     ForEach(ProxySettingsValue.Mode.allCases) { Text($0.title).tag($0) }
                 }

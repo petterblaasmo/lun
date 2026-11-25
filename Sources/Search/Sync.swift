@@ -137,7 +137,7 @@ final class Sync: ObservableObject {
     /// ThisMac.fingerprint of the Mac that made sync.device.
     nonisolated static let deviceMacKey = "sync.device.mac"
     /// The folder Search makes inside the one chosen.
-    nonisolated static let inside = "Search Sync"
+    nonisolated static let inside = "Lun Sync"
 
     /// This Mac's id in the folder: made once, kept with the settings, so
     /// each test world (SEARCH_PROBE=<name>) is a Mac of its own.
@@ -181,7 +181,7 @@ final class Sync: ObservableObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.message = "Choose a folder your Macs share, in iCloud Drive or Dropbox for example. Turn on sync with the same folder in Search on each Mac."
+        panel.message = "Choose a folder your Macs share, in iCloud Drive or Dropbox for example. Turn on sync with the same folder in Lun on each Mac."
         panel.prompt = "Sync Here"
         let drive = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs", isDirectory: true)
@@ -299,7 +299,7 @@ final class Sync: ObservableObject {
         do {
             try files.createDirectory(at: folder, withIntermediateDirectories: true)
         } catch {
-            problem = "Search can\u{2019}t write in that folder"
+            problem = "Lun can\u{2019}t write in that folder"
             return []
         }
         problem = nil

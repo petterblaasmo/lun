@@ -141,5 +141,5 @@ def main():
 
 if __name__ == "__main__":
     if sys.platform != "darwin":
-        sys.exit("Tests/clear_cache_workers.py requires macOS and a built Search.app")
+        sys.exit("Tests/clear_cache_workers.py requires macOS and a built Lun.app")
     sys.exit(main())
