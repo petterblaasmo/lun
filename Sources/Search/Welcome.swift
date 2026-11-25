@@ -6,8 +6,14 @@ import SwiftUI
 /// been given once, offering the iPhone beta and news by email (OptIn.swift).
 /// Nothing is asked twice, and every page can be skipped.
 ///
+/// Each page is one thing, down the middle: a heading, a line under it, what
+/// there is to choose, and one button that does it. Where that button does
+/// something (brings things over, asks macOS for the default), "Not now"
+/// under it goes on without. Nothing is written smaller than can be read, or
+/// in the grey kept for rules and switches.
+///
 /// The first page also holds Sync with iCloud and Handoff, on for a new
-/// install (SyncDefault.swift): there, before Skip or Continue, so nobody
+/// install (SyncDefault.swift): there, before Skip or Get Started, so nobody
 /// leaves without having seen them. They take effect when the welcome is
 /// left, however it is; nothing goes anywhere while it is up.
 struct WelcomePanel: View {
@@ -21,10 +27,14 @@ struct WelcomePanel: View {
     @State private var handsOff = SyncDefault.startsNow().handoff
     @State private var forward = true
 
-    // Bringing things over. Nil until one is picked, which means the first:
-    // finding them looks through each browser's folders, and as an initial
-    // value that ran every time the panel was made, the first window's
-    // included, for a page that isn't showing yet.
+    // Bringing things over. The browsers are looked for when their page is
+    // first reached: finding them goes through each one's folders, and as an
+    // initial value that ran every time the panel was made, the first
+    // window's included, for a page that isn't showing yet.
+    @State private var sources: [ImportSource] = []
+    @State private var unreadable: [String] = []
+    @State private var looked = false
+    /// Nil until one is picked, which means the first.
     @State private var source: ImportSource?
     @State private var wantsPasswords = true
     @State private var wantsHistory = true
@@ -36,7 +46,9 @@ struct WelcomePanel: View {
     @State private var isDefault = Links.isDefault
     @State private var asked = false
 
-    private var importsPasswords: Bool { (source ?? ImportSource.installed().first)?.importsPasswords ?? false }
+    private var picked: ImportSource? { source ?? sources.first }
+    private var importsPasswords: Bool { picked?.importsPasswords ?? false }
+    private var bringsSomething: Bool { (importsPasswords && wantsPasswords) || wantsHistory || wantsBookmarks }
 
     /// Read once: the email page stays to the end once it is there, for
     /// its thanks.
@@ -54,147 +66,174 @@ struct WelcomePanel: View {
 
     private var pages: Int { offersEmail ? 5 : 4 }
 
+    /// How wide a page is: a line of the text under a heading is read at a
+    /// glance at this width, and two window drawings fit side by side.
+    private static let column: CGFloat = 460
+
     var body: some View {
         ZStack {
             Palette.ground.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Spacer(minLength: 0)
-                ZStack {
-                    switch page {
-                    case 0: welcome
-                    case 1: bring
-                    case 2: hold
-                    case 3: links
-                    default: early
-                    }
+                // A short window scrolls the page rather than pushing the
+                // button off its bottom edge.
+                ViewThatFits(in: .vertical) {
+                    current
+                    ScrollView(showsIndicators: false) { current.padding(.vertical, 12) }
                 }
-                .frame(maxWidth: 520)
+                .frame(maxWidth: WelcomePanel.column, maxHeight: .infinity)
                 .id(page)
                 .transition(.asymmetric(
                     insertion: .offset(x: forward ? 40 : -40).combined(with: .opacity),
                     removal: .offset(x: forward ? -40 : 40).combined(with: .opacity)
                 ))
-                Spacer(minLength: 0)
                 foot
             }
-            .padding(40)
+            // Clear of the window's own buttons, which stay over this.
+            .padding(.top, 44)
+            .padding(.horizontal, 32)
+            .padding(.bottom, 26)
         }
         .animation(Motion.glide, value: page)
         .transition(.opacity)
         .onAppear {
             guard !began else { return }
             began = true
-            page = min(startPage, pages - 1)
+            go(to: min(startPage, pages - 1))
+        }
+    }
+
+    @ViewBuilder
+    private var current: some View {
+        switch page {
+        case 0: welcome
+        case 1: bring
+        case 2: hold
+        case 3: links
+        default: early
         }
     }
 
     // MARK: - the pages
 
     private var welcome: some View {
-        VStack(spacing: 22) {
-            Plate(size: 112)
+        VStack(spacing: 0) {
+            Wordmark(height: 64)
                 .accessibilityElement()
                 .accessibilityLabel("Lun")
             Text("A small, fast, quiet browser for the Mac.")
-                .font(.system(size: 14.5))
+                .font(.system(size: 16))
                 .foregroundStyle(Palette.muted)
+                .padding(.top, 20)
             devices
-                .padding(.top, 10)
+                .padding(.top, 36)
         }
     }
 
     /// Sync with iCloud and Handoff, in sight before anything starts.
     private var devices: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 14) {
-                Choice("Sync with iCloud", "Open tabs, pins, spaces, bookmarks and a few settings, on your iPhone and other Macs. End-to-end encrypted, in your own iCloud.", on: $syncs, plain: true)
+        VStack(spacing: 12) {
+            Box {
+                Choice("Sync with iCloud", "Open tabs, pins, spaces, bookmarks and a few settings, on your iPhone and other Macs. End-to-end encrypted, in your own iCloud.", on: $syncs)
                 Rule(inset: 0)
-                Choice("Handoff", "The page in front shows up on your iPhone and iPad.", on: $handsOff, plain: true)
+                Choice("Handoff", "The page in front shows up on your iPhone and iPad.", on: $handsOff)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             Text("Nothing starts until you leave this welcome. Both are in Settings › General.")
-                .font(.system(size: 11.5))
+                .font(.system(size: 12.5))
                 .foregroundStyle(Palette.muted)
-                .padding(.horizontal, 4)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: 440)
     }
 
     private var bring: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            heading("Bring things over.", "Passwords go into your keychain, bookmarks into the menu, and history means the address field already knows where you go. Nothing in the other browser changes.")
+        VStack(spacing: 24) {
+            heading("Bring your things over.",
+                    sources.isEmpty ? "Passwords, bookmarks and history from the browser you're coming from."
+                                    : "Pick the browser you're coming from. Nothing in it changes.")
 
-            let sources = ImportSource.installed()
-            let unreadable = Chromium.unreadable()
             if sources.isEmpty {
                 if unreadable.isEmpty {
-                    Text("No other browser found on this Mac — nothing to bring.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Palette.faint)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Box {
+                        Text("No other browser found on this Mac, so there is nothing to bring.")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Palette.ink)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             } else {
-                VStack(alignment: .leading, spacing: 14) {
-                    if sources.count > 1 {
-                        Segmented(
-                            options: sources.map { ($0, $0.name) },
-                            selection: Binding(get: { source ?? sources[0] }, set: { source = $0 })
-                        )
-                    } else {
-                        Text("From \(sources[0].name)")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Palette.muted)
-                    }
-                    // What can come from it at all; spaces and open tabs
-                    // are in the full sheet (File › Bring Things Over…).
-                    Text("\((source ?? sources[0]).name) can bring: \((source ?? sources[0]).canBringLine.lowercased())")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.faint)
-                    if importsPasswords {
-                        Choice("Passwords", "macOS will ask once for that browser's keychain key", on: $wantsPasswords)
-                    } else {
-                        Text((source ?? sources[0]).passwordsInPasswordsApp
-                             ? "\((source ?? sources[0]).name) keeps passwords in the Passwords app: export them there, then bring in the file below."
-                             : "Passwords from \((source ?? sources[0]).name) aren't supported yet.")
-                            .font(.system(size: 13)).foregroundStyle(Palette.muted)
-                    }
-                    Choice("Bookmarks", "Folders and all, behind the bookmark button", on: $wantsBookmarks)
-                    Choice("History", "The last few thousand places, for finishing addresses", on: $wantsHistory)
-                }
+                browsers
 
-                HStack(spacing: 12) {
-                    Big(bringing ? "Bringing…" : "Bring them in", filled: true) { bringAll() }
-                        .disabled(bringing || brought != nil || !((importsPasswords && wantsPasswords) || wantsHistory || wantsBookmarks))
-                    if bringing { Ring(size: 10) }
-                    if let brought {
-                        Text(brought)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Palette.muted)
-                            .transition(.opacity)
+                Box {
+                    if importsPasswords {
+                        Choice("Passwords", "Into your Mac's keychain. macOS asks once for \(picked?.name ?? "its") key.", on: $wantsPasswords)
+                    } else {
+                        Said("Passwords",
+                             picked?.passwordsInPasswordsApp == true
+                                ? "\(picked?.name ?? "It") keeps them in the Passwords app: export them there, then bring in the file."
+                                : "Not from \(picked?.name ?? "this one") yet.")
                     }
+                    Rule(inset: 0)
+                    Choice("Bookmarks", "Folders and all, behind the bookmark button.", on: $wantsBookmarks)
+                    Rule(inset: 0)
+                    Choice("History", "The last few thousand places, so the address bar knows where you go.", on: $wantsHistory)
                 }
-                .animation(Motion.settle, value: brought)
+                .disabled(bringing)
+
+                if let brought {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(brought)
+                            .font(.system(size: 13.5))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .foregroundStyle(Palette.ink)
+                    .transition(.opacity)
+                }
             }
 
             if !unreadable.isEmpty {
-                Text(unreadable.map(\.message).joined(separator: "\n"))
+                Text(unreadable.joined(separator: "\n"))
                     .font(.system(size: 13))
-                    .foregroundStyle(Palette.faint)
+                    .foregroundStyle(Palette.muted)
+                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            // Safari, a browser on another Mac, one Search can't read: what
-            // it exported, bookmarks, passwords or Safari's own ZIP.
-            Pill("From a file another browser exported…") { browser.importFile() }
+            // Safari, a browser on another Mac, one Lun can't read: what it
+            // exported, bookmarks, passwords or Safari's own ZIP.
+            Quiet(sources.isEmpty ? "Bring in a file another browser exported…" : "Or bring in a file another browser exported…") {
+                browser.importFile()
+            }
+        }
+        .animation(Motion.settle, value: brought)
+    }
+
+    /// The browsers found, each under its own icon. Spaces, open tabs and
+    /// which profile are in the full page (File › Bring Things Over…).
+    private var browsers: some View {
+        let row = HStack(spacing: 10) {
+            ForEach(sources) { one in
+                Source(name: one.name, icon: one.appIcon, chosen: one == picked) {
+                    guard !bringing, one != picked else { return }
+                    source = one
+                    brought = nil
+                }
+            }
+        }
+        // The chosen one's shadow, which a scroll view would cut.
+        .padding(.vertical, 4)
+        return ViewThatFits(in: .horizontal) {
+            row
+            ScrollView(.horizontal, showsIndicators: false) { row.padding(.horizontal, 2) }
         }
     }
 
     private var hold: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            heading("Two ways to hold it.", "Titles down the side, or across the top. The grey slides to the tab you pick either way, and you can change your mind with ⇧⌘S.")
+        VStack(spacing: 24) {
+            heading("Tabs on the side, or on top.", "Titles down the side or across the top. Change your mind any time with ⇧⌘S.")
             HStack(spacing: 12) {
                 Way(title: "Sidebar", sidebar: true, glyph: prefs.glyph, chosen: prefs.sidebar) {
                     withAnimation(Motion.glide) { prefs.sidebar = true }
@@ -203,109 +242,83 @@ struct WelcomePanel: View {
                     withAnimation(Motion.glide) { prefs.sidebar = false }
                 }
             }
-            HStack(spacing: 12) {
-                Text("Tabs wear")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Palette.muted)
-                Segmented(options: Glyph.allCases.map { ($0, $0.title) }, selection: $prefs.glyph)
+            Box {
+                HStack(spacing: 12) {
+                    Said("Tabs wear", "A site's own icon, or its first letter.")
+                    Segmented(options: Glyph.allCases.map { ($0, $0.title) }, selection: $prefs.glyph)
+                        .fixedSize()
+                }
+                Rule(inset: 0)
+                arc
             }
-            arcCard
         }
     }
 
     /// Coming from Arc? One button for Arc's way (LikeArc), optional like
     /// everything here: Continue goes on without it.
-    private var arcCard: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Coming from Arc?")
-                    .font(.system(size: 13.5))
-                    .foregroundStyle(Palette.ink)
-                Text(arcSaid ?? "Tabs on the left, spaces, pinned rows, and Arc's habits: tabs that close after 12 hours, peek, the floating video.")
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(Palette.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 8)
+    private var arc: some View {
+        HStack(spacing: 12) {
+            Said("Coming from Arc?", arcSaid ?? "Tabs on the left, spaces, pinned rows, and Arc's habits: tabs that close after 12 hours, peek, the floating video.")
             if arcSaid != nil, likeArc.undoable(prefs) {
-                Big("Undo") {
+                Pill("Undo", large: true) {
                     withAnimation(Motion.glide) { likeArc.undo(prefs) }
                     arcSaid = nil
                 }
             } else if prefs.looksLikeArc {
-                Text(arcSaid == nil ? "Set up like Arc" : "")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.faint)
+                if arcSaid == nil {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold))
+                        Text("Set up like Arc").font(.system(size: 12.5))
+                    }
+                    .foregroundStyle(Palette.muted)
+                    .fixedSize()
+                }
             } else {
-                Big("Set Up Like Arc") {
+                Pill("Set Up Like Arc", large: true) {
                     arcSaid = LikeArc.said(withAnimation(Motion.glide) { likeArc.setUp(prefs) })
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
         .animation(Motion.settle, value: arcSaid)
     }
 
     private var links: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            heading("Links from other apps.", "A click in Mail, in Slack, in a PDF — macOS sends it to whichever browser is the default. It can be this one.")
-            HStack(spacing: 12) {
-                if isDefault {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .medium))
-                        Text("Lun is the default browser")
-                    }
+        VStack(spacing: 24) {
+            if let icon = NSImage(named: NSImage.applicationIconName) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 84, height: 84)
+                    .accessibilityHidden(true)
+            }
+            heading(isDefault ? "Lun is your default browser." : "Make Lun your default browser.",
+                    "A click in Mail, in Slack, in a PDF: macOS sends it to whichever browser is the default.")
+            if asked, !isDefault {
+                Text("macOS asks in its own dialog.")
                     .font(.system(size: 13))
-                    .foregroundStyle(Palette.ink)
-                } else {
-                    Big("Make Lun the default", filled: true) {
-                        asked = true
-                        Links.becomeDefault { _ in isDefault = Links.isDefault }
-                    }
-                    if asked, !isDefault {
-                        Text("macOS asks in its own dialog")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Palette.faint)
-                    }
-                }
+                    .foregroundStyle(Palette.muted)
+                    .transition(.opacity)
             }
-            .animation(Motion.settle, value: isDefault)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("A few things worth knowing")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Palette.faint)
-                    .textCase(.uppercase)
-                    .tracking(0.6)
-                    .padding(.top, 6)
-                Key("⌘T", "A new tab. Type a place, or words to search.")
-                Key("⌘K", "Every open tab, by name.")
-                Key("⌘,", "Settings, including passwords and updates. ⌘F there finds any setting.")
-                Key("⌃1", "Spaces: separate tabs and sign-ins. Turn them on in Settings › Spaces & Pins, or Set Up Like Arc there.")
-                Key("⌥⌘N", "Split a page in two, ⌥-click a tab to put it beside the page, or drag a tab onto a page; ⌃⌘← and ⌃⌘→ go from one page to the other, and ⌥⌘N again puts them apart.")
-                Key("⌘O", "Links from other apps open in a small window; ⌘O keeps one as a tab. Settings › Browsing.")
-                Key("⌘L", "Suggestions from your search engine as you type — off until you turn them on in Settings › Browsing.")
-                Key("⌘", "Held, it can show each tab's number for ⌘1–9. Settings › Tabs.")
-                Key("⌘,", "A painted wall behind the blank tab, if you want one — Settings › Themes. Off until you choose.")
-                Key("⌘1", "Pressed again on its pin, back to where you were.")
-                Key("⇧⌘P", "Float a video in Lun's window, or in macOS's picture in picture. Settings › Browsing.")
-                Key("⌃-click", "Claude or ChatGPT in a side panel beside the page: right-click a tab › Open in Side Panel, or View › Side Panel.")
-                Key("⌘Q", "Lun can ask before it quits. Settings › General.")
-                Key("⌘,", "Your Apple passwords, under the sign-in field — Settings › Passwords.")
-                if PageTranslator.available {
-                    Key("⌃-click", "Translate a page into your language, on this Mac — nothing is sent anywhere. Right-click the page › Translate Page.")
-                }
-                if AI.shipped {
-                    Key("⌘,", "AI summaries and questions about a page — off until you turn it on in Settings › AI.")
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Worth knowing")
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(Palette.muted)
+                    .padding(.leading, 4)
+                Box(spacing: 11) {
+                    Key("⌘T", "A new tab. Type a place, or words to search.")
+                    Key("⌘K", "Every open tab, by name.")
+                    Key("⌥⌘N", "Two pages side by side.")
+                    Key("⌘,", "Settings. ⌘F there finds any of them.")
                 }
             }
+            .padding(.top, 6)
         }
+        .animation(Motion.settle, value: isDefault)
+        .animation(Motion.settle, value: asked)
     }
 
-    /// Light, and skippable like every page: Start browsing goes on
+    /// Light, and skippable like every page: Start Browsing goes on
     /// without it (OptIn.swift).
     private var early: some View {
         OptInWelcomePage(start: optInStart, startEmail: optInEmail) { url in
@@ -316,42 +329,90 @@ struct WelcomePanel: View {
 
     // MARK: - the bottom edge
 
+    /// What the page's one button says and does.
+    private var main: (title: String, act: () -> Void) {
+        switch page {
+        case 0:
+            return ("Get Started", next)
+        case 1 where bringing:
+            return ("Bringing…", {})
+        case 1 where !sources.isEmpty && brought == nil:
+            return ("Bring Over from \(picked?.name ?? "It")", bringAll)
+        case 3 where !isDefault:
+            return ("Make Lun the Default", {
+                asked = true
+                Links.becomeDefault { _ in isDefault = Links.isDefault }
+            })
+        default:
+            return (page < pages - 1 ? "Continue" : "Start Browsing", next)
+        }
+    }
+
+    /// The way on without the page's button, where that button does
+    /// something; on the first page, the way out of all of it.
+    private var second: (title: String, act: () -> Void)? {
+        switch page {
+        case 0: return ("Skip", finish)
+        case 1 where !sources.isEmpty && brought == nil && !bringing: return ("Not now", next)
+        case 3 where !isDefault: return ("Not now", next)
+        default: return nil
+        }
+    }
+
     private var foot: some View {
-        HStack(spacing: 14) {
-            HStack(spacing: 6) {
-                ForEach(0..<pages, id: \.self) { i in
-                    Circle()
-                        .fill(i == page ? Palette.ink : Palette.faint.opacity(0.6))
-                        .frame(width: 6, height: 6)
+        VStack(spacing: 0) {
+            Big(main.title, busy: bringing, act: main.act)
+                .disabled(bringing || (page == 1 && !sources.isEmpty && brought == nil && !bringsSomething))
+                .keyboardShortcut(.defaultAction)
+            // Its room is kept where there is none, so the button stays put
+            // from page to page.
+            Quiet(second?.title ?? " ") { second?.act() }
+                .opacity(second == nil ? 0 : 1)
+                .disabled(second == nil)
+                .accessibilityHidden(second == nil)
+                .padding(.top, 12)
+            ZStack {
+                HStack(spacing: 7) {
+                    ForEach(0..<pages, id: \.self) { i in
+                        Circle()
+                            .fill(i == page ? Palette.ink : Palette.faint)
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                .accessibilityElement()
+                .accessibilityLabel("Page \(page + 1) of \(pages)")
+                if page > 0 {
+                    HStack {
+                        Quiet("Back", glyph: "chevron.left") { forward = false; go(to: page - 1) }
+                        Spacer()
+                    }
                 }
             }
-            Spacer()
-            if page > 0 {
-                Button("Back") { forward = false; page -= 1 }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Palette.muted)
-            }
-            if page < pages - 1 {
-                Button("Skip") { finish() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Palette.muted)
-            }
-            Big(page == 0 ? "Get Started" : page < pages - 1 ? "Continue" : "Start browsing", filled: true) {
-                if page < pages - 1 { forward = true; page += 1 } else { finish() }
-            }
-            .keyboardShortcut(.defaultAction)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 22)
         }
-        .frame(maxWidth: 520)
+        .padding(.top, 20)
     }
 
     // MARK: - doing
 
+    private func next() {
+        if page < pages - 1 { forward = true; go(to: page + 1) } else { finish() }
+    }
+
+    private func go(to target: Int) {
+        if target == 1, !looked {
+            looked = true
+            sources = ImportSource.installed()
+            unreadable = Chromium.unreadable().map(\.message)
+        }
+        page = target
+    }
+
     private func bringAll() {
-        guard let source = source ?? ImportSource.installed().first else { return }
-        // The profile used most recently, without asking: the sheet in
-        // Settings › Passwords is where another is chosen.
+        guard let source = picked else { return }
+        // The profile used most recently, without asking: the page in
+        // File › Bring Things Over… is where another is chosen.
         let profile = source.usual
         bringing = true
         var lines: [String] = []
@@ -401,15 +462,20 @@ struct WelcomePanel: View {
     }
 
     private func heading(_ title: String, _ line: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 10) {
             Text(title)
-                .font(.system(size: 26, weight: .medium))
+                .font(.system(size: 28, weight: .semibold))
+                .tracking(-0.4)
                 .foregroundStyle(Palette.ink)
-            Text(line)
-                .font(.system(size: 14))
-                .foregroundStyle(Palette.muted)
-                .lineSpacing(2)
+                .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+            Text(line)
+                .font(.system(size: 15))
+                .foregroundStyle(Palette.muted)
+                .lineSpacing(3)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 400)
         }
     }
 
@@ -417,40 +483,116 @@ struct WelcomePanel: View {
 
     /// The mark alone, at whatever height the page wants — no plate behind
     /// it, the same as everywhere else it's drawn.
-    private struct Plate: View {
-        let size: CGFloat
+    private struct Wordmark: View {
+        let height: CGFloat
         var body: some View {
             Logomark()
                 .fill(Palette.ink)
                 .aspectRatio(Logomark.canvas.width / Logomark.canvas.height, contentMode: .fit)
-                .frame(height: size * 0.56)
+                .frame(height: height)
         }
     }
 
+    /// The page's one button: wide, and the same place on every page.
     private struct Big: View {
         let title: String
-        var filled = false
+        var busy = false
         let act: () -> Void
         @State private var hovering = false
+        @Environment(\.isEnabled) private var enabled
 
-        init(_ title: String, filled: Bool = false, act: @escaping () -> Void) {
+        init(_ title: String, busy: Bool = false, act: @escaping () -> Void) {
             self.title = title
-            self.filled = filled
+            self.busy = busy
             self.act = act
         }
 
         var body: some View {
             Button(action: act) {
-                Text(title)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(filled ? Palette.ground : Palette.ink)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 9)
-                    .background(filled ? Palette.ink : (hovering ? Palette.hover : Palette.wash), in: Capsule())
-                    .contentShape(Capsule())
+                HStack(spacing: 9) {
+                    if busy { Ring(size: 11) }
+                    Text(title)
+                        .font(.system(size: 14, weight: .medium))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(Palette.ground)
+                .padding(.horizontal, 28)
+                .frame(minWidth: 240)
+                .frame(height: 42)
+                .background(Palette.ink.opacity(enabled || busy ? (hovering ? 0.86 : 1) : 0.35), in: Capsule())
+                .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .onHover { hovering = $0 }
+            .animation(Motion.quick, value: hovering)
+        }
+    }
+
+    /// Words to press, with no ground of their own: the way on without, the
+    /// way back, a file instead.
+    private struct Quiet: View {
+        let title: String
+        var glyph: String?
+        let act: () -> Void
+        @State private var hovering = false
+
+        init(_ title: String, glyph: String? = nil, act: @escaping () -> Void) {
+            self.title = title
+            self.glyph = glyph
+            self.act = act
+        }
+
+        var body: some View {
+            Button(action: act) {
+                HStack(spacing: 5) {
+                    if let glyph {
+                        Image(systemName: glyph).font(.system(size: 10.5, weight: .semibold))
+                    }
+                    Text(title).font(.system(size: 13.5))
+                }
+                .foregroundStyle(hovering ? Palette.ink : Palette.muted)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering = $0 }
+            .animation(Motion.quick, value: hovering)
+        }
+    }
+
+    /// A box of rows, as Settings groups its own.
+    private struct Box<Content: View>: View {
+        var spacing: CGFloat = 13
+        @ViewBuilder let content: () -> Content
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: spacing) { content() }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Palette.fill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    /// A row's two lines: what it is, and what it means for you.
+    private struct Said: View {
+        let title: String
+        let detail: String
+        init(_ title: String, _ detail: String) { self.title = title; self.detail = detail }
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Palette.ink)
+                Text(detail)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(Palette.muted)
+                    .lineSpacing(1.5)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -458,26 +600,97 @@ struct WelcomePanel: View {
         let title: String
         let detail: String
         @Binding var on: Bool
-        /// The line under in the darker grey, for one that must be read.
-        var plain = false
 
-        init(_ title: String, _ detail: String, on: Binding<Bool>, plain: Bool = false) {
+        init(_ title: String, _ detail: String, on: Binding<Bool>) {
             self.title = title
             self.detail = detail
             _on = on
-            self.plain = plain
         }
 
         var body: some View {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 13.5)).foregroundStyle(Palette.ink)
-                    Text(detail).font(.system(size: 11.5)).foregroundStyle(plain ? Palette.muted : Palette.faint)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
+            HStack(spacing: 14) {
+                Said(title, detail)
                 Switch(on: $on)
+                    .accessibilityLabel(title)
             }
+        }
+    }
+
+    /// The ground of something chosen among others, and of the others: the
+    /// chosen one lifted off the page as the tab you're on is, ringed and
+    /// ticked so it is the one in the dark as well.
+    private struct Pick: ViewModifier {
+        let chosen: Bool
+        let hovering: Bool
+        var radius: CGFloat = 14
+
+        func body(content: Content) -> some View {
+            let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+            content
+                .background {
+                    if chosen {
+                        Color.clear.elevated(.lift, in: shape)
+                    } else {
+                        shape.fill(hovering ? Palette.fillHover : Palette.fill)
+                    }
+                }
+                .overlay { if chosen { shape.strokeBorder(Palette.ink, lineWidth: 1.5) } }
+                .overlay(alignment: .topTrailing) {
+                    if chosen {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 8.5, weight: .bold))
+                            .foregroundStyle(Palette.ground)
+                            .frame(width: 17, height: 17)
+                            .background(Palette.ink, in: Circle())
+                            .padding(7)
+                            .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    }
+                }
+                .contentShape(shape)
+        }
+    }
+
+    /// One browser to come from, under its own icon.
+    private struct Source: View {
+        let name: String
+        let icon: NSImage?
+        let chosen: Bool
+        let pick: () -> Void
+        @State private var hovering = false
+
+        var body: some View {
+            Button(action: pick) {
+                VStack(spacing: 9) {
+                    if let icon {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .interpolation(.high)
+                            .frame(width: 44, height: 44)
+                    } else {
+                        // Its data is here and its app isn't: its letter, as
+                        // a tab with no icon wears one.
+                        Text(name.prefix(1).uppercased())
+                            .font(.system(size: 19, weight: .medium))
+                            .foregroundStyle(Palette.muted)
+                            .frame(width: 40, height: 40)
+                            .background(Palette.fillHover, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .padding(2)
+                    }
+                    Text(name)
+                        .font(.system(size: 13, weight: chosen ? .medium : .regular))
+                        .foregroundStyle(Palette.ink)
+                        .lineLimit(1)
+                        .padding(.horizontal, 6)
+                }
+                .frame(width: 104, height: 100)
+                .modifier(Pick(chosen: chosen, hovering: hovering))
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering = $0 }
+            .animation(Motion.quick, value: hovering)
+            .animation(Motion.settle, value: chosen)
+            .accessibilityLabel(name)
+            .accessibilityAddTraits(chosen ? .isSelected : [])
         }
     }
 
@@ -492,7 +705,7 @@ struct WelcomePanel: View {
 
         var body: some View {
             Button(action: pick) {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(spacing: 10) {
                     ZStack(alignment: .topLeading) {
                         RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Palette.ground)
                         if sidebar {
@@ -503,12 +716,12 @@ struct WelcomePanel: View {
                                     ForEach(0..<4, id: \.self) { i in
                                         HStack(spacing: 3) {
                                             Wear(glyph: glyph, tab: i)
-                                            RoundedRectangle(cornerRadius: 3).fill(i == 0 ? Palette.wash : Palette.hover).frame(height: 8)
+                                            RoundedRectangle(cornerRadius: 3).fill(i == 0 ? Palette.fillHover : Palette.fill).frame(height: 8)
                                         }
                                     }
                                 }
                                 .padding(8)
-                                .frame(width: 62)
+                                .frame(width: 66)
                                 Rectangle().fill(Palette.hairline).frame(width: 1)
                                 Spacer()
                             }
@@ -519,7 +732,7 @@ struct WelcomePanel: View {
                                 ForEach(0..<4, id: \.self) { i in
                                     HStack(spacing: 3) {
                                         Wear(glyph: glyph, tab: i)
-                                        RoundedRectangle(cornerRadius: 3).fill(i == 0 ? Palette.wash : Palette.hover).frame(width: 24, height: 8)
+                                        RoundedRectangle(cornerRadius: 3).fill(i == 0 ? Palette.fillHover : Palette.fill).frame(width: 24, height: 8)
                                     }
                                     .padding(.trailing, 3)
                                 }
@@ -527,27 +740,21 @@ struct WelcomePanel: View {
                             .padding(8)
                         }
                     }
-                    .frame(height: 110)
+                    .frame(height: 112)
                     .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
                     Text(title)
-                        .font(.system(size: 13, weight: chosen ? .medium : .regular))
-                        .foregroundStyle(chosen ? Palette.ink : Palette.muted)
+                        .font(.system(size: 13.5, weight: chosen ? .medium : .regular))
+                        .foregroundStyle(Palette.ink)
                 }
                 .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(chosen ? Palette.wash : (hovering ? Palette.hover : .clear))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(chosen ? Palette.ink.opacity(0.35) : Palette.hairline, lineWidth: 1)
-                )
-                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .modifier(Pick(chosen: chosen, hovering: hovering))
             }
             .buttonStyle(.plain)
             .onHover { hovering = $0 }
             .animation(Motion.quick, value: hovering)
             .animation(Motion.settle, value: chosen)
+            .accessibilityLabel(title)
+            .accessibilityAddTraits(chosen ? .isSelected : [])
         }
     }
 
@@ -582,16 +789,40 @@ struct WelcomePanel: View {
         let what: String
         init(_ keys: String, _ what: String) { self.keys = keys; self.what = what }
         var body: some View {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 Text(keys)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.system(size: 12.5, weight: .medium, design: .rounded))
                     .foregroundStyle(Palette.ink)
-                    .padding(.horizontal, 7)
+                    .frame(minWidth: 34)
+                    .padding(.horizontal, 6)
                     .padding(.vertical, 3)
-                    .background(Palette.wash, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .frame(minWidth: 44)
-                Text(what).font(.system(size: 13)).foregroundStyle(Palette.muted)
+                    .background(Palette.fillHover, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                Text(what)
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+}
+
+extension ImportSource {
+    /// The other browser's own icon, where its app is on this Mac: one is
+    /// known by it sooner than by its name.
+    var appIcon: NSImage? {
+        let names: [String]
+        switch self {
+        case .chromium(let source): names = [source.app]
+        case .mozilla(let source): names = ["\(source.name).app", "\(source.name) Browser.app"]
+        case .webkit(let source): names = ["\(source.name).app"]
+        }
+        let folders = ["/Applications", NSHomeDirectory() + "/Applications"]
+        for folder in folders {
+            for name in names {
+                let path = folder + "/" + name
+                if FileManager.default.fileExists(atPath: path) { return NSWorkspace.shared.icon(forFile: path) }
+            }
+        }
+        return nil
     }
 }
