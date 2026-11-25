@@ -90,7 +90,10 @@ struct AddressLine: View {
 
         var body: some View {
             HStack(spacing: 6) {
-                if let rest {
+                if let title = tab.page?.title {
+                    // One of Lun's own pages: its name.
+                    Text(title).foregroundStyle(Palette.ink).lineLimit(1)
+                } else if let rest {
                     if rest.kind == .notSecure {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 12, weight: .medium))
@@ -116,8 +119,6 @@ struct AddressLine: View {
                                 }
                         }
                     }
-                } else if tab.isBlank == false, let title = tab.page?.title {
-                    Text(title).foregroundStyle(Palette.ink).lineLimit(1)
                 } else {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 11, weight: .medium))
