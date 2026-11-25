@@ -2,7 +2,7 @@
 
 A small, fast, quiet browser for the Mac. *Lun* is Norwegian for warm and sheltered.
 
-Early days: there is nothing to download yet, and the app still shows Search's name and icon.
+Early days: there is nothing to download yet.
 
 ## What it is
 
@@ -34,8 +34,6 @@ macOS 14 or later, and Xcode with Swift 6.
 | `swift test` | Unit tests |
 | `./bench` | Drives a running app from the shell |
 
-Internal names (`Sources/Search`, `SEARCH_*`) are kept on purpose: it keeps Search's updates easy to merge.
-
 ## Where your data is
 
 | What | Where |
@@ -44,8 +42,6 @@ Internal names (`Sources/Search`, `SEARCH_*`) are kept on purpose: it keeps Sear
 | History, bookmarks, tabs | `~/Library/Application Support/Lun/` |
 | Cookies and site data | WebKit's store for the app |
 
-## Credit and license
-
-Lun is built on [Search](https://github.com/driceroland/Search) by Office Commun and its contributors. It is not made or endorsed by them.
+## License
 
 MIT, see [LICENSE](LICENSE). Third-party parts are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
