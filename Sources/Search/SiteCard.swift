@@ -250,25 +250,8 @@ enum SiteCardPanel {
         }
         let host = FirstClick(rootView: AnyView(card.fixedSize()))
         let size = host.fittingSize
-        let glass = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-        glass.material = .menu
-        glass.state = .active
-        glass.wantsLayer = true
-        glass.layer?.cornerRadius = MenuMetrics.corner
-        glass.layer?.cornerCurve = .continuous
-        glass.layer?.masksToBounds = true
-        glass.layer?.borderWidth = 0.5
-        glass.layer?.borderColor = MenuMetrics.edge.cgColor
-        // The material behind the window ignores the layer's corners: a pale
-        // square showed past each rounded one, before macOS 26 and on it too.
-        // A mask rounds the material, and the window's shadow with it.
-        glass.maskImage = Self.rounded(MenuMetrics.corner)
-        host.frame = glass.bounds
-        host.autoresizingMask = [.width, .height]
-        glass.addSubview(host)
-
         let panel = Panel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.contentView = glass
+        panel.contentView = host
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -291,19 +274,6 @@ enum SiteCardPanel {
         resign = NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { SiteCardPanel.hide() }
         }
-    }
-
-    /// A rounded rectangle that stretches to any size, its corners kept.
-    private static func rounded(_ corner: CGFloat) -> NSImage {
-        let side = corner * 2 + 1
-        let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: corner, yRadius: corner).fill()
-            return true
-        }
-        image.capInsets = NSEdgeInsets(top: corner, left: corner, bottom: corner, right: corner)
-        image.resizingMode = .stretch
-        return image
     }
 
     static func hide() {
@@ -377,9 +347,11 @@ struct SiteCard: View {
                 front
             }
         }
-        .padding(.vertical, MenuMetrics.pad)
-        .frame(minWidth: 180)
+        .padding(6)
+        .frame(width: 320)
         .fixedSize()
+        .background(Palette.raised, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Palette.rule, lineWidth: 0.5))
         .transition(.opacity)
         .animation(Motion.quick, value: deeper)
         .onAppear(perform: certify)
@@ -398,85 +370,145 @@ struct SiteCard: View {
     // MARK: - the card, drawn as the system draws a menu
 
     private var front: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 6) {
             if let url = tab.pageAddress {
-                Header(title: SiteCard.site(url))
-            }
-            if let safety {
-                Row(safety.title, submenu: true) { deeper = true }
-            }
-            Row("Copy Address", keys: ShortcutStore.shared.key(for: "tabs.copyAddress")?.display ?? "") { after { browser.copyAddress() } }
-            Separator()
-            Row("Print…", keys: ShortcutStore.shared.key(for: "file.print")?.display ?? "") { after { browser.printPage() } }
-            zoom
-            blocker
-            if let url = tab.pageAddress, ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
-                Row("Site Permissions", submenu: true) { showingPermissions = true }
-            }
-            sound
-            grounded
-            darken
-            if prefs.keepsSitesAwake, tab.awakeHost != nil {
-                HStack(spacing: 0) {
-                    Text("Keep This Site Awake").font(MenuMetrics.font)
-                    Spacer(minLength: 24)
-                    Switch(on: Binding(get: { browser.keepsAwake(tab) }, set: { browser.keepAwake($0, for: tab) }))
-                        .accessibilityRepresentation {
-                            Toggle("Keep This Site Awake", isOn: Binding(get: { browser.keepsAwake(tab) }, set: { browser.keepAwake($0, for: tab) }))
+                HStack(spacing: 12) {
+                    Mark(icon: tab.icon, letter: tab.monogram, size: 28, globe: true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(SiteCard.site(url))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.ink)
+                            .lineLimit(1)
+                            .truncationMode(.head)
+                        if let safety {
+                            Button { deeper = true } label: {
+                                Text(safety.title + " ›")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(safety.tint)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .focusable()
-                        .onKeyPress(.space) { browser.keepAwake(!browser.keepsAwake(tab), for: tab); return .handled }
+                    }
+                    Spacer(minLength: 0)
                 }
-                .padding(.leading, MenuMetrics.text)
-                .padding(.trailing, MenuMetrics.trailing)
-                .frame(height: MenuMetrics.row)
-                .help(tab.shy ? "Only in this private tab, until it closes. Uses more memory." : "Prevents sleep and automatic closure, even when memory is low. You can still close the tab.")
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+            }
+            Lines {
+                zoom
+                blocker
+                if let origin, !tab.shy {
+                    // What this site was answered, where it can be changed;
+                    // the rest a step in.
+                    ForEach(answered(origin)) { kind in Permission(browser: browser, prefs: prefs, kind: kind, origin: origin) }
+                }
+                sound
+                grounded
+                darken
+                if prefs.keepsSitesAwake, tab.awakeHost != nil {
+                    Line("Keep This Site Awake") {
+                        Switch(on: Binding(get: { browser.keepsAwake(tab) }, set: { browser.keepAwake($0, for: tab) }))
+                            .accessibilityRepresentation {
+                                Toggle("Keep This Site Awake", isOn: Binding(get: { browser.keepsAwake(tab) }, set: { browser.keepAwake($0, for: tab) }))
+                            }
+                            .focusable()
+                            .onKeyPress(.space) { browser.keepAwake(!browser.keepsAwake(tab), for: tab); return .handled }
+                    }
+                    .help(tab.shy ? "Only in this private tab, until it closes. Uses more memory." : "Prevents sleep and automatic closure, even when memory is low. You can still close the tab.")
+                }
+            }
+            VStack(spacing: 0) {
+                Row("Copy Address", keys: ShortcutStore.shared.key(for: "tabs.copyAddress")?.display ?? "") { after { browser.copyAddress() } }
+                Row("Print…", keys: ShortcutStore.shared.key(for: "file.print")?.display ?? "") { after { browser.printPage() } }
+                if origin != nil {
+                    Row("Site Permissions", submenu: true) { showingPermissions = true }
+                }
+                if prefs.sitesStyles, tab.isWeb {
+                    Row("Edit Site Style…") { after { browser.editSiteStyle() } }
+                }
+                if tab.isWeb {
+                    Row("Hidden on This Site…") { after { browser.reviewing = true } }
+                }
             }
         }
     }
 
+    private var origin: String? {
+        guard let url = tab.pageAddress, let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme), let host = url.host() else { return nil }
+        return Browser.origin(scheme, host, url.port ?? 0)
+    }
+
+    /// The permissions this site has an answer to.
+    private func answered(_ origin: String) -> [CaptureChoices.Kind] {
+        [.camera, .microphone, .location, .notifications].filter { kind in CaptureChoices.saved().contains { $0.kind == kind && $0.origin == origin } }
+    }
+
     @ViewBuilder private var permissions: some View {
-        if let url = tab.pageAddress, let scheme = url.scheme, let host = url.host() {
-            let origin = Browser.origin(scheme, host, url.port ?? 0)
-            VStack(alignment: .leading, spacing: 0) {
+        if let origin {
+            VStack(alignment: .leading, spacing: 6) {
                 Header(title: origin)
                 if tab.shy {
-                    Text("Permissions aren't saved in a private tab.")
-                        .font(.system(size: 11)).foregroundStyle(Color(nsColor: .secondaryLabelColor))
-                        .padding(.horizontal, MenuMetrics.text).padding(.vertical, 8)
+                    note("Permissions aren't saved in a private tab.")
                 } else {
-                    ForEach([CaptureChoices.Kind.camera, .microphone, .location, .notifications]) { kind in
-                        HStack {
-                            Text(kind.title).font(MenuMetrics.font)
-                            Spacer(minLength: 24)
-                            Menu {
-                                Button("Ask") { browser.setSitePermission(nil, kind: kind, origin: origin) }
-                                Button("Allow") { browser.setSitePermission(true, kind: kind, origin: origin) }
-                                    .disabled(kind == .notifications && !prefs.siteNotifications)
-                                Button("Refuse") { browser.setSitePermission(false, kind: kind, origin: origin) }
-                            } label: {
-                                Text(CaptureChoices.choice(kind, origin: origin).title)
-                                    .font(MenuMetrics.font)
-                            }
-                            .accessibilityLabel("\(kind.title): \(CaptureChoices.choice(kind, origin: origin).title)")
-                            .menuStyle(.borderlessButton).fixedSize()
-                        }.padding(.horizontal, MenuMetrics.text).frame(height: MenuMetrics.row)
+                    Lines {
+                        ForEach([CaptureChoices.Kind.camera, .microphone, .location, .notifications]) { kind in
+                            Permission(browser: browser, prefs: prefs, kind: kind, origin: origin)
+                        }
                     }
                     if !prefs.siteNotifications {
-                        Text("Notifications are off in Settings › Privacy.")
-                            .font(.system(size: 11)).foregroundStyle(Color(nsColor: .secondaryLabelColor))
-                            .frame(width: 230, alignment: .leading)
-                            .padding(.horizontal, MenuMetrics.text).padding(.vertical, 6)
+                        note("Notifications are off in Settings › Privacy.")
                     }
                     if [CaptureChoices.Kind.camera, .microphone, .location, .notifications].contains(where: { CaptureChoices.choice($0, origin: origin) == .different }) {
-                        Text("Saved two ways for this site. Pick one to keep.")
-                            .font(.system(size: 11)).foregroundStyle(Color(nsColor: .secondaryLabelColor))
-                            .frame(width: 230, alignment: .leading)
-                            .padding(.horizontal, MenuMetrics.text).padding(.vertical, 6)
+                        note("Saved two ways for this site. Pick one to keep.")
                     }
                 }
-                Separator()
                 Row("Back") { showingPermissions = false }
+            }
+        }
+    }
+
+    private func note(_ words: String) -> some View {
+        Text(words)
+            .font(.system(size: 12))
+            .foregroundStyle(Palette.muted)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 2)
+    }
+
+    /// One permission and its answer.
+    private struct Permission: View {
+        let browser: Browser
+        @ObservedObject var prefs: Preferences
+        let kind: CaptureChoices.Kind
+        let origin: String
+
+        var body: some View {
+            let now = CaptureChoices.choice(kind, origin: origin).title
+            Line(kind.title) {
+                Menu {
+                    Button("Ask") { browser.setSitePermission(nil, kind: kind, origin: origin) }
+                    Button("Allow") { browser.setSitePermission(true, kind: kind, origin: origin) }
+                        .disabled(kind == .notifications && !prefs.siteNotifications)
+                    Button("Refuse") { browser.setSitePermission(false, kind: kind, origin: origin) }
+                } label: {
+                    HStack(spacing: 5) {
+                        Text(now).font(.system(size: 12)).foregroundStyle(Palette.ink)
+                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(Palette.muted)
+                    }
+                    .padding(.leading, 8)
+                    .padding(.trailing, 6)
+                    .frame(height: 22)
+                    .background(Palette.fill, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .accessibilityLabel("\(kind.title): \(now)")
             }
         }
     }
@@ -534,27 +566,24 @@ struct SiteCard: View {
     /// menu puts a control on one of its lines: the name, and the steps at
     /// its end. The number puts it back to the size every site starts at.
     private var zoom: some View {
-        HStack(spacing: 0) {
-            Text("Zoom")
-                .font(MenuMetrics.font)
-                .foregroundStyle(Color(nsColor: .labelColor))
-            Spacer(minLength: 24)
-            Step(symbol: "minus", help: "Zoom Out", shortcut: "view.zoomOut") { browser.zoom(by: 1 / 1.1) }
-            Button { browser.resetZoom() } label: {
-                Text("\(Int((tab.zoom * 100).rounded()))%")
-                    .font(MenuMetrics.font)
-                    .monospacedDigit()
-                    .foregroundStyle(Color(nsColor: .secondaryLabelColor))
-                    .frame(width: 44)
-                    .contentShape(Rectangle())
+        Line("Zoom") {
+            HStack(spacing: 2) {
+                Step(symbol: "minus", help: "Zoom Out", shortcut: "view.zoomOut") { browser.zoom(by: 1 / 1.1) }
+                Button { browser.resetZoom() } label: {
+                    Text("\(Int((tab.zoom * 100).rounded()))%")
+                        .font(.system(size: 12))
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.ink)
+                        .frame(width: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .shortcutHelp("Actual Size", "view.actualSize")
+                Step(symbol: "plus", help: "Zoom In", shortcut: "view.zoomIn") { browser.zoom(by: 1.1) }
             }
-            .buttonStyle(.plain)
-            .shortcutHelp("Actual Size", "view.actualSize")
-            Step(symbol: "plus", help: "Zoom In", shortcut: "view.zoomIn") { browser.zoom(by: 1.1) }
+            .padding(2)
+            .background(Palette.fill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        .padding(.leading, MenuMetrics.text)
-        .padding(.trailing, MenuMetrics.inset + 4)
-        .frame(height: MenuMetrics.row)
     }
 
     /// The line itself. WebKit takes it as a page loads, so a page already
@@ -571,24 +600,15 @@ struct SiteCard: View {
         }
 
         var body: some View {
-            HStack(spacing: 0) {
-                Text("Play Sound by Itself")
-                    .font(MenuMetrics.font)
-                    .foregroundStyle(Color(nsColor: .labelColor))
-                    .fixedSize()
-                Spacer(minLength: 24)
+            Line("Play Sound by Itself") {
                 if on != was {
                     Text("from the next page")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                        .foregroundStyle(Palette.muted)
                         .fixedSize()
-                        .padding(.trailing, 8)
                 }
                 Switch(on: $on)
             }
-            .padding(.leading, MenuMetrics.text)
-            .padding(.trailing, MenuMetrics.trailing)
-            .frame(height: MenuMetrics.row)
             .onChange(of: on) { _, value in Autoplay.set(value, for: host) }
         }
     }
@@ -606,17 +626,9 @@ struct SiteCard: View {
         }
 
         var body: some View {
-            HStack(spacing: 0) {
-                Text("Block Ads and Trackers")
-                    .font(MenuMetrics.font)
-                    .foregroundStyle(Color(nsColor: .labelColor))
-                    .fixedSize()
-                Spacer(minLength: 24)
+            Line("Block Ads and Trackers") {
                 Switch(on: $on)
             }
-            .padding(.leading, MenuMetrics.text)
-            .padding(.trailing, MenuMetrics.trailing)
-            .frame(height: MenuMetrics.row)
             .help("Turn off here if the site breaks; the page reloads")
             .onChange(of: on) { _, value in
                 Shield.shared.pause(host, !value)
@@ -637,17 +649,9 @@ struct SiteCard: View {
         }
 
         var body: some View {
-            HStack(spacing: 0) {
-                Text("Don't Float Videos Here")
-                    .font(MenuMetrics.font)
-                    .foregroundStyle(Color(nsColor: .labelColor))
-                    .fixedSize()
-                Spacer(minLength: 24)
+            Line("Don't Float Videos Here") {
                 Switch(on: $on)
             }
-            .padding(.leading, MenuMetrics.text)
-            .padding(.trailing, MenuMetrics.trailing)
-            .frame(height: MenuMetrics.row)
             .onChange(of: on) { _, value in Grounded.set(value, for: host) }
         }
     }
@@ -656,55 +660,48 @@ struct SiteCard: View {
         @Binding var on: Bool
 
         var body: some View {
-            HStack(spacing: 0) {
-                Text("Darken This Site")
-                    .font(MenuMetrics.font)
-                    .foregroundStyle(Color(nsColor: .labelColor))
-                    .fixedSize()
-                Spacer(minLength: 24)
+            Line("Darken This Site") {
                 // The key as it is now: Settings › Shortcuts can move it.
                 if let keys = ShortcutStore.shared.key(for: "view.dusk")?.display {
                     Text(keys)
-                        .font(MenuMetrics.font)
-                        .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
                         .fixedSize()
-                        .padding(.trailing, 8)
                 }
                 Switch(on: $on)
             }
-            .padding(.leading, MenuMetrics.text)
-            .padding(.trailing, MenuMetrics.trailing)
-            .frame(height: MenuMetrics.row)
         }
     }
 
     // MARK: - one step in
 
     private func security(_ safety: Safety) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 6) {
             if let url = tab.pageAddress {
                 Header(title: SiteCard.site(url))
             }
-            Text(safety.title)
-                .font(MenuMetrics.font)
-                .foregroundStyle(Color(nsColor: .labelColor))
-                .padding(.leading, MenuMetrics.text)
-                .frame(height: MenuMetrics.row, alignment: .leading)
-            Text(safety.detail)
-                .font(.system(size: 11))
-                .foregroundStyle(Color(nsColor: .secondaryLabelColor))
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(width: 230, alignment: .leading)
-                .padding(.leading, MenuMetrics.text)
-                .padding(.trailing, MenuMetrics.trailing)
-                .padding(.bottom, 6)
-            Separator()
-            if let trust = safety.trust {
-                Row(certified == false ? "Show Certificate (Not Valid)…" : "Show Certificate…") {
-                    after { SiteCard.show(trust) }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: safety.symbol).font(.system(size: 12, weight: .medium))
+                    Text(safety.title).font(.system(size: 13, weight: .medium))
                 }
+                .foregroundStyle(safety.tint)
+                Text(safety.detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Row("Back") { deeper = false }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            VStack(spacing: 0) {
+                if let trust = safety.trust {
+                    Row(certified == false ? "Show Certificate (Not Valid)…" : "Show Certificate…") {
+                        after { SiteCard.show(trust) }
+                    }
+                }
+                Row("Back") { deeper = false }
+            }
         }
     }
 
@@ -784,10 +781,53 @@ struct SiteCard: View {
         DispatchQueue.main.async(execute: act)
     }
 
-    /// One line, as a menu item draws it: its title in the menu's font where
-    /// a menu puts its text, a key equivalent at the end, the accent colour
-    /// behind it and white letters under the pointer. A line that opens more
-    /// ends in the submenu's chevron.
+    /// The lines of settings, on a ground of their own with a rule between
+    /// each two. The ones there is nothing to say on are simply absent.
+    private struct Lines<Content: View>: View {
+        @ViewBuilder let content: Content
+
+        var body: some View {
+            _VariadicView.Tree(Ruled()) { content }
+                .background(Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+
+        private struct Ruled: _VariadicView_MultiViewRoot {
+            func body(children: _VariadicView.Children) -> some View {
+                VStack(spacing: 0) {
+                    ForEach(children) { child in
+                        if child.id != children.first?.id {
+                            Rectangle().fill(Palette.rule).frame(height: 1).padding(.horizontal, 12)
+                        }
+                        child
+                    }
+                }
+            }
+        }
+    }
+
+    /// A setting's line: its name, and its control at the end.
+    private struct Line<Control: View>: View {
+        let title: String
+        @ViewBuilder let control: Control
+
+        init(_ title: String, @ViewBuilder control: () -> Control) {
+            self.title = title
+            self.control = control()
+        }
+
+        var body: some View {
+            HStack(spacing: 8) {
+                Text(title).font(.system(size: 13)).foregroundStyle(Palette.ink).lineLimit(1)
+                Spacer(minLength: 12)
+                control
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 40)
+        }
+    }
+
+    /// One thing to do: its title, a key equivalent at the end, the chevron
+    /// where it opens more, and a wash under the pointer.
     private struct Row: View {
         let title: String
         var keys = ""
@@ -806,65 +846,50 @@ struct SiteCard: View {
         var body: some View {
             HStack(spacing: 0) {
                 Text(title)
-                    .font(MenuMetrics.font)
-                    .foregroundStyle(hovering ? Color.white : Color(nsColor: .labelColor))
+                    .font(.system(size: 13))
+                    .foregroundStyle(Palette.ink)
                     .lineLimit(1)
                     .fixedSize()
-                Spacer(minLength: keys.isEmpty ? 24 : 26)
+                Spacer(minLength: 24)
                 if !keys.isEmpty {
                     Text(keys)
-                        .font(MenuMetrics.font)
-                        .foregroundStyle(hovering ? Color.white : Color(nsColor: .secondaryLabelColor))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
                         .fixedSize()
                 }
                 if submenu {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(hovering ? Color.white : Color(nsColor: .secondaryLabelColor))
+                        .foregroundStyle(Palette.muted)
                 }
             }
-            .padding(.leading, MenuMetrics.text - MenuMetrics.inset)
-            .padding(.trailing, MenuMetrics.trailing - MenuMetrics.inset)
-            .frame(height: MenuMetrics.row)
-            .background(
-                RoundedRectangle(cornerRadius: MenuMetrics.highlight, style: .continuous)
-                    .fill(hovering ? MenuMetrics.selection : .clear)
-            )
-            .padding(.horizontal, MenuMetrics.inset)
+            .padding(.horizontal, 12)
+            .frame(height: 32)
+            .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
             .onTapGesture(perform: act)
             .onHover { hovering = $0 }
+            .accessibilityAddTraits(.isButton)
         }
     }
 
-    /// The site's name over the lines, as a menu's section header is drawn.
+    /// The site's name over a card a step in.
     private struct Header: View {
         let title: String
 
         var body: some View {
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Palette.ink)
                 .lineLimit(1)
-                .padding(.leading, MenuMetrics.text)
-                .padding(.trailing, MenuMetrics.trailing)
-                .frame(height: MenuMetrics.row, alignment: .leading)
+                .truncationMode(.head)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 2)
         }
     }
 
-    /// A menu's separator: a hairline in its own band.
-    private struct Separator: View {
-        var body: some View {
-            Rectangle()
-                .fill(Color(nsColor: .separatorColor))
-                .frame(height: 1)
-                .padding(.horizontal, MenuMetrics.rule)
-                .frame(height: MenuMetrics.separator)
-        }
-    }
-
-    /// A step of the zoom: the symbol alone, on the accent colour under the
-    /// pointer as a menu's line would be.
+    /// A step of the zoom: the symbol alone, on a wash under the pointer.
     private struct Step: View {
         let symbol: String
         let help: String
@@ -876,13 +901,10 @@ struct SiteCard: View {
         var body: some View {
             Button(action: act) {
                 Image(systemName: symbol)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(hovering ? Color.white : Color(nsColor: .labelColor))
-                    .frame(width: 22, height: 18)
-                    .background(
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(hovering ? MenuMetrics.selection : .clear)
-                    )
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Palette.ink)
+                    .frame(width: 26, height: 22)
+                    .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

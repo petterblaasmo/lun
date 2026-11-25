@@ -654,6 +654,8 @@ struct NewSpaceCard: View {
     @State private var name = ""
     @State private var icon = "briefcase"
     @State private var choosing = false
+    /// Its colour, by its place in Spaces.colours; 0 for none.
+    @State private var colour = 0
     /// Signed in where the other spaces are, or starting afresh.
     @State private var shared = true
     @State private var hovering = false
@@ -679,35 +681,44 @@ struct NewSpaceCard: View {
                 }
                 .frame(height: Metrics.strip)
             } else {
-                VStack(spacing: 12) {
-                    pick(size: 20, box: CGSize(width: 44, height: 40))
-                    VStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 6) {
                         Text("New space")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Palette.ink)
-                        Text("Its own tabs.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Palette.muted)
-                            .multilineTextAlignment(.center)
+                        Spacer(minLength: 0)
+                        pick(size: 13, box: CGSize(width: 26, height: 26))
                     }
-                    field
+                    VStack(alignment: .leading, spacing: 6) {
+                        label("Name")
+                        field
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        label("Colour")
+                        HStack(spacing: 8) {
+                            ForEach(Spaces.colours.indices, id: \.self) { index in swatch(index) }
+                        }
+                    }
                     // Most people want Google and the rest to know them here too;
                     // some want a clean slate.
-                    VStack(spacing: 6) {
-                        Segmented(options: [(true, "Signed in"), (false, "Signed out")], selection: $shared, wide: true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        label("Sign-ins")
+                        Segmented(options: [(true, "As now"), (false, "Start fresh")], selection: $shared, wide: true)
                         Text(saying)
                             .font(.system(size: 11))
                             .foregroundStyle(Palette.muted)
-                            .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    HStack(spacing: 8) {
-                        Pill("Cancel") { cancel() }
-                        Pill("Create", filled: true) { create() }
+                    HStack(spacing: 6) {
+                        Spacer(minLength: 0)
+                        Pill("Cancel", large: true) { cancel() }
+                        Pill("Create", filled: true, large: true) { create() }
                     }
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity)
+                .elevated(.float, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(.bottom, 8)
             }
         }
         .onAppear {
@@ -739,13 +750,42 @@ struct NewSpaceCard: View {
         .popover(isPresented: $choosing, hangingFrom: .bottom) { icons }
     }
 
+    private func label(_ words: String) -> some View {
+        Text(words).font(.system(size: 12)).foregroundStyle(Palette.muted)
+    }
+
+    private func swatch(_ index: Int) -> some View {
+        let none = index == 0
+        return Button { colour = index } label: {
+            Circle()
+                .fill(none ? Palette.frame : Spaces.colours[index])
+                .overlay { if none { Circle().strokeBorder(Palette.faint, lineWidth: 1) } }
+                .frame(width: 22, height: 22)
+                .overlay {
+                    if colour == index { Circle().strokeBorder(Palette.ink, lineWidth: 1.5).padding(-3.5) }
+                }
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(none ? "No colour" : Spaces.colourNames[index])
+        .accessibilityLabel(none ? "No colour" : Spaces.colourNames[index])
+        .accessibilityAddTraits(colour == index ? .isSelected : [])
+    }
+
     private var field: some View {
         TextField(inline ? "New space" : "Name", text: $name)
             .textFieldStyle(.plain)
-            .font(.system(size: inline ? 12.5 : 13))
-            .padding(.horizontal, 10)
-            .frame(height: inline ? 26 : 30)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Palette.wash))
+            .font(.system(size: 13))
+            .padding(.horizontal, 12)
+            .frame(height: inline ? 26 : 32)
+            .background(RoundedRectangle(cornerRadius: inline ? 8 : 10, style: .continuous).fill(Palette.fill))
+            .overlay {
+                if typing, !inline {
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .strokeBorder(Color(nsColor: .controlAccentColor), lineWidth: 2)
+                        .padding(-3)
+                }
+            }
             .focused($typing)
             .onSubmit(create)
     }
@@ -778,7 +818,7 @@ struct NewSpaceCard: View {
     private func create() {
         let named = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !named.isEmpty else { typing = true; return }
-        browser.addSpace(named: named, icon: icon, sharesSignIns: shared)
+        browser.addSpace(named: named, icon: icon, colour: colour, sharesSignIns: shared)
     }
 
     /// Back to the space it was made from, the way it came.
@@ -834,8 +874,6 @@ struct SwipeCard: View {
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
                 NewSpaceCard(browser: browser)
-                Spacer(minLength: 0)
-                Spacer(minLength: 0)
             }
             .frame(maxHeight: .infinity)
             .padding(.horizontal, Metrics.sideInset)

@@ -101,7 +101,8 @@ struct Page: View {
             }
 
             if let failure = tab.failure {
-                Trouble(message: failure) { tab.reload() }
+                Trouble(message: failure, tab: tab, browser: browser) { tab.reload() }
+                    .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
                     .transition(.opacity)
             }
 
@@ -761,20 +762,181 @@ final class CallWatch: NSObject {
 /// worth offering — another go.
 struct Trouble: View {
     let message: String
+    /// The page it is about and the window it is in: without one, a small
+    /// window's, what went wrong and a way to ask again.
+    var tab: Tab?
+    var browser: Browser?
     let retry: () -> Void
 
-    var body: some View {
-        VStack(spacing: 10) {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(Palette.ink)
-            Button("Try again", action: retry)
-                .buttonStyle(.plain)
-                .font(.system(size: 12))
-                .foregroundStyle(Palette.muted)
+    @State private var detailed = false
+
+    private var host: String? { tab?.shownURL?.host().map(Address.withoutWWW) }
+    private var code: Int { tab?.failureCode ?? 0 }
+    private var offline: Bool { code == NSURLErrorNotConnectedToInternet }
+
+    /// What happened, said of the site where it is the site's.
+    private var title: String {
+        guard let host else { return message }
+        switch code {
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed: return "No site at \(host)"
+        case NSURLErrorNotConnectedToInternet: return "No connection"
+        case NSURLErrorNetworkConnectionLost: return "The connection was lost"
+        case NSURLErrorTimedOut: return "\(host) isn’t answering"
+        case NSURLErrorCannotConnectToHost: return "\(host) refused the connection"
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted: return "The connection to \(host) isn’t secure"
+        default: return message
         }
+    }
+
+    private var detail: String? {
+        switch code {
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed: return "Check the address for a mistake, or look for the site on the web."
+        case NSURLErrorNotConnectedToInternet: return "Your Mac isn’t connected to the internet."
+        case NSURLErrorNetworkConnectionLost: return "It was cut off while the page was on its way."
+        case NSURLErrorTimedOut: return "The site is down or too busy to reply."
+        case NSURLErrorCannotConnectToHost: return "The site’s server is there, and isn’t taking visits."
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted: return "Lun didn’t open it: what you send could be read on the way."
+        default: return nil
+        }
+    }
+
+    /// What the site's end of the way says, where the failure is the site's.
+    private var verdict: String? {
+        switch code {
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed: return "Not found"
+        case NSURLErrorTimedOut: return "No answer"
+        case NSURLErrorCannotConnectToHost: return "Refused"
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted: return "Not secure"
+        case NSURLErrorNotConnectedToInternet: return "Not reached"
+        case NSURLErrorNetworkConnectionLost: return "Cut off"
+        default: return nil
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 28) {
+            if let host {
+                SiteMark(host: host, size: 56)
+                    .opacity(0.6)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: offline ? "wifi.slash" : code == NSURLErrorTimedOut ? "clock" : "exclamationmark")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Palette.muted)
+                            .frame(width: 28, height: 28)
+                            .elevated(.lift, in: Circle())
+                            .offset(x: 8, y: 8)
+                    }
+                    .accessibilityHidden(true)
+            }
+            VStack(spacing: 8) {
+                Text(title)
+                    .font(.system(size: 22, weight: .semibold))
+                    .kerning(-0.3)
+                    .foregroundStyle(Palette.ink)
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.muted)
+                }
+            }
+            .multilineTextAlignment(.center)
+            if let host, let verdict { way(to: host, verdict) }
+            HStack(spacing: 8) {
+                Pill("Try again", filled: true, large: true, action: retry)
+                if let browser, let host, browser.searchURL(for: host) != nil {
+                    Pill("Search the web for it", large: true) {
+                        if let url = browser.searchURL(for: host) { tab?.web?.open(url) }
+                    }
+                }
+            }
+            if let tab, let address = tab.shownURL, code != 0 {
+                VStack(spacing: 10) {
+                    Button { withAnimation(Motion.quick) { detailed.toggle() } } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .semibold))
+                                .rotationEffect(.degrees(detailed ? 90 : 0))
+                            Text("Details").font(.system(size: 12))
+                        }
+                        .foregroundStyle(Palette.muted)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    if detailed {
+                        Text("\(address.absoluteString)\n\(message) (\(code))")
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(Palette.muted)
+                            .textSelection(.enabled)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Palette.hover, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: 460)
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.ground)
+    }
+
+    /// The Mac, the network, the site: how far the page got.
+    private func way(to host: String, _ verdict: String) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            stop(symbol: "laptopcomputer", "Your Mac", offline ? "Offline" : "Online", good: !offline)
+            leg(whole: !offline)
+            stop(symbol: "wifi", "Network", offline ? "Not connected" : "Connected", good: !offline)
+            leg(whole: false)
+            VStack(spacing: 8) {
+                SiteMark(host: host, size: 18)
+                    .opacity(0.6)
+                    .frame(width: 40, height: 40)
+                    .elevated(.lift, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                Text(host).font(.system(size: 12)).foregroundStyle(Palette.ink).lineLimit(1).truncationMode(.middle)
+                Text(verdict).font(.system(size: 11)).foregroundStyle(Palette.unsafe)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .background(Palette.hover, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func stop(symbol: String, _ name: String, _ says: String, good: Bool) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 14))
+                .foregroundStyle(Palette.ink)
+                .frame(width: 40, height: 40)
+                .elevated(.lift, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            Text(name).font(.system(size: 12)).foregroundStyle(Palette.ink)
+            Text(says).font(.system(size: 11)).foregroundStyle(good ? Palette.safe : Palette.unsafe)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func leg(whole: Bool) -> some View {
+        ZStack {
+            if whole {
+                Capsule().fill(Palette.ink).frame(height: 2)
+            } else {
+                Line().stroke(Palette.faint, style: StrokeStyle(lineWidth: 2, dash: [5, 4])).frame(height: 2)
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Palette.unsafe)
+                    .frame(width: 18, height: 18)
+                    .elevated(.lift, in: Circle())
+            }
+        }
+        .frame(width: 56, height: 40)
+    }
+
+    private struct Line: Shape {
+        func path(in rect: CGRect) -> Path {
+            Path { $0.move(to: CGPoint(x: rect.minX, y: rect.midY)); $0.addLine(to: CGPoint(x: rect.maxX, y: rect.midY)) }
+        }
     }
 }
 

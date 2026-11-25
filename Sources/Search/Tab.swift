@@ -458,11 +458,15 @@ final class Tab: ObservableObject, Identifiable {
     @Published var failure: String? {
         didSet {
             if failure == nil {
+                failureCode = 0
                 dead = false
                 if failedAt != nil { failedAt = nil }
             }
         }
     }
+    /// The load's own error code, for the page that says what went wrong
+    /// (Trouble); 0 when it wasn't a load.
+    var failureCode = 0
     /// How far down the page you are, nought to one. The tab's own pill fills
     /// with it. Kept apart from the rest of the tab (see Reading): it changes
     /// all the way down a page, and only the fill has any use for it.

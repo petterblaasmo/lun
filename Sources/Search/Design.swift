@@ -25,6 +25,13 @@ enum Palette {
     /// What floats over the page: a card, a list, the address field. The
     /// ground's white in a light window, a step off it in a dark one.
     static let raised = Color(nsColor: NS.raised)
+    /// What a group of rows lies on, and a button or a field in one: the ink
+    /// itself, a little of it, so a button on a group is a step darker.
+    static let fill = Color(nsColor: NS.fill)
+    static let fillHover = Color(nsColor: NS.fillHover)
+    static let rule = Color(nsColor: NS.rule)
+    /// What a chosen part of a picker lies on.
+    static let knob = Color(nsColor: NS.knob)
     /// The only two that aren't grey: a connection nobody can read on the
     /// way, and one anybody can (see SiteCard.swift).
     static let safe = Color(nsColor: NS.safe)           // green-700 · green-400
@@ -42,6 +49,19 @@ enum Palette {
         static let hover = pair(0.965, 0.15)
         static let frame = pair(0.955, 0.075)
         static let raised = pair(1.0, 0.13)
+        static let fill = shade(0.07, 0.08)
+        static let fillHover = shade(0.11, 0.13)
+        static let rule = shade(0.10, 0.10)
+        static let knob = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? NSColor(white: 1, alpha: 0.16) : .white
+        }
+
+        private static func shade(_ light: CGFloat, _ dark: CGFloat) -> NSColor {
+            NSColor(name: nil) { appearance in
+                appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                    ? NSColor(white: 0.93, alpha: dark) : NSColor(white: 0.09, alpha: light)
+            }
+        }
         /// The resting traffic lights, drawn by hand when the app is behind.
         static let resting = pair(0.80, 0.30)
         static let safe = tint(light: (0.08, 0.50, 0.24), dark: (0.29, 0.87, 0.50))

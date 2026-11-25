@@ -431,13 +431,13 @@ struct TabSwitcherOverlay: View {
                 let moonColumns = switcher.moonColumns
                 // The moons' panel, its gap to the grid and its own padding,
                 // come out of the room the grid's cards had.
-                let moonRoom: CGFloat = moonColumns == 0 ? 0 : 14 + 16 + CGFloat(moonColumns - 1) * 6
+                let moonRoom: CGFloat = moonColumns == 0 ? 0 : 14 + 24 + CGFloat(moonColumns - 1) * 6
                 let width = min(176, (geometry.size.width - 64 - CGFloat(columns - 1) * 8 - moonRoom)
                     / (CGFloat(columns) + Self.moonScale * CGFloat(moonColumns)))
                 let previewHeight = (width - 16) * 0.62
                 let cardHeight = previewHeight + 39
                 ZStack {
-                    Color.black.opacity(0.12)
+                    Palette.ground.opacity(0.74)
                         .ignoresSafeArea()
                         .onTapGesture { switcher.cancel() }
 
@@ -468,8 +468,8 @@ struct TabSwitcherOverlay: View {
         ZStack(alignment: .topLeading) {
             if let selected = switcher.selectedID,
                let index = switcher.candidates.firstIndex(of: selected) {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Palette.faint)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Palette.fill)
                     .frame(width: width, height: cardHeight)
                     .offset(
                         x: CGFloat(index % 5) * (width + 8),
@@ -491,9 +491,8 @@ struct TabSwitcherOverlay: View {
                 if prefs.switcherKeys { legend }
             }
         }
-        .padding(12)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.hairline))
+        .padding(16)
+        .elevated(.overlay, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .background(GeometryReader { box in
             Color.clear.preference(key: PanelFrame.self, value: box.frame(in: .global))
         })
@@ -538,8 +537,7 @@ struct TabSwitcherOverlay: View {
             }
         }
         .padding(8)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.hairline))
+        .elevated(.overlay, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .background(GeometryReader { box in
             Color.clear.preference(key: MoonsFrame.self, value: box.frame(in: .global))
         })
@@ -583,7 +581,7 @@ struct TabSwitcherOverlay: View {
                     .frame(width: width, height: height)
                     .clipped()
             } else {
-                Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: mark)
+                Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: mark, globe: prefs.glyph == .icons)
             }
         }
         .frame(width: width, height: height)
@@ -611,16 +609,21 @@ struct TabSwitcherOverlay: View {
                     }
                 }
                 .frame(width: width - 16, height: previewHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay {
+                    let picked = tab.id == switcher.selectedID
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(picked ? Palette.ink : Palette.rule, lineWidth: picked ? 2 : 1)
+                        .animation(Motion.quick, value: picked)
+                }
 
                 HStack(spacing: 6) {
                     if prefs.glyph == .icons, !tab.isBlank {
-                        Mark(icon: tab.icon, letter: tab.monogram, size: 13)
+                        Mark(icon: tab.icon, letter: tab.monogram, size: 14, globe: true)
                     }
-                    Text(caption)
-                        .font(.system(size: 11.5))
+                    FadingLine(text: caption)
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.ink)
-                        .lineLimit(1)
                     if tab.muted || partner?.muted == true { mutedMark }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

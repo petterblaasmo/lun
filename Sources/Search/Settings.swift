@@ -1590,29 +1590,29 @@ struct Segmented<Option: Hashable>: View {
         HStack(spacing: 2) {
             ForEach(options, id: \.0) { option, title in
                 Text(title)
-                    .font(.system(size: 11.5, weight: option == selection ? .medium : .regular))
+                    .font(.system(size: 13, weight: option == selection ? .medium : .regular))
                     .foregroundStyle(option == selection ? Palette.ink : Palette.muted)
                     .lineLimit(1)
                     .fixedSize(horizontal: !wide, vertical: false)
                     .frame(maxWidth: wide ? .infinity : nil)
                     .padding(.horizontal, wide ? 4 : 10)
-                    .padding(.vertical, 5)
+                    .frame(height: wide ? 26 : 22)
                     .background {
                         if option == selection {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .fill(Palette.ground)
-                                .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                            Color.clear
+                                .elevated(.lift, in: RoundedRectangle(cornerRadius: 6, style: .continuous), fill: Palette.knob)
                                 .matchedGeometryEffect(id: "chosen", in: slide)
                         }
                     }
-                    .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                     .onTapGesture {
                         withAnimation(Motion.settle) { selection = option }
                     }
+                    .accessibilityAddTraits(option == selection ? [.isButton, .isSelected] : .isButton)
             }
         }
         .padding(2)
-        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(Palette.fill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .animation(Motion.settle, value: selection)
     }
 }
@@ -1640,7 +1640,7 @@ struct Switch: View {
     var body: some View {
         Capsule()
             .fill(on ? Palette.ink : Palette.faint)
-            .frame(width: 30, height: 18)
+            .frame(width: 32, height: 18)
             .overlay(alignment: on ? .trailing : .leading) {
                 Circle()
                     .fill(Palette.ground)
@@ -1716,26 +1716,29 @@ struct Pill: View {
     let title: String
     var filled = false
     var tint: Color = Palette.ink
+    /// On a card of its own, rather than at the end of a row.
+    var large = false
     let action: () -> Void
 
     @State private var hovering = false
 
-    init(_ title: String, filled: Bool = false, tint: Color = Palette.ink, action: @escaping () -> Void) {
+    init(_ title: String, filled: Bool = false, tint: Color = Palette.ink, large: Bool = false, action: @escaping () -> Void) {
         self.title = title
         self.filled = filled
         self.tint = tint
+        self.large = large
         self.action = action
     }
 
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 11.5))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(filled ? Palette.ground : tint)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(filled ? Palette.ink : (hovering ? Palette.hover : Palette.ground), in: Capsule())
-                .overlay(Capsule().strokeBorder(filled ? .clear : Palette.hairline, lineWidth: 1))
+                .lineLimit(1)
+                .padding(.horizontal, large ? (filled ? 18 : 14) : 12)
+                .frame(height: large ? 28 : 24)
+                .background(filled ? Palette.ink.opacity(hovering ? 0.86 : 1) : (hovering ? Palette.fillHover : Palette.fill), in: Capsule())
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

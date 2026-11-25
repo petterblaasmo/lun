@@ -684,9 +684,9 @@ extension Browser {
 
     /// A new space — signed in where the others are, or starting afresh with
     /// its own cookies and sign-ins. By default it starts empty and on screen.
-    func addSpace(named name: String, icon: String? = nil, sharesSignIns: Bool = true) {
+    func addSpace(named name: String, icon: String? = nil, colour: Int = 0, sharesSignIns: Bool = true) {
         makingSpace = false
-        let made = Space(id: UUID(), name: name, colour: 0, icon: icon ?? freeIcon, sharesSignIns: sharesSignIns,
+        let made = Space(id: UUID(), name: name, colour: colour, icon: icon ?? freeIcon, sharesSignIns: sharesSignIns,
                          profile: profileID == Profile.personalID ? nil : profileID)
         // The profile's first space is its home, not its permanent leftmost
         // position. A newly made space belongs at the right-hand end, even
