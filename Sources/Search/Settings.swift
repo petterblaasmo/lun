@@ -292,6 +292,9 @@ struct SettingsPanel: View {
                 }
             }
             .padding(.bottom, 24)
+            // The mark says it there.
+            .opacity(page == .about && !searching ? 0 : 1)
+            .accessibilityHidden(page == .about && !searching)
             .padding(.horizontal, 16)
             .padding(.leading, SettingsPanel.between)
             .padding(.trailing, 16)
@@ -504,7 +507,7 @@ struct SettingsPanel: View {
                     .foregroundStyle(Palette.ink)
                     .frame(width: 24)
             } else {
-                Pill("Make default", filled: true) {
+                Pill("Make Default") {
                     Links.becomeDefault { worked in
                         isDefault = Links.isDefault
                         browser.announce(worked && isDefault ? "Links now open here" : "macOS didn't change it")
@@ -529,7 +532,7 @@ struct SettingsPanel: View {
                     .frame(width: 24)
             } else {
                 // Only ever from this click: macOS asks to confirm.
-                Pill("Make default", filled: true) {
+                Pill("Make Default") {
                     Mail.becomeDefault { worked in
                         mailDefault = Mail.isDefault
                         mailHandler = Mail.handlerName
