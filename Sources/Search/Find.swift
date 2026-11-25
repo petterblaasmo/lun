@@ -30,10 +30,10 @@ struct FindBar: View {
     /// The button under the pointer, by its symbol.
     @State private var hovered: String?
 
-    private var narrow: Bool { availableWidth.map { $0 < 290 } ?? false }
+    private var narrow: Bool { availableWidth.map { $0 < 330 } ?? false }
     private var fieldWidth: CGFloat {
         guard let availableWidth else { return 140 }
-        return max(40, min(160, availableWidth - (narrow ? 80 : 180)))
+        return max(40, min(140, availableWidth - (narrow ? 80 : 270)))
     }
 
     var body: some View {
