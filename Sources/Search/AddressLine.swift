@@ -284,8 +284,8 @@ struct AddressRow: View {
 }
 
 /// The address bar typed in: the field and its suggestions in one card, as
-/// a command bar is, as wide as the field in the middle of the window and so
-/// out over the page.
+/// a command bar is, half as wide again as the line it opens from and so
+/// partly out over the page (AddressCard.width).
 struct AddressCard: View {
     @ObservedObject var browser: Browser
     /// What is typed and what answers it, which the browser doesn't publish.
@@ -304,10 +304,18 @@ struct AddressCard: View {
         self.line = line
     }
 
-    /// The card's width for a line this wide, in a window this wide.
+    /// The card's width for a line this wide, in a window this wide: half
+    /// as wide again as the line, so about half a column's width of it lies
+    /// out over the page. As wide as the field in the middle of the window
+    /// it covered a third of the page for an address typed in the column.
+    /// Never narrower than a row of its list needs.
     static func width(for line: CGFloat, window: CGFloat? = nil) -> CGFloat {
-        max(line, min(Metrics.fieldWidth, (window ?? .infinity) - 2 * Metrics.sideInset))
+        let wanted = min(Metrics.fieldWidth, max(AddressCard.least, (line * 1.5).rounded()))
+        return max(line, min(wanted, (window ?? .infinity) - 2 * Metrics.sideInset))
     }
+
+    /// The narrowest its list can be read at: an icon, a title, where it is.
+    static let least: CGFloat = 320
 
     /// The icon of the place Return would go to, or the glass.
     private var lead: NSImage? {
