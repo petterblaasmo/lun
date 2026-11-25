@@ -2140,7 +2140,7 @@ private struct SideRow: View, Equatable {
     private var peeking: Bool { !editing && tab.pin != nil && peek != nil }
     /// Where the page is, said on the row you're on (Settings › Tabs › Show
     /// the address on the tab you're on).
-    private var rest: AtRest? { live && !editing ? AtRest.said(tab.restAddress, always: prefs.showsAddress) : nil }
+    private var rest: AtRest? { live && !editing ? AtRest.said(tab.restAddress, always: prefs.saysAddressOnTab) : nil }
     private var atRest: Bool { rest != nil }
     /// A pin already put down has nothing left to put down: no minus (#1050).
     private var closable: Bool { tab.pin == nil || !tab.asleep }

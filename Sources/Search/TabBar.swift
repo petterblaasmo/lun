@@ -988,7 +988,7 @@ private struct TabPill: View, Equatable {
     /// a name cut down to "…" says nothing, so the title stands in for it.
     /// A warning is said however little room there is, the lock first.
     private var rest: AtRest? {
-        guard live && !editing, let said = AtRest.said(tab.restAddress, always: prefs.showsAddress) else { return nil }
+        guard live && !editing, let said = AtRest.said(tab.restAddress, always: prefs.saysAddressOnTab) else { return nil }
         return said.warns || titleRoom - AtRestLine.besideName(said, size: 12.5) >= Metrics.tabTitleRoom ? said : nil
     }
     private var atRest: Bool { rest != nil }
