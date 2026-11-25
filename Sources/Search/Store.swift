@@ -20,8 +20,8 @@ enum Store {
     }
 
     /// Which test world a test run lives in. SEARCH_PROBE=1, or a run from
-    /// the build folder, is the test world, "Search (test)". SEARCH_PROBE=
-    /// <name> is a world of its own, "Search (<name>)", with settings and
+    /// the build folder, is the test world, "Lun (test)". SEARCH_PROBE=
+    /// <name> is a world of its own, "Lun (<name>)", with settings and
     /// WebKit stores of its own: two sessions testing at once, or a
     /// measurement that needs a browser nobody has installed anything in,
     /// never borrow each other's. Nil for the browser somebody is using.
@@ -140,22 +140,12 @@ enum Store {
         return UUID(uuidString: text)!
     }
 
-    /// The app was called Office Browser until September 2026. Everything it
-    /// kept — the session, the pins, the history, what is hidden on each site
-    /// — moves to the new name the first time the new name runs, and the
-    /// settings are copied across. Nothing is left to be lost.
+    /// Lun's own, never Search's: the two run beside each other, so nothing
+    /// is moved or copied here from the browser it came from.
     static let folder: URL = {
         let support = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let home = support.appendingPathComponent(world.map { "Search (\($0))" } ?? "Search", isDirectory: true)
-        if !testing {
-            let old = support.appendingPathComponent("Office Browser", isDirectory: true)
-            let files = FileManager.default
-            if !files.fileExists(atPath: home.path), files.fileExists(atPath: old.path) {
-                try? files.moveItem(at: old, to: home)
-            }
-        }
-        return home
+        return support.appendingPathComponent(world.map { "Lun (\($0))" } ?? "Lun", isDirectory: true)
     }()
 
     static func file(_ name: String) -> URL {
@@ -179,29 +169,10 @@ enum Store {
     /// Settings live apart too: a test that changes what the tabs wear or
     /// where the tabs go must not change yours.
     static let settings: UserDefaults = {
-        guard testing else {
-            carryOver(into: .standard)
-            return .standard
-        }
+        guard testing else { return .standard }
         let suite = world == "test" ? "com.lunbrowser.lun.test" : "com.lunbrowser.lun.test.\(world ?? "")"
         return UserDefaults(suiteName: suite) ?? .standard
     }()
-
-    /// The old bundle's defaults, read once and written under the new one.
-    private static func carryOver(into fresh: UserDefaults) {
-        guard !fresh.bool(forKey: "carried"),
-              let old = UserDefaults(suiteName: "com.driceroland.officebrowser")
-        else { return }
-        for (key, value) in old.dictionaryRepresentation()
-        where fresh.object(forKey: key) == nil && !key.hasPrefix("NS") && !key.hasPrefix("Apple") {
-            fresh.set(value, forKey: key)
-        }
-        // The window comes back where it was, under its new name.
-        if let frame = old.string(forKey: "NSWindow Frame office-browser") {
-            fresh.set(frame, forKey: "NSWindow Frame search")
-        }
-        fresh.set(true, forKey: "carried")
-    }
 }
 
 /// Files written in the background, one at a time and the newest last.

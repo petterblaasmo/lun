@@ -36,7 +36,7 @@ def use(name):
     wants a world apart from the split suite's calls it with its own name."""
     global W, SUPPORT, SUITE, SOCK
     W = f"{name}-{hashlib.sha1(str(ROOT).encode()).hexdigest()[:8]}"
-    SUPPORT = f"{HOME}/Library/Application Support/Search ({W})"
+    SUPPORT = f"{HOME}/Library/Application Support/Lun ({W})"
     SUITE = f"com.lunbrowser.lun.test.{W}"
     SOCK = f"{SUPPORT}/bench.sock"
 use("split-tests")
@@ -106,7 +106,7 @@ def stores():
             found.append(f"{WEBKIT}/WebsiteDataStore/{id}")
     return found
 # The real Search's folder, beside whose stores these are removed.
-REAL = f"{HOME}/Library/Application Support/Search"
+REAL = f"{HOME}/Library/Application Support/Lun"
 FIRST_SPACE = "00000000-0000-0000-0000-000000000001"
 PERSONAL = "00000000-0000-0000-0000-0000000000A1"
 def guarded():
@@ -136,7 +136,7 @@ def wipe():
     subprocess.run(["rm", "-rf", SUPPORT]); subprocess.run(["defaults", "delete", SUITE], capture_output=True)
 def probe(pid):
     names = subprocess.run(["lsof", "-a", "-U", "-p", pid, "-Fn"], capture_output=True, text=True).stdout
-    return any(n.startswith("n") and "/Search (" in n and n.endswith("/bench.sock") for n in names.splitlines())
+    return any(n.startswith("n") and "/Lun (" in n and n.endswith("/bench.sock") for n in names.splitlines())
 def main_checkout():
     git = lambda *a: subprocess.run(["git", "-C", str(ROOT), "rev-parse", *a], capture_output=True, text=True).stdout.strip()
     return git("--git-dir") != "" and Path(git("--absolute-git-dir")) == Path(ROOT, git("--git-common-dir")).resolve()

@@ -97,7 +97,7 @@ def named(world):
 
 
 def folder(world):
-    return f"{SUPPORT}/Search ({world})"
+    return f"{SUPPORT}/Lun ({world})"
 
 
 def suite(world):
@@ -115,7 +115,7 @@ def ask(world, request, patience=35.0):
         try:
             s.connect(socket_of(world))
         except (FileNotFoundError, ConnectionRefusedError):
-            raise Refusal("not_listening", f"Search ({world}) isn't listening", "Call open_session.") from None
+            raise Refusal("not_listening", f"Lun ({world}) isn't listening", "Call open_session.") from None
         s.sendall((json.dumps(request) + "\n").encode())
         chunks = []
         try:
@@ -167,7 +167,7 @@ def probe(pid):
     """Whether a process holds some world's bench socket: a test run, not
     someone's Search."""
     names = subprocess.run(["lsof", "-a", "-U", "-p", pid, "-Fn"], capture_output=True, text=True, check=False).stdout
-    return any(n.startswith("n") and "/Search (" in n and n.endswith("/bench.sock") for n in names.splitlines())
+    return any(n.startswith("n") and "/Lun (" in n and n.endswith("/bench.sock") for n in names.splitlines())
 
 
 def loaded(path):
@@ -289,7 +289,7 @@ class Session:
         if not self.pids or not held or not held <= self.pids:
             raise Refusal(
                 "not_ours",
-                f"Search ({self.world}) is no longer the process this session started",
+                f"Lun ({self.world}) is no longer the process this session started",
                 "close_session, then open_session.",
             )
         return ask(self.world, request, patience)
@@ -362,7 +362,7 @@ def take_lease(world):
         os.close(fd)
         raise Refusal(
             "world_busy",
-            f"Another controller has Search ({world})",
+            f"Another controller has Lun ({world})",
             "Use another world, or open_session with no world for one of your own.",
         ) from None
     return fd
@@ -393,10 +393,10 @@ def launch(s):
             break
         time.sleep(0.1)
     else:
-        raise Refusal("not_listening", f"Search ({s.world}) didn't start listening within 30 s")
+        raise Refusal("not_listening", f"Lun ({s.world}) didn't start listening within 30 s")
     s.pids = (running() - before) & holding(s.world)
     if not s.pids:
-        raise Refusal("not_ours", f"Search ({s.world}) is listening, but not from the process just started")
+        raise Refusal("not_ours", f"Lun ({s.world}) is listening, but not from the process just started")
 
 
 def quit_world(s):
@@ -440,7 +440,7 @@ def tool_open_session(args):
         if listening(world) or holding(world):
             raise Refusal(
                 "world_in_use",
-                f"Search ({world}) is already open, and this server only drives worlds it starts",
+                f"Lun ({world}) is already open, and this server only drives worlds it starts",
                 "Quit that one, or open_session with no world for one of your own.",
             )
         launch(s)

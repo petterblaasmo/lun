@@ -172,7 +172,7 @@ try:
     said, err = tool("open_session")
     ok("open_session starts a world", not err and said.get("started") and said["world"].startswith("agent-"), said)
     session, world = said["session"], said["world"]
-    support = os.path.expanduser(f"~/Library/Application Support/Search ({world})")
+    support = os.path.expanduser(f"~/Library/Application Support/Lun ({world})")
 
     said, err = tool("open_session", world=world)
     ok("a second controller is refused", err and code(said) == "world_busy", said)
@@ -321,7 +321,7 @@ finally:
 server = subprocess.Popen([str(ROOT / "bench-mcp")], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
 rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t"}})
 said, err = tool("open_session")
-left = os.path.expanduser(f"~/Library/Application Support/Search ({said.get('world')})")
+left = os.path.expanduser(f"~/Library/Application Support/Lun ({said.get('world')})")
 server.stdin.close()
 server.wait(timeout=60)
 ok("a session left open goes with the server", not err and not os.path.exists(left), said)
@@ -329,7 +329,7 @@ ok("a session left open goes with the server", not err and not os.path.exists(le
 
 # Worlds started behind the server's back, the way fresh.sh starts one.
 def support(world):
-    return os.path.expanduser(f"~/Library/Application Support/Search ({world})")
+    return os.path.expanduser(f"~/Library/Application Support/Lun ({world})")
 
 
 def holders(world):

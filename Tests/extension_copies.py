@@ -28,7 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 APP = str(ROOT / "build" / "Search.app")
 W = "ext-copies"
-SUPPORT = os.path.expanduser(f"~/Library/Application Support/Search ({W})")
+SUPPORT = os.path.expanduser(f"~/Library/Application Support/Lun ({W})")
 SUITE = f"com.lunbrowser.lun.test.{W}"
 
 MANIFEST = {

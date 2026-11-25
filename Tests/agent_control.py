@@ -636,7 +636,7 @@ def main():
 
         # ---- L4: search-mcp won't speak to a socket that isn't Search's
         fake_world = f"agent-fake-{os.getpid()}"
-        fake = f"{os.path.expanduser('~')}/Library/Application Support/Search ({fake_world})"
+        fake = f"{os.path.expanduser('~')}/Library/Application Support/Lun ({fake_world})"
         try:
             os.makedirs(f"{fake}/Agent", mode=0o700)
             open(f"{fake}/Agent/agent.sock", "w").close()

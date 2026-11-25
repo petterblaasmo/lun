@@ -52,10 +52,10 @@ def world_from_args():
 
 def folder(world):
     if not world:
-        return f"{HOME}/Library/Application Support/Search"
+        return f"{HOME}/Library/Application Support/Lun"
     # As Store.world makes the name.
     world = "".join(c for c in str(world).lower() if c.isascii() and (c.isalnum() or c == "-"))
-    return f"{HOME}/Library/Application Support/Search ({'test' if world in ('', '1') else world})"
+    return f"{HOME}/Library/Application Support/Lun ({'test' if world in ('', '1') else world})"
 
 
 SOCKET = f"{folder(world_from_args())}/Agent/agent.sock"

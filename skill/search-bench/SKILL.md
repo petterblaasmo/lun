@@ -21,9 +21,9 @@ Every command goes to one world. Pass the same flag on every call.
 
 | Flag | Whose browser | Socket folder |
 |---|---|---|
-| `--test` | World `test` | `~/Library/Application Support/Search (test)/` |
-| `--world NAME` | World `NAME` (lowercase letters, digits, hyphens) | `~/Library/Application Support/Search (NAME)/` |
-| none | The installed browser they actually use | `~/Library/Application Support/Search/` |
+| `--test` | World `test` | `~/Library/Application Support/Lun (test)/` |
+| `--world NAME` | World `NAME` (lowercase letters, digits, hyphens) | `~/Library/Application Support/Lun (NAME)/` |
+| none | The installed browser they actually use | `~/Library/Application Support/Lun/` |
 
 Use a test world for any work that changes chrome, installs or removes extensions, resizes, sends real key events, or selects a tab. A `swift build` binary under `.build/` is always world `test`, even with no `SEARCH_PROBE`. `./fresh.sh` launches `build/Search.app` with `SEARCH_PROBE` set, which is also a test world.
 

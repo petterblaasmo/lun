@@ -131,7 +131,7 @@ enum ProxySecret {
         item[kSecValueData as String] = Data(password.utf8)
         item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         item[kSecAttrSynchronizable as String] = false
-        item[kSecAttrLabel as String] = "Search — proxy password"
+        item[kSecAttrLabel as String] = "Lun — proxy password"
         let status = SecItemAdd(item as CFDictionary, nil)
         guard status == errSecSuccess else {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [

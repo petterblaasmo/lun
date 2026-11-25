@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import blocker_bench as b  # noqa: E402
 
 b.W = "session-kept"
-b.SUPPORT = f"{b.HOME}/Library/Application Support/Search ({b.W})"
+b.SUPPORT = f"{b.HOME}/Library/Application Support/Lun ({b.W})"
 b.SUITE = f"com.lunbrowser.lun.test.{b.W}"
 b.SOCK = f"{b.SUPPORT}/bench.sock"
 
