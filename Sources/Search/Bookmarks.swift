@@ -1431,11 +1431,13 @@ struct BookmarksPanel: View {
     @State private var shown: Bookmark.ID?
 
     var body: some View {
-        Plate("Bookmarks", width: 600, close: { browser.bookmarking = false }) {
+        Plate("Bookmarks", width: 600, tools: AnyView(HStack(spacing: 8) {
+            Hunt(text: $query, prompt: bookmarks.count == 1 ? "Search 1 bookmark" : "Search \(bookmarks.count) bookmarks", focus: $hunting)
+                .onSubmit(openFirst)
+                .frame(width: 240)
+            Pill("New Folder…") { bookmarks.askNewFolder(in: nil) }
+        }), close: { browser.bookmarking = false }) {
             VStack(alignment: .leading, spacing: 14) {
-                Hunt(text: $query, prompt: "Search bookmarks", focus: $hunting)
-                    .onSubmit(openFirst)
-
                 if bookmarks.isEmpty {
                     Card { Nothing("Nothing kept yet. Add this page with ⇧⌘B, or bring yours in below.") }
                 } else if !query.isEmpty {
@@ -1476,7 +1478,6 @@ struct BookmarksPanel: View {
                 Pill("Bring in…") { browser.lead(to: InternalPage(.importing)) }
                 Pill("File…") { browser.importFile() }
                 Spacer()
-                Pill("New Folder…") { bookmarks.askNewFolder(in: nil) }
                 Text(bookmarks.count == 1 ? "1 bookmark" : "\(bookmarks.count) bookmarks")
                     .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
