@@ -127,7 +127,7 @@ struct Omnibox: View {
                     .animation(Motion.settle, value: refused)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     /// The field, and under a rule the places it thinks you mean, on one
