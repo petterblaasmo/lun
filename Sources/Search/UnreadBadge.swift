@@ -73,7 +73,7 @@ extension View {
                     .frame(width: 0, height: 0)
                     .overlay { UnreadBadge(count: count, icon: icon, ring: ring) }
                     .offset(x: icon * 0.15, y: -icon * 0.12)
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    .transition(.pop)
             }
         }
         .animation(Motion.quick, value: count)

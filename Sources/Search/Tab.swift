@@ -295,7 +295,7 @@ struct ReadingFill: View {
         Rectangle()
             .fill(Palette.ink.opacity(0.055))
             .frame(width: width * meter.value)
-            .animation(.easeOut(duration: 0.15), value: meter.value)
+            .animation(Motion.quick, value: meter.value)
     }
 }
 
@@ -1050,7 +1050,7 @@ final class Tab: ObservableObject, Identifiable {
             // see-through, and the window's ground would show between them.
             // The half second after the commit (see Browser.didCommit) is
             // for a page that never says.
-            self?.uncover(after: Motion.seconds(PageView.fadeIn))
+            self?.uncover(after: Motion.duration(.reveal))
         }
         web.holdForFirstFrame()
         painted = !web.unpainted
@@ -3194,7 +3194,7 @@ final class PageView: WKWebView {
             self.firstFrame = .shown
             self.onFirstFrame?()
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = Motion.seconds(PageView.fadeIn)
+                context.duration = Motion.duration(.reveal)
                 self.animator().alphaValue = 1
             }
         }
@@ -3214,7 +3214,7 @@ final class PageView: WKWebView {
 
     /// How long the page takes to fade in, and so how long a picture over it
     /// waits before it goes (see Tab.build).
-    static let fadeIn: TimeInterval = 0.12
+    static var fadeIn: TimeInterval { Motion.duration(.reveal) }
 
     /// _WKRenderingProgressEventFirstVisuallyNonEmptyLayout — the moment
     /// Safari takes down the picture it shows while a page comes back.

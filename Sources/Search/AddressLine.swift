@@ -105,7 +105,7 @@ struct AddressLine: View {
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
             .onTapGesture { browser.newTab() }
-            .animation(.easeOut(duration: 0.12), value: hovering)
+            .animation(Motion.quick, value: hovering)
             .accessibilityElement()
             .accessibilityLabel("Search or enter address")
             .accessibilityAddTraits(.isButton)
@@ -188,7 +188,7 @@ struct AddressLine: View {
             .background(row ? (lit ? greys.hover : .clear) : lit ? greys.pinLive : greys.tile, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             // Under the card while it is open, which takes its place.
             .opacity(editing ? 0 : 1)
-            .animation(.easeOut(duration: 0.12), value: lit)
+            .animation(Motion.quick, value: lit)
             .background(ViewAnchor(box: line))
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
@@ -212,7 +212,7 @@ struct AddressLine: View {
                     AddressCard(browser: browser, height: height, width: min(width, Metrics.fieldWidth), line: min(width, Metrics.fieldWidth))
                 }
             }
-            .animation(.easeOut(duration: 0.15), value: editing)
+            .animation(editing ? Motion.settle : Motion.quick, value: editing)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         }
 
@@ -363,7 +363,7 @@ struct AddressCard: View {
             }
         }
         .fixedSize(horizontal: false, vertical: true)
-        .transition(.scale(scale: 0.98, anchor: .topLeading).combined(with: .opacity))
+        .transition(.card(from: .topLeading))
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
         .onAppear { watch(true) }
         .onDisappear { watch(false) }

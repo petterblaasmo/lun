@@ -108,7 +108,7 @@ struct PinGhost: View {
             }
             .frame(width: width, height: height)
             .allowsHitTesting(false)
-            .transition(.scale(scale: 0.8).combined(with: .opacity))
+            .transition(.row(from: .center))
     }
 }
 

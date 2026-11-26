@@ -416,7 +416,7 @@ final class SidePanelPages: NSObject {
     static func showFirstFrame(_ web: WKWebView) {
         guard web.alphaValue < 1 else { return }
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = Motion.seconds(PageView.fadeIn)
+            context.duration = Motion.duration(.reveal)
             web.animator().alphaValue = 1
         }
     }

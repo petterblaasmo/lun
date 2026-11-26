@@ -156,16 +156,16 @@ struct SideBar: View {
     /// plain, so it is seen to happen and not watched. The rows' end makes
     /// room back down at this pace too.
     private static var doorsOut: Animation? {
-        Motion.reduced ? nil : .easeIn(duration: 0.1)
+        Motion.quick
     }
     /// The top fading back in, after the foot has gone.
     private static var doorsIn: Animation? {
-        Motion.reduced ? nil : .easeOut(duration: 0.5).delay(0.1)
+        Motion.slow?.delay(0.1)
     }
     /// The foot rising from under the column's edge with the rows' end:
     /// soft to start and to stop, so the rise itself is what is seen.
     private static var footIn: Animation? {
-        Motion.reduced ? nil : .timingCurve(0.25, 0.1, 0.25, 1, duration: 0.45)
+        Motion.slow
     }
     /// The foot's height in a row: its doors and the margin beneath.
     private static let footBox: CGFloat = 26 + 10
@@ -359,6 +359,10 @@ struct SideBar: View {
                         .accessibilityHidden(!doorsFoot)
                 }
             }
+            // The agent's card and "Update ready" come and go on a fade:
+            // each had the transition and nothing to carry it.
+            .animation(Motion.settle, value: agentHere)
+            .animation(Motion.settle, value: updateHere)
         }
         .onChange(of: width) { _, _ in settleDoors() }
         .onChange(of: live == nil) { _, _ in settleDoors() }
@@ -2054,7 +2058,7 @@ private struct PinSquare: View, Equatable {
         .modifier(SiteCardPanel.Square(id: tab.id, on: !inMap && browser.tabs.contains { $0 === tab }))
         .help(tab.label)
         .animation(nil, value: hovering)
-        .transition(.scale(scale: 0.8).combined(with: .opacity))
+        .transition(.row(from: .center))
     }
 }
 
@@ -2336,9 +2340,9 @@ private struct SideRow: View, Equatable {
         .onChange(of: refusals) { _, _ in
             guard editing else { return }
             shake = 0
-            withAnimation(.easeOut(duration: 0.5)) { shake = 1 }
+            withAnimation(Motion.shake) { shake = 1 }
         }
-        .transition(.scale(scale: 0.94, anchor: .leading).combined(with: .opacity))
+        .transition(.row(from: .leading))
     }
 
     private func hover(_ over: Bool) { hovering = over }

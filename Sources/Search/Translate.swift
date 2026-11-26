@@ -1028,7 +1028,7 @@ struct TranslateSign: View {
                 TranslateMenu(tab: tab) { showing = false }
             }
             .animation(Motion.quick, value: hovering)
-            .transition(.scale(scale: 0.5).combined(with: .opacity))
+            .transition(.pop)
         }
     }
 }

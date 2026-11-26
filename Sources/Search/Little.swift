@@ -634,7 +634,7 @@ private struct LittleToast: View {
                     .background(Palette.ground, in: Capsule())
                     .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
                     .shadow(color: .black.opacity(0.10), radius: 18, y: 6)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.bar(.bottom))
             }
         }
         .padding(.bottom, 24)
@@ -655,12 +655,20 @@ struct PopupWindowView: View {
                 .overlay(alignment: .bottom) {
                     VStack(spacing: 8) {
                         if let ask = browser.asking {
-                            if ask.screen { ScreenQuestion(browser: browser, ask: ask) }
-                            else { CaptureQuestion(browser: browser, ask: ask) }
+                            Group {
+                                if ask.screen { ScreenQuestion(browser: browser, ask: ask) }
+                                else { CaptureQuestion(browser: browser, ask: ask) }
+                            }
+                            .transition(.card(from: .bottom))
                         }
-                        if let offer = browser.offering { PasswordOffer(browser: browser, offer: offer) }
+                        if let offer = browser.offering {
+                            PasswordOffer(browser: browser, offer: offer)
+                                .transition(.card(from: .bottom))
+                        }
                     }
                     .padding(12)
+                    .animation(Motion.settle, value: browser.asking)
+                    .animation(Motion.settle, value: browser.offering)
                 }
         } else {
             Palette.ground

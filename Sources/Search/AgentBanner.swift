@@ -27,7 +27,7 @@ struct AgentBar: View {
             // said hello: watched there, not here.
             if let session = agents.session {
                 AgentSessionBar(session: session, browser: browser)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.bar(.bottom))
             }
         }
         .animation(Motion.settle, value: agents.session?.id)

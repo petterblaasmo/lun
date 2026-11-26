@@ -1096,10 +1096,10 @@ private struct TabPill: View, Equatable {
         .onChange(of: refusals) { _, _ in
             guard editing else { return }
             shake = 0
-            withAnimation(.easeOut(duration: 0.5)) { shake = 1 }
+            withAnimation(Motion.shake) { shake = 1 }
         }
         // Arriving and leaving from the strip rather than from nowhere.
-        .transition(.scale(scale: 0.9, anchor: .leading).combined(with: .opacity))
+        .transition(.row(from: .leading))
     }
 
     @ViewBuilder
@@ -2267,10 +2267,12 @@ struct Pressing: ViewModifier {
 /// it. Nothing moves with Reduce Motion on.
 struct Give: ViewModifier {
     let pressed: Bool
+    /// How far it gives.
+    var to: CGFloat = Motion.give
 
     func body(content: Content) -> some View {
         content.animation(pressed ? Motion.quick : Motion.settle) {
-            $0.scaleEffect(pressed && !Motion.reduced ? Motion.give : 1)
+            $0.scaleEffect(pressed && !Motion.reduced ? to : 1)
         }
     }
 }

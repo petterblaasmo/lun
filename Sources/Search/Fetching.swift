@@ -754,7 +754,7 @@ struct FetchDoor: View {
                             .trim(from: 0, to: max(0.02, fraction))
                             .stroke(Palette.ink.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
                             .rotationEffect(.degrees(-90))
-                            .animation(.easeOut(duration: 0.2), value: fraction)
+                            .animation(Motion.quick, value: fraction)
                     } else {
                         // No size given: turning, on Core Animation's time.
                         Ring(size: 12)
@@ -791,7 +791,7 @@ struct FetchDoor: View {
             // The doors moving while the list hangs: it follows them.
             .onChange(of: live) { _, _ in float(browser.downloadsHanging) }
             .onDisappear { DownloadsFloat.hide(for: browser) }
-            .transition(.scale(scale: 0.6).combined(with: .opacity))
+            .transition(.pop)
             .animation(Motion.quick, value: fetches.done)
             .animation(Motion.quick, value: fetches.showing)
             .animation(Motion.quick, value: hovering)

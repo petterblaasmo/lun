@@ -482,17 +482,6 @@ enum Motion {
 
     nonisolated static let instantKey = "motion.instant"
 
-    /// `seconds`, or none with Reduce animations on: for the fades that run
-    /// on a length of their own rather than on the animations below.
-    static func seconds(_ seconds: TimeInterval) -> TimeInterval {
-        instant ? 0 : seconds
-    }
-
-    /// `animation`, or none with Reduce animations on, the same way.
-    static func timed(_ animation: Animation) -> Animation? {
-        instant ? nil : animation
-    }
-
     /// Whether the Mac is short of power: Low Power Mode is on, or it is hot
     /// enough that macOS is holding its processors back. Then the two springs
     /// below become a short ease-out. A spring keeps moving long after it
@@ -535,6 +524,104 @@ enum Motion {
 
     static var quick: Animation? {
         reduced ? nil : .easeOut(duration: 0.14)
+    }
+
+    // MARK: the rest of the vocabulary
+    //
+    // quick, settle and glide move things. These four are for what they
+    // don't cover, so that no view has to write a curve of its own: an
+    // Animation literal belongs in this enum and nowhere else, and a
+    // transition is one of the named ones under it (AnyTransition.card and
+    // the rest). Each is nil when nothing should move.
+
+    /// One thing fading into another with nothing moving: a page's cover,
+    /// the line a tab says at rest, a hint. A fade is what Reduce Motion
+    /// asks for in place of movement, so the Mac's setting leaves it; only
+    /// Reduce animations in Settings takes it away.
+    static var dissolve: Animation? {
+        instant ? nil : .easeOut(duration: 0.2)
+    }
+
+    /// Something meant to be watched arrive, not just to be there: the
+    /// welcome's words under its mark, the column's buttons changing ends.
+    static var slow: Animation? {
+        reduced ? nil : light ? .easeOut(duration: 0.16) : .easeInOut(duration: 0.45)
+    }
+
+    /// The wordmark being written, l then u then n (LogomarkWritten).
+    static var drawn: Animation? {
+        reduced ? nil : .easeInOut(duration: 0.9)
+    }
+
+    /// What a swipe between spaces lets go of, carried the rest of the way:
+    /// the rows, and the space's sign with them. A length of its own, and
+    /// no spring, since something is waiting for it to finish.
+    static var carry: Animation? {
+        reduced ? nil : .easeOut(duration: 0.22)
+    }
+
+    /// The column fading in place where it doesn't slide (fadesColumn).
+    static var columnFade: Animation? {
+        fadesColumn ? .easeInOut(duration: fade) : nil
+    }
+
+    /// A refusal: the field shivers and stops (Shake, whose travel this
+    /// takes from 0 to 1).
+    static var shake: Animation? {
+        reduced ? nil : .easeOut(duration: 0.5)
+    }
+
+    /// The kinds by name, for AppKit and Core Animation, which take a
+    /// length and a curve rather than an Animation.
+    enum Kind {
+        case quick, settle, glide, dissolve, slow
+        /// A page or what covered it fading: shorter than a dissolve, so
+        /// the page is there sooner. Kept under Reduce Motion, as a fade is.
+        case reveal
+    }
+
+    /// How long a kind takes, nought when nothing should move: for an
+    /// NSAnimationContext, a CAAnimation, or whatever has to wait one out.
+    static func duration(_ kind: Kind) -> TimeInterval {
+        switch kind {
+        case .quick: return reduced ? 0 : 0.14
+        case .settle: return reduced ? 0 : light ? 0.16 : 0.30
+        case .glide: return reduced ? 0 : light ? 0.16 : 0.34
+        case .dissolve: return instant ? 0 : 0.2
+        case .slow: return reduced ? 0 : light ? 0.16 : 0.45
+        case .reveal: return instant ? 0 : 0.12
+        }
+    }
+
+    /// The curve AppKit runs a kind on. A spring has no bezier; the one the
+    /// two springs get was fitted by eye to glide for the Split View's
+    /// panes (PaneStage), and reads the same.
+    static func timing(_ kind: Kind) -> CAMediaTimingFunction {
+        switch kind {
+        case .quick, .dissolve, .reveal: return CAMediaTimingFunction(name: .easeOut)
+        case .settle, .glide: return CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
+        case .slow: return CAMediaTimingFunction(name: .easeInEaseOut)
+        }
+    }
+
+    /// AppKit's animator proxies moved in a kind's time, at once when
+    /// nothing should move: `changes` sets `view.animator()` values.
+    @MainActor static func run(_ kind: Kind, _ changes: () -> Void, then done: (@MainActor () -> Void)? = nil) {
+        let length = duration(kind)
+        guard length > 0 else {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                changes()
+            }
+            done?()
+            return
+        }
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = length
+            context.timingFunction = timing(kind)
+            context.allowsImplicitAnimation = true
+            changes()
+        }, completionHandler: done.map { done in { MainActor.assumeIsolated { done() } } })
     }
 
     /// How far a tab gives while it is pressed (see Give): enough to feel
@@ -665,6 +752,83 @@ struct LogomarkWritten: View {
                 .stroke(Palette.ink, style: StrokeStyle(lineWidth: Logomark.pen * Logomark.scale(in: rect), lineCap: .round, lineJoin: .round))
         }
         .aspectRatio(Logomark.canvas.width / Logomark.canvas.height, contentMode: .fit)
+    }
+}
+
+// MARK: - how things arrive and leave
+//
+// Every surface comes and goes one of these ways, so a card is a card
+// wherever it is. The animation that carries one goes on the container
+// outside the `if`, `.animation(Motion.settle, value:)`: on the thing
+// inserted it never runs.
+
+extension AnyTransition {
+    /// A card, a sheet, a question, a panel, a list under a field: up from
+    /// a little smaller, from `anchor`, and back.
+    static func card(from anchor: UnitPoint = .center) -> AnyTransition {
+        .scale(scale: 0.97, anchor: anchor).combined(with: .opacity)
+    }
+
+    /// The same from its middle.
+    static var card: AnyTransition { card() }
+
+    /// What comes in along an edge and leaves by it: a toast at the foot,
+    /// the find bar at the top.
+    static func bar(_ edge: Edge) -> AnyTransition {
+        .move(edge: edge).combined(with: .opacity)
+    }
+
+    /// One page of several replacing another: in from where it is going,
+    /// out the other way.
+    static func page(forward: Bool) -> AnyTransition {
+        .asymmetric(insertion: .offset(x: forward ? 40 : -40).combined(with: .opacity),
+                    removal: .offset(x: forward ? -40 : 40).combined(with: .opacity))
+    }
+
+    /// A row joining a list or leaving it, a sub-list opening under its
+    /// heading.
+    static func row(from anchor: UnitPoint = .top) -> AnyTransition {
+        .scale(scale: 0.94, anchor: anchor).combined(with: .opacity)
+    }
+
+    /// A small sign: a badge, a tick, a count.
+    static var pop: AnyTransition {
+        .scale(scale: 0.6).combined(with: .opacity)
+    }
+}
+
+// MARK: - how things answer
+
+/// Gives a little under a press and comes back when it is let go, as a tab
+/// does (Give): a press is answered before what it does is seen. Dimmed
+/// when it can't be pressed.
+struct Gives: ButtonStyle {
+    /// How far it gives; a large thing less, or it looks to jump.
+    var to: CGFloat = Motion.give
+
+    func makeBody(configuration: Configuration) -> some View {
+        Pressed(configuration: configuration, to: to)
+    }
+
+    private struct Pressed: View {
+        let configuration: Configuration
+        let to: CGFloat
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            configuration.label
+                .opacity(enabled ? 1 : 0.4)
+                .modifier(Give(pressed: configuration.isPressed, to: to))
+        }
+    }
+}
+
+extension View {
+    /// Tracks the pointer over it into `hovering`, the change eased as
+    /// every hover is.
+    func hovers(_ hovering: Binding<Bool>) -> some View {
+        onHover { hovering.wrappedValue = $0 }
+            .animation(Motion.quick, value: hovering.wrappedValue)
     }
 }
 
