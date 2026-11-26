@@ -31,15 +31,34 @@ permissions:
 
 jobs:
   build:
+    # Everything compiles: the app, the developer tools packages, the tests.
+    # Alongside the tests, not before them.
     name: Build
     runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Build the app and the tests
+      - name: Build everything
         run: |
           swift --version
           if ! swift build --build-tests > build.log 2>&1; then
+            grep -E "error:" build.log | sort -u | head -50
+            tail -40 build.log
+            exit 1
+          fi
+          tail -1 build.log
+
+  bundle:
+    # Only what the tests need (not the developer tools packages, a third of
+    # the code), packed for the shards.
+    name: Build the tests
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the tests
+        run: |
+          if ! swift build --product SearchPackageTests > build.log 2>&1; then
             grep -E "error:" build.log | sort -u | head -50
             tail -40 build.log
             exit 1
@@ -57,7 +76,7 @@ jobs:
           echo "$bundle"
           test -n "$bundle"
           ln -s "$(basename "$bundle")" "$bin/tests.xctest"
-          tar -czf products.tgz tests.txt "$bin/tests.xctest" "$bundle" "$bin"/*.dylib "$bin/Search"
+          tar -czf products.tgz tests.txt "$bin/tests.xctest" "$bundle"
           ls -la products.tgz
       - uses: actions/upload-artifact@v4
         with:
@@ -68,7 +87,7 @@ jobs:
 
   shard:
     name: Tests ${{ matrix.shard }}/4
-    needs: build
+    needs: bundle
     runs-on: macos-26
     timeout-minutes: 30
     strategy:
