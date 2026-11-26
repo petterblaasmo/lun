@@ -1,0 +1,4 @@
+# Tests that fail on main by themselves, with why. CI reports these as
+# warnings, not failures, and says when one passes so it can come off.
+# One per line: SearchTests' class/test, then # and the reason.
+DownloadsOpeningTests/testTheWindowResizesInSmallSteps  # fails on CI on main, alone too (issue 98)
