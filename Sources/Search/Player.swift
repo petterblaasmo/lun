@@ -142,20 +142,7 @@ private struct PlayerButton: View {
     let help: String
     let act: () -> Void
 
-    @State private var hovering = false
-
     var body: some View {
-        Button(action: act) {
-            Image(systemName: symbol)
-                .font(.system(size: 8, weight: .semibold))
-                .foregroundStyle(Palette.muted)
-                .frame(width: 15, height: 15)
-                .background(Palette.ink.opacity(hovering ? 0.07 : 0), in: Circle())
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .help(help)
-        .animation(Motion.quick, value: hovering)
+        IconButton(symbol, label: help, glyph: 8, weight: .semibold, size: 15, hit: 22, round: true, wash: Palette.fill, action: act)
     }
 }

@@ -202,7 +202,7 @@ enum DownloadsFloat {
         }
         // Its own group and time, tuned for a window's frame (idea 897).
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = Motion.light ? 0.16 : 0.22
+            context.duration = Motion.resize
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             panel.animator().setFrame(frame, display: true)
         }

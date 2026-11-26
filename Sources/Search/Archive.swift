@@ -269,37 +269,36 @@ struct ArchivePanel: View {
         }
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top) {
-                    Mark(icon: Favicons.shared.cached(for: tab.url), letter: "", size: 24, globe: true)
-                    Spacer()
-                    if hovering {
-                        Button(action: remove) {
-                            Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(Palette.muted)
-                                .frame(width: 22, height: 22).contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .help("Remove")
+            // The tile is the button that opens the tab again; its cross
+            // lies over it, not in it, and takes its own click.
+            Button(action: go) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top) {
+                        Mark(icon: Favicons.shared.cached(for: tab.url), letter: "", size: 24, globe: true)
+                        Spacer()
                     }
+                    FadingLine(text: tab.label).font(.system(size: 13)).foregroundStyle(Palette.ink)
+                    HStack(spacing: 4) {
+                        Text("\(tab.site) · \(When.clock(tab.closed))").lineLimit(1).truncationMode(.middle)
+                        Spacer(minLength: 4)
+                        Text(left).fixedSize()
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(Palette.muted)
                 }
-                FadingLine(text: tab.label).font(.system(size: 13)).foregroundStyle(Palette.ink)
-                HStack(spacing: 4) {
-                    Text("\(tab.site) · \(When.clock(tab.closed))").lineLimit(1).truncationMode(.middle)
-                    Spacer(minLength: 4)
-                    Text(left).fixedSize()
-                }
-                .font(.system(size: 11))
-                .foregroundStyle(Palette.muted)
+                .padding(12)
+                .background(hovering ? Palette.fillHover : Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
-            .padding(12)
-            .background(hovering ? Palette.fillHover : Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .onTapGesture(perform: go)
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
+            .buttonStyle(Gives())
+            .overlay(alignment: .topTrailing) {
+                if hovering {
+                    IconButton("xmark", label: "Remove \(tab.label)", glyph: 10, weight: .semibold, size: 22, tip: "Remove", action: remove)
+                        .padding(12)
+                }
+            }
+            .hovers($hovering)
             .help("Open again in this space")
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
         }
     }
 }

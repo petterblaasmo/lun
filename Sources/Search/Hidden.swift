@@ -87,8 +87,10 @@ struct HiddenPanel: View {
                 }
                 Spacer(minLength: 8)
 
-                Quick("Restore", act: restore)
-                    .opacity(hovering ? 1 : 0)
+                // There at rest, greyer: out of sight until the pointer
+                // came, nothing said the row could be restored, and the
+                // keyboard never brought the pointer.
+                Quick("Restore", tint: hovering ? Palette.ink : Palette.muted, act: restore)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 9)

@@ -2435,6 +2435,7 @@ struct KeepLine: View {
     let act: () -> Void
 
     @State private var hovering = false
+    @State private var onClear = false
 
     var body: some View {
         HStack(spacing: 6) {
@@ -2449,10 +2450,16 @@ struct KeepLine: View {
                         Text("Clear")
                             .font(.system(size: 12))
                     }
-                    .foregroundStyle(Palette.muted)
+                    // Ink under the pointer, and the line's whole height
+                    // to press: its own words were all there was. No
+                    // taller, or it would take a press from the tabs on
+                    // either side of the line.
+                    .foregroundStyle(onClear ? Palette.ink : Palette.muted)
+                    .frame(height: KeepLine.height)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(Gives(to: 0.94))
+                .hovers($onClear)
                 .shortcutHelp { "Close the tabs under the line. Pins and groups stay; \($0.display("file.reopen") ?? "Reopen Closed Tab") brings them all back." }
                 .transition(.opacity)
             }
@@ -2485,8 +2492,11 @@ struct Speaker: View {
                 .background(Palette.ink.opacity(hovering ? 0.07 : 0), in: Circle())
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        // No larger to land on than it is drawn: what is around it in a
+        // tab's row is the row's own press, and the cross's.
+        .buttonStyle(Gives(to: 0.85, dims: false))
         .onHover { hovering = $0 }
+        .accessibilityLabel(tab.muted ? "Unmute Tab" : "Mute Tab")
         .help(tab.muted ? "Unmute Tab" : "Mute Tab")
         .animation(Motion.quick, value: hovering)
     }

@@ -1042,7 +1042,7 @@ struct ContentView: View {
         }
         guard !Motion.reduced, arriving.0 || arriving.1 || farComing else { return }
         let ticket = roomTicket
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Motion.glideLanded) {
             guard ticket == roomTicket else { return }
             withTransaction(still) {
                 room = chrome
@@ -1325,6 +1325,7 @@ struct ContentView: View {
             }
             .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.activeSpaceDidChangeNotification)) { _ in
                 if browser.prefs.keepsWindow, browser.tabs.contains(where: \.immersed) { immersing() }
+                browser.desktopChanged()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
                 if let window, (note.object as? NSWindow) === window {
@@ -1405,10 +1406,12 @@ struct ContentView: View {
             HStack(spacing: 8) {
                 Text(text)
                     .foregroundStyle(Palette.ink)
-                // A file just saved: the line shows it in the Finder.
-                if browser.announcedFile != nil {
-                    Text("Show in Finder")
-                        .foregroundStyle(Palette.muted)
+                // A file just saved: the line shows it in the Finder. A
+                // link, for the keyboard and VoiceOver, which the tap on
+                // the whole line never reached; the tap stays, for a hand
+                // that lands beside the words.
+                if let file = browser.announcedFile {
+                    TextLink("Show in Finder", size: 13) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
                 }
             }
                 .font(.system(size: 13))

@@ -257,7 +257,10 @@ private struct CornerSpeaker: View {
                 .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: 0.5))
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        // As small to land on as it is drawn: the tile around it is the
+        // tab's own press.
+        .buttonStyle(Gives(to: 0.85, dims: false))
+        .accessibilityLabel(tab.muted ? "Unmute Tab" : "Mute Tab")
         .help(tab.muted ? "Unmute Tab" : "Mute Tab")
         .offset(x: 3, y: 3)
     }

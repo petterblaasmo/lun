@@ -784,6 +784,13 @@ final class Float {
 
         private func glide(to target: NSPoint, bouncing: Bool = false) {
             guard let window else { return }
+            // Under Reduce Motion it is simply there, as the rows are after
+            // a swipe between spaces.
+            guard !Motion.reduced else {
+                stopGlide()
+                window.setFrameOrigin(target)
+                return
+            }
             glideBounces = bouncing
             glideFrom = window.frame.origin
             glideTo = target
@@ -812,13 +819,13 @@ final class Float {
             let done: Bool
             if glideBounces {
                 // Underdamped: past the place, and back to it.
-                let omega: CGFloat = 16, zeta: CGFloat = 0.5
+                let omega = Motion.flingBack.pull, zeta = Motion.flingBack.damping
                 let damped = omega * sqrt(1 - zeta * zeta)
-                done = t > 0.9
+                done = t > Motion.flingBack.within
                 p = done ? 1 : 1 - exp(-zeta * omega * t) * (cos(damped * t) + zeta / sqrt(1 - zeta * zeta) * sin(damped * t))
             } else {
-                let omega: CGFloat = 15
-                done = t > 0.6
+                let omega = Motion.fling.pull
+                done = t > Motion.fling.within
                 p = done ? 1 : 1 - (1 + omega * t) * exp(-omega * t)
             }
             window.setFrameOrigin(NSPoint(
@@ -920,7 +927,7 @@ final class Float {
             tuck.image = glyph("plus", 11)
             hideTransport(true)
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.18
+                context.duration = Motion.tuck
                 window.animator().setFrame(target, display: false)
             }
         }
@@ -933,7 +940,7 @@ final class Float {
             tuck.image = glyph("minus", 11)
             hideTransport(false)
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.18
+                context.duration = Motion.tuck
                 window.animator().setFrame(home, display: false)
             }, completionHandler: {
                 window.minSize = min

@@ -28,7 +28,6 @@ struct FindBar: View {
 
     @FocusState private var focused: Bool
     /// The button under the pointer, by its symbol.
-    @State private var hovered: String?
 
     private var narrow: Bool { availableWidth.map { $0 < 330 } ?? false }
     private var fieldWidth: CGFloat {
@@ -149,18 +148,8 @@ struct FindBar: View {
         shortcut: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Palette.ink)
-                .frame(width: 28, height: 28)
-                .background(hovered == icon ? Palette.fill : .clear, in: Circle())
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .onHover { over in if over { hovered = icon } else if hovered == icon { hovered = nil } }
-        .accessibilityLabel(label)
-        .accessibilityHint(help)
-        .shortcutHelp(help, shortcut)
+        IconButton(icon, label: label, size: 28, hit: 28, round: true, tint: Palette.ink, wash: Palette.fill, tip: "", action: action)
+            .accessibilityHint(help)
+            .shortcutHelp(help, shortcut)
     }
 }

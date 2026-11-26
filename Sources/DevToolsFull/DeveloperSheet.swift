@@ -129,6 +129,6 @@ struct DeveloperSheetLayer: View {
                 .id(front.id)
             }
         }
-        .animation(Motion.reduced ? nil : .spring(response: 0.32, dampingFraction: 0.86), value: sheets.front?.id)
+        .animation(Motion.sheet, value: sheets.front?.id)
     }
 }

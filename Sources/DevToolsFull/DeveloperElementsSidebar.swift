@@ -84,7 +84,7 @@ struct DeveloperStylesPane: View {
         guard let flash = elements.flash else { return }
         if !filter.isEmpty { filter = "" }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(flash.rule, anchor: .center) }
+            withAnimation(Motion.seek) { proxy.scrollTo(flash.rule, anchor: .center) }
         }
     }
 

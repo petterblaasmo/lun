@@ -295,8 +295,12 @@ struct PeekPanel: View {
                     .frame(width: 28, height: 28)
                     .background(hovering ? Palette.hover : Palette.ground, in: Circle())
                     .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: 1))
+                    .contentShape(Circle())
             }
-            .buttonStyle(.plain)
+            // On the page's own ground with an edge, so drawn here and not
+            // as an IconButton; it gives and has a name as one does.
+            .buttonStyle(Gives(to: 0.88))
+            .accessibilityLabel(help)
             .help(help)
             .hovers($hovering)
         }
@@ -458,10 +462,8 @@ struct PeekSweep: NSViewRepresentable {
             let sweep = CABasicAnimation(keyPath: "position.x")
             sweep.fromValue = bounds.width * -0.3
             sweep.toValue = bounds.width * 1.3
-            sweep.duration = 1.3
-            sweep.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            sweep.repeatCount = .infinity
-            gradient.add(sweep, forKey: "sweep")
+            // Not shown at all where nothing should move (PeekSkeleton).
+            if let sweep = Motion.loop(.sweep, sweep) { gradient.add(sweep, forKey: "sweep") }
         }
     }
 }

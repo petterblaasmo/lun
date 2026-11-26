@@ -130,10 +130,7 @@ struct Swiping: View {
                 // middle it would slide in from the middle.
                 HistoryList(pull: pull)
                     .id(pull.back)
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.92, anchor: pull.back ? .leading : .trailing)),
-                        removal: .opacity.combined(with: .scale(scale: 0.96, anchor: pull.back ? .leading : .trailing))
-                    ))
+                    .transition(.swiped(from: pull.back ? .leading : .trailing))
             } else if let pull {
                 Disc(pull: pull)
                     // A disc for each edge, never one that changes edges: a
@@ -854,17 +851,7 @@ struct Trouble: View {
             }
             if let tab, let address = tab.shownURL, code != 0 {
                 VStack(spacing: 10) {
-                    Button { withAnimation(Motion.quick) { detailed.toggle() } } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 9, weight: .semibold))
-                                .rotationEffect(.degrees(detailed ? 90 : 0))
-                            Text("Details").font(.system(size: 12))
-                        }
-                        .foregroundStyle(Palette.muted)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+                    Disclosure("Details", open: $detailed)
                     if detailed {
                         Text("\(address.absoluteString)\n\(message) (\(code))")
                             .font(.system(size: 12, design: .monospaced))

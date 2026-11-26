@@ -617,24 +617,12 @@ struct SpaceLookPicker: View {
             }
 
             VStack(alignment: .leading, spacing: 12) {
-                Button {
-                    withAnimation(Motion.quick) { customOpen.toggle() }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .semibold))
-                            .rotationEffect(.degrees(customOpen ? 90 : 0))
-                        Text("Custom gradient")
-                            .font(.system(size: 12, weight: .medium))
-                        if choice == .custom {
-                            Circle().fill(Palette.ink.opacity(0.7)).frame(width: 5, height: 5)
-                                .accessibilityLabel("Chosen")
-                        }
+                Disclosure("Custom gradient", open: $customOpen, weight: .medium) {
+                    if choice == .custom {
+                        Circle().fill(Palette.ink.opacity(0.7)).frame(width: 5, height: 5)
+                            .accessibilityLabel("Chosen")
                     }
-                    .foregroundStyle(Palette.muted)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
                 if customOpen { custom.transition(.opacity) }
             }
         }
@@ -848,7 +836,7 @@ enum SpaceLookPopover {
         let popover = NSPopover()
         popover.contentViewController = host
         popover.behavior = .transient
-        popover.animates = !Motion.instant
+        popover.animates = Motion.popovers
         popover.delegate = watch
         shown = popover
         // Escape puts back what the space had; a click elsewhere keeps it.

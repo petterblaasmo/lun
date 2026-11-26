@@ -1138,6 +1138,7 @@ struct DeveloperPanelIcon: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
+        .animation(Motion.quick, value: hovering)
         .help(title)
         .accessibilityLabel(title)
     }

@@ -222,15 +222,7 @@ struct AddressLine: View {
         }
 
         private func button(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
-            Button(action: action) {
-                Image(systemName: symbol)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Palette.ink)
-                    .frame(width: 24, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help(help)
+            IconButton(symbol, label: help, tint: Palette.ink, action: action)
         }
     }
 }

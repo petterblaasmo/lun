@@ -1046,50 +1046,56 @@ struct BookmarkOutline: View {
 
         var body: some View {
             if Store.testing { Bench.bodies["bookmarkRow", default: 0] += 1 }
-            return HStack(spacing: 8) {
-                if node.isFolder {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(Palette.muted)
-                        .rotationEffect(.degrees(isOpen ? 90 : 0))
-                        .frame(width: 10)
-                    Mark(icon: nil, letter: "", size: 15)
-                        .overlay(
-                            Image(systemName: "folder.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(Palette.muted)
-                        )
-                } else {
-                    if arrows { Spacer().frame(width: 10) }
-                    Mark(icon: Favicons.shared.cached(for: node.address), letter: String((node.host ?? "•").prefix(1)).uppercased(), size: 15)
+            // A button, so the keyboard and VoiceOver can open it, and it
+            // gives under the press; the drag that carries it is on the row
+            // from outside, as it was.
+            return Button { open?() ?? toggle?() } label: {
+                HStack(spacing: 8) {
+                    if node.isFolder {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Palette.muted)
+                            .rotationEffect(.degrees(isOpen ? 90 : 0))
+                            .frame(width: 10)
+                        Mark(icon: nil, letter: "", size: 15)
+                            .overlay(
+                                Image(systemName: "folder.fill")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(Palette.muted)
+                            )
+                    } else {
+                        if arrows { Spacer().frame(width: 10) }
+                        Mark(icon: Favicons.shared.cached(for: node.address), letter: String((node.host ?? "•").prefix(1)).uppercased(), size: 15)
+                    }
+                    // One without a name reads as its address, a shade lighter.
+                    Text(node.label)
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(node.unnamed ? Palette.muted : Palette.ink)
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    if node.isFolder, let kids = node.children, !kids.isEmpty {
+                        Text("\(Bookmarks.count(kids))")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Palette.muted)
+                    }
                 }
-                // One without a name reads as its address, a shade lighter.
-                Text(node.label)
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(node.unnamed ? Palette.muted : Palette.ink)
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                if node.isFolder, let kids = node.children, !kids.isEmpty {
-                    Text("\(Bookmarks.count(kids))")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.muted)
+                .padding(.leading, CGFloat(depth) * 18 + 10)
+                .padding(.trailing, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(wash))
+                .overlay(alignment: aim == .before ? .top : .bottom) {
+                    if aim == .before || aim == .after {
+                        // Below an open folder is its first child's place.
+                        Line(depth: aim == .after && isOpen ? depth + 1 : depth)
+                            .offset(y: aim == .before ? -1.5 : 1.5)
+                    }
                 }
+                .contentShape(Rectangle())
             }
-            .padding(.leading, CGFloat(depth) * 18 + 10)
-            .padding(.trailing, 10)
-            .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(wash))
-            .overlay(alignment: aim == .before ? .top : .bottom) {
-                if aim == .before || aim == .after {
-                    // Below an open folder is its first child's place.
-                    Line(depth: aim == .after && isOpen ? depth + 1 : depth)
-                        .offset(y: aim == .before ? -1.5 : 1.5)
-                }
-            }
-            .contentShape(Rectangle())
+            .buttonStyle(Gives(to: 0.99, dims: false))
             .opacity(dragging ? 0.35 : 1)
-            .onTapGesture { open?() ?? toggle?() }
             .hovers($hovering)
+            .accessibilityValue(node.isFolder ? (isOpen ? "Expanded" : "Collapsed") : "")
             .contextMenu {
                 if let open {
                     Button("Open", action: open)
@@ -1402,20 +1408,22 @@ struct BookmarksDropdown: View {
         }
 
         var body: some View {
-            HStack(spacing: 8) {
-                if let symbol {
-                    Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 14)
-                } else {
-                    Spacer().frame(width: 14)
+            Button(action: act) {
+                HStack(spacing: 8) {
+                    if let symbol {
+                        Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 14)
+                    } else {
+                        Spacer().frame(width: 14)
+                    }
+                    Text(title).font(.system(size: 12.5)).foregroundStyle(Palette.ink)
+                    Spacer(minLength: 0)
                 }
-                Text(title).font(.system(size: 12.5)).foregroundStyle(Palette.ink)
-                Spacer(minLength: 0)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
-            .contentShape(Rectangle())
-            .onTapGesture(perform: act)
+            .buttonStyle(Gives(to: 0.99))
             .hovers($hovering)
         }
     }
@@ -1546,40 +1554,41 @@ struct BookmarksPanel: View {
         @State private var hovering = false
 
         var body: some View {
-            HStack(spacing: 10) {
-                if node.isFolder {
-                    Mark(icon: nil, letter: "", size: 16)
-                        .overlay(Image(systemName: "folder.fill").font(.system(size: 9.5)).foregroundStyle(Palette.muted))
-                } else {
-                    Mark(icon: Favicons.shared.cached(for: node.address), letter: String((node.host ?? "•").prefix(1)).uppercased(), size: 16)
+            RowButton(hovering: $hovering, action: { open?() ?? show() }) {
+                HStack(spacing: 10) {
+                    if node.isFolder {
+                        Mark(icon: nil, letter: "", size: 16)
+                            .overlay(Image(systemName: "folder.fill").font(.system(size: 9.5)).foregroundStyle(Palette.muted))
+                    } else {
+                        Mark(icon: Favicons.shared.cached(for: node.address), letter: String((node.host ?? "•").prefix(1)).uppercased(), size: 16)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(node.label)
+                            .font(.system(size: 13))
+                            .foregroundStyle(node.unnamed ? Palette.muted : Palette.ink)
+                            .lineLimit(1)
+                        Text(whereabouts)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Palette.muted)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Spacer(minLength: 8)
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(node.label)
-                        .font(.system(size: 13))
-                        .foregroundStyle(node.unnamed ? Palette.muted : Palette.ink)
-                        .lineLimit(1)
-                    Text(whereabouts)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.muted)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer(minLength: 8)
+                .padding(.leading, 14)
+                .padding(.trailing, hovering ? 0 : 14)
+                .padding(.vertical, 9)
+            } trailing: {
                 if hovering {
                     Quick("Show in Folder", act: show)
+                        .padding(.leading, 10)
+                        .padding(.trailing, 14)
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(hovering ? Palette.fillHover : .clear)
-            .contentShape(Rectangle())
-            .onTapGesture { open?() ?? show() }
-            .hovers($hovering)
             .contextMenu {
                 if let open { Button("Open", action: open) }
                 Button("Show in Folder", action: show)
             }
-            .animation(Motion.quick, value: hovering)
         }
 
         /// The folders it is in, then the site.

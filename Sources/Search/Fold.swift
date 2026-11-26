@@ -72,7 +72,7 @@ extension Browser {
             withAnimation(Motion.glide) {
                 if prefs.narrowStrip { prefs.narrowed = false } else { prefs.sideIcons.toggle() }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + Motion.glideRested) { [weak self] in
                 guard let self, ticket == self.turnTicket else { return }
                 self.columnTurning = false
             }
@@ -939,21 +939,7 @@ struct Fold: View {
             bar.isHidden = off
             return
         }
-        let spring: CABasicAnimation
-        if let slide = Motion.slide(out: !off) {
-            // The column's eased slide (Slide the column in and out).
-            spring = CABasicAnimation(keyPath: path)
-            spring.timingFunction = CAMediaTimingFunction(name: off ? .easeIn : .easeOut)
-            spring.duration = slide
-        } else {
-            let fold = Motion.fold(out: !off)
-            let bounce = CASpringAnimation(keyPath: path)
-            bounce.mass = 1
-            bounce.stiffness = pow(2 * .pi / fold.response, 2)
-            bounce.damping = 4 * .pi * fold.damping / fold.response
-            bounce.duration = bounce.settlingDuration
-            spring = bounce
-        }
+        let spring = Motion.folding(out: !off, keyPath: path)
         spring.fromValue = from
         spring.toValue = to
         spring.fillMode = .forwards
@@ -1194,7 +1180,7 @@ struct LoadingLine: NSViewRepresentable {
             CATransaction.begin()
             // A new load starts from the left at once, not run back to it.
             CATransaction.setDisableActions(!animated || (loading && !was))
-            CATransaction.setAnimationDuration(0.2)
+            CATransaction.setAnimationDuration(Motion.lineRuns)
             place(animated: animated)
             if loading {
                 line.opacity = 0.9
@@ -1204,7 +1190,7 @@ struct LoadingLine: NSViewRepresentable {
                 CATransaction.setCompletionBlock { [weak self] in
                     guard let self, !self.shown else { return }
                     CATransaction.begin()
-                    CATransaction.setAnimationDuration(0.3)
+                    CATransaction.setAnimationDuration(Motion.lineFades)
                     self.line.opacity = 0
                     CATransaction.commit()
                 }

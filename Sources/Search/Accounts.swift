@@ -209,20 +209,13 @@ struct AccountList: View {
                     .foregroundStyle((hovering && !onCross) || lit ? Palette.ink : Palette.muted)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(Gives(to: 0.99))
                 .help("Turns on Apple Passwords and pairs with a code from your Mac. Settings › Privacy & Passwords turns it off.")
-                Button(action: never) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 7.5, weight: .semibold))
-                        .foregroundStyle(Palette.muted)
-                        .frame(width: 16, height: 16)
-                        .background(Palette.ink.opacity(onCross ? 0.07 : 0), in: Circle())
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .hovers($onCross)
-                .help("Don't offer again")
-                .accessibilityLabel("Don't offer again")
+                // Drawn as small as it was, with more than its sixteen
+                // points to land on.
+                IconButton("xmark", label: "Don't offer again", glyph: 7.5, weight: .semibold, size: 16, hit: 22,
+                           round: true, wash: Palette.fill, action: never)
+                    .onHover { onCross = $0 }
             }
             .padding(.leading, 10)
             .padding(.trailing, 8)
@@ -272,7 +265,7 @@ struct AccountList: View {
                 .background(hovering || lit ? Palette.hover : .clear)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(Gives(to: 0.99))
             .onHover { hovering = $0 }
             .animation(Motion.quick, value: hovering)
         }
