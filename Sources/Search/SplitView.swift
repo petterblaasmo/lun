@@ -180,13 +180,14 @@ private struct PaneLayers: View {
             if let question = browser.paneQuestions.first(where: { $0.tab == tab.id }) {
                 PaneQuestionCard(browser: browser, tab: tab, question: question, width: width)
                     .id(question.id)
-                    .transition(.opacity)
+                    // A card, so it comes as the other cards do.
+                    .transition(.card)
             }
         }
         // Gone to another page: what the last one asked goes unanswered no
         // longer.
         .onChange(of: tab.committed) { _, _ in browser.dropQuestions(for: tab.id) }
-        .animation(Motion.quick, value: browser.paneQuestions.map(\.id))
+        .animation(Motion.settle, value: browser.paneQuestions.map(\.id))
         .overlay {
             // Over the page the link is on, focused or not.
             if browser.prefs.showsLinks {
