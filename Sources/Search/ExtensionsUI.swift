@@ -295,7 +295,9 @@ struct ExtensionsPage: View {
                 }
             }
             Divider()
-            Button("Remove", role: .destructive) { extensions.remove(item.id) }
+            // Asks first, as Remove in the button's own menu does: here it
+            // was gone on the click, settings and data with it.
+            Button("Remove…", role: .destructive) { ExtensionActions.confirmRemove(item.id, name: item.name, extensions) }
         }
 
         /// Where it was loaded from, by the folder's name — the whole path

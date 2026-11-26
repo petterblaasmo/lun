@@ -44,8 +44,9 @@ struct PinFolderHeading: View {
         .background(RoundedRectangle(cornerRadius: compact ? 6 : 9, style: .continuous)
             .fill(target ? greys.wash : (hovering ? greys.hover : (compact ? greys.tile : .clear))))
         .contentShape(RoundedRectangle(cornerRadius: compact ? 6 : 9, style: .continuous))
-        .onTapGesture { if interactive && !editing { browser.togglePinFolder(folder.id) } }
+        .onTapGesture { if interactive && !editing { withAnimation(Motion.settle) { browser.togglePinFolder(folder.id) } } }
         .onHover { hovering = interactive && $0 }
+        .animation(Motion.quick, value: hovering)
         .contextMenu { if interactive { menu } }
         .accessibilityLabel(folder.name)
         .accessibilityHint(folder.collapsed ? "Folded folder" : "Folder")

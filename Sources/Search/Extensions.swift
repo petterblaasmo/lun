@@ -2698,7 +2698,7 @@ private struct ExtensionIcon: View {
 
 /// What a right-click on an extension offers, in the row and in the list.
 @available(macOS 15.4, *)
-private struct ExtensionActions: View {
+struct ExtensionActions: View {
     let id: String
     let name: String
     var browser: Browser? = nil
