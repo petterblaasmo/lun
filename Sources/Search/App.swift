@@ -2198,10 +2198,12 @@ struct ContentView: View {
         guard flags.contains(.command) else { return false }
         let shifted = flags.contains(.shift)
 
+        // ⌥⌘R, Reading Mode, since ⇧⌘R became the hard refresh (below, and
+        // Command "view.reader"): the two swapped here as in the menus.
         if flags.contains(.option), !shifted, !flags.contains(.control),
            event.shortcutKey == "r" {
             if pageFirst(event, key: "r", shifted: false) { return false }
-            browser.reload(fromOrigin: true)
+            browser.toggleReader()
             return true
         }
 
@@ -2368,7 +2370,8 @@ struct ContentView: View {
         case "r" where !shifted:
             browser.reload()
         case "r" where shifted:
-            browser.toggleReader()
+            // The hard refresh, as in Chrome and Arc (Command "view.reloadOrigin").
+            browser.reload(fromOrigin: true)
         case "[":
             shifted ? browser.step(-1) : browser.back()
         case "]":
