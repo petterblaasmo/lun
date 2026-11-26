@@ -69,7 +69,7 @@ try:
     # 968: Search › What's New… brings the card back, as after an update.
     again = sv.cmd({"do": "news", "again": True})
     t.ok("Search menu: About, Check for Updates…, What's New… in that order",
-         again["menu"][0] == "About Search" and again["menu"][1].startswith("Check") and again["menu"][2] == "What's New…", again["menu"])
+         again["menu"][0] == "About Lun" and again["menu"][1].startswith("Check") and again["menu"][2] == "What's New…", again["menu"])
     t.ok("What's New… is enabled and shows the card", again["enabled"] and again["showing"], again)
     sv.cmd({"do": "news", "on": False})
     about = f"{SHOTS or sv.SUPPORT}/about.png"
@@ -80,7 +80,7 @@ try:
     blank_tab()
     s = ask()
     t.ok("fresh: offered", s["open"], s)
-    t.ok("fresh: Help has Search for iPhone…", "Search for iPhone…" in s["helpMenu"], s["helpMenu"])
+    t.ok("fresh: Help has Lun for iPhone…", "Lun for iPhone…" in s["helpMenu"], s["helpMenu"])
     t.ok("fresh: a blank tab shows the line", s["newTab"], s)
     for spot in ["about", "help", "newTab"]:
         ask("picture", spot=spot, path=f"{SHOTS or sv.SUPPORT}/ask-{spot}.png")
@@ -92,7 +92,7 @@ try:
     t.ok("within three days it is back", s["newTab"], s)
 
     s = ask("help")
-    t.ok("Help › Search for iPhone… opens the card", s["card"], s)
+    t.ok("Help › Lun for iPhone… opens the card", s["card"], s)
 
     # Each place's press: the right endpoint, the right source, nothing else.
     for spot, source in [("about", "app-about"), ("help", "app-help"), ("newTab", "app-newtab")]:
@@ -103,21 +103,21 @@ try:
         t.ok(f"{spot}: one POST to /api/ios-beta with source {source}",
              len(POSTS) == 1 and POSTS[0]["path"] == "/api/ios-beta" and body == {"email": "probe@example.com", "source": source}, POSTS)
         t.ok(f"{spot}: after joining, gone everywhere",
-             not s["open"] and not s["newTab"] and "Search for iPhone…" not in s["helpMenu"], s)
+             not s["open"] and not s["newTab"] and "Lun for iPhone…" not in s["helpMenu"], s)
 
     # The Mac news list alone (the card, box unticked): still offered.
     ask("reset")
     s = ask("join", email="probe@example.com", spot="about", news=True, ticked=False)
     t.ok("news list alone: still offered everywhere",
-         s["joined"] and s["open"] and s["newTab"] and "Search for iPhone…" in s["helpMenu"], s)
+         s["joined"] and s["open"] and s["newTab"] and "Lun for iPhone…" in s["helpMenu"], s)
     s = ask("join", email="probe@example.com", spot="about", news=True, ticked=True)
     t.ok("the card with the iPhone box ticked: gone everywhere",
-         not s["open"] and not s["newTab"] and "Search for iPhone…" not in s["helpMenu"], s)
+         not s["open"] and not s["newTab"] and "Lun for iPhone…" not in s["helpMenu"], s)
 
     ask("reset")
     POSTS.clear()
     s = ask("dismiss")
-    t.ok("Not now: gone everywhere", not s["open"] and not s["newTab"] and "Search for iPhone…" not in s["helpMenu"], s)
+    t.ok("Not now: gone everywhere", not s["open"] and not s["newTab"] and "Lun for iPhone…" not in s["helpMenu"], s)
     t.ok("Not now sends nothing", POSTS == [], POSTS)
 finally:
     sv.finish()

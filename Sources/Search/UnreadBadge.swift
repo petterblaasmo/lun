@@ -51,7 +51,7 @@ struct UnreadBadge: View {
             // Its own size, whatever it is offered: hung from a point, it
             // was offered none, and "97" spilled out of a one-digit circle.
             .fixedSize()
-            .background(Capsule().fill(Color(red: 0.93, green: 0.24, blue: 0.21)))
+            .background(Capsule().fill(Palette.badge))
             .background {
                 if let ring { Capsule().fill(ring).padding(-1.5) }
             }
@@ -73,7 +73,7 @@ extension View {
                     .frame(width: 0, height: 0)
                     .overlay { UnreadBadge(count: count, icon: icon, ring: ring) }
                     .offset(x: icon * 0.15, y: -icon * 0.12)
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    .transition(.pop)
             }
         }
         .animation(Motion.quick, value: count)

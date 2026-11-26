@@ -191,7 +191,7 @@ final class PageTranslator {
             report["collectMs"] = ms()
             let sample = String(first.prefix(400).map(\.plain).joined(separator: "\n").prefix(4000))
             guard let from = PageTranslator.detect(sample, hint: await hint) else {
-                throw Failure("Search couldn't tell which language this page is in")
+                throw Failure("Lun couldn't tell which language this page is in")
             }
             // A page call comes back even after end() cancelled the run, and
             // end() is the only way a translator loses its tab: from here a
@@ -567,7 +567,7 @@ final class PageTranslator {
             case .unsupportedLanguagePairing, .unsupportedSourceLanguage, .unsupportedTargetLanguage:
                 return "\(language) to \(name(code(to))) can't be translated on this Mac"
             case .unableToIdentifyLanguage:
-                return "Search couldn't tell which language this page is in"
+                return "Lun couldn't tell which language this page is in"
             default:
                 break
             }
@@ -1021,14 +1021,14 @@ struct TranslateSign: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .help(TranslateMenu.heading(mark))
             .accessibilityLabel(TranslateMenu.heading(mark))
             .popover(isPresented: $showing, hangingFrom: .bottom) {
                 TranslateMenu(tab: tab) { showing = false }
             }
             .animation(Motion.quick, value: hovering)
-            .transition(.scale(scale: 0.5).combined(with: .opacity))
+            .transition(.pop)
         }
     }
 }
@@ -1053,7 +1053,7 @@ struct TranslateMenu: View {
         let mark = tab.translation ?? TranslationMark(from: nil, to: "en", phase: .done)
         VStack(alignment: .leading, spacing: 0) {
             Text(TranslateMenu.heading(mark))
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Palette.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 16)
@@ -1077,8 +1077,8 @@ struct TranslateMenu: View {
                 .padding(6)
                 Divider().overlay(Palette.hairline)
                 Text("Translated on this Mac. Nothing is sent anywhere.")
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(Palette.faint)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.muted)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
             }
@@ -1093,18 +1093,22 @@ struct TranslateMenu: View {
         let act: () -> Void
         @State private var hovering = false
 
+        // A button: the keyboard and VoiceOver can press it, and it gives
+        // under the press. It was a tap on a stack.
         var body: some View {
-            HStack(spacing: 8) {
-                Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 14)
-                Text(title).font(.system(size: 12.5)).foregroundStyle(Palette.ink).lineLimit(1)
-                Spacer(minLength: 0)
+            Button(action: act) {
+                HStack(spacing: 8) {
+                    Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 14)
+                    Text(title).font(.system(size: 12.5)).foregroundStyle(Palette.ink).lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
-            .contentShape(Rectangle())
-            .onTapGesture(perform: act)
-            .onHover { hovering = $0 }
+            .buttonStyle(Gives(to: 0.98))
+            .hovers($hovering)
         }
     }
 }
@@ -1130,7 +1134,7 @@ struct TranslateTargetPicker: View {
     @State private var languages: [String] = []
 
     var body: some View {
-        Picker("Translation language", selection: $prefs.translateTarget) {
+        PopUp("Translation language", shows: prefs.translateTarget.isEmpty ? "System Default" : PageTranslator.name(prefs.translateTarget), selection: $prefs.translateTarget) {
             Text("System Default").tag("")
             if !prefs.translateTarget.isEmpty && !languages.contains(prefs.translateTarget) {
                 Text(PageTranslator.name(prefs.translateTarget)).tag(prefs.translateTarget)
@@ -1139,9 +1143,6 @@ struct TranslateTargetPicker: View {
                 Text(PageTranslator.name(code)).tag(code)
             }
         }
-        .labelsHidden()
-        .pickerStyle(.menu)
-        .fixedSize()
         .task {
             if #available(macOS 15, *) {
                 let supported = await LanguageAvailability().supportedLanguages

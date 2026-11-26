@@ -26,14 +26,12 @@ struct ThemesPage: View {
         VStack(alignment: .leading, spacing: 16) {
             mock
 
-            // A pop-up where the six segments (~488 pt, which don't
-            // shrink) would run off the card. By the preview's width (see
-            // mock): the segments' ideal width counts each as the widest.
-            Group {
-                if width >= 470 {
-                    families.pickerStyle(.segmented)
-                } else {
-                    families.pickerStyle(.menu).fixedSize()
+            // The families side by side, in Lun's own track; a pop-up
+            // where the six would run off the card.
+            ViewThatFits(in: .horizontal) {
+                Segmented(options: HomeTheme.Family.allCases.map { ($0, $0.title) }, selection: chosenFamily)
+                PopUp("Theme", shows: family.title, selection: chosenFamily) {
+                    ForEach(HomeTheme.Family.allCases) { Text($0.title).tag($0) }
                 }
             }
 
@@ -64,9 +62,7 @@ struct ThemesPage: View {
             }
 
             if family == .wall || family == .stickers {
-                Toggle("Shuffle: a different one each day", isOn: $prefs.homeShuffle)
-                    .toggleStyle(.checkbox)
-                    .font(.system(size: 12))
+                Ticked("Shuffle: a different one each day", on: $prefs.homeShuffle)
             }
 
             if family != .off && (family != .image || HomeBackground.load(prefs.homeThemeImage) != nil) {
@@ -75,11 +71,11 @@ struct ThemesPage: View {
         }
     }
 
-    private var families: some View {
-        Picker("", selection: Binding(get: { family }, set: choose)) {
-            ForEach(HomeTheme.Family.allCases) { Text($0.title).tag($0) }
-        }
-        .labelsHidden()
+    /// The family on show, chosen at once: the page under the track
+    /// changes as it did under the Mac's picker, and only the track's own
+    /// white slides.
+    private var chosenFamily: Binding<HomeTheme.Family> {
+        Binding(get: { family }, set: { next in atOnce { choose(next) } })
     }
 
     // MARK: - the live preview
@@ -97,11 +93,11 @@ struct ThemesPage: View {
                 HomeBackground(theme: prefs.homeTheme, tuning: prefs.homeTuning, image: prefs.homeThemeImage,
                                shuffle: prefs.homeShuffle)
             }
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Palette.ground)
-                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
                 .overlay(Text("Search or enter address")
-                    .font(.system(size: 11)).foregroundStyle(Palette.muted))
+                    .font(.system(size: 12)).foregroundStyle(Palette.muted))
                 .frame(width: 220, height: 30)
             tabs(side: side, right: right)
         }
@@ -112,8 +108,8 @@ struct ThemesPage: View {
                 .onAppear { width = box.size.width }
                 .onChange(of: box.size.width) { _, now in width = now }
         })
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
         .accessibilityHidden(true)
     }
 
@@ -169,22 +165,27 @@ struct ThemesPage: View {
     }
 
     private func card(_ title: String, on: Bool, preview: some View, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                preview
-                    .frame(width: thumb.width, height: thumb.height)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-                    .padding(3)
-                    .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous)
-                        .strokeBorder(on ? Color.accentColor : .clear, lineWidth: 2.5))
-                Text(title)
-                    .font(.system(size: 11.5, weight: on ? .medium : .regular))
-                    .foregroundStyle(on ? Palette.ink : Palette.muted)
+        // Under the pointer its edge and its name go to ink, and it gives
+        // under the press, a little: it is large.
+        Hovered { hovering in
+            Button(action: action) {
+                VStack(spacing: 6) {
+                    preview
+                        .frame(width: thumb.width, height: thumb.height)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .strokeBorder(hovering && !on ? Palette.ring : Palette.hairline, lineWidth: 1))
+                        .padding(3)
+                        .overlay(RoundedRectangle(cornerRadius: Radius.card + 3, style: .continuous)
+                            .strokeBorder(on ? Palette.ink : .clear, lineWidth: 2.5))
+                    Text(title)
+                        .font(.system(size: 12, weight: on ? .medium : .regular))
+                        .foregroundStyle(on || hovering ? Palette.ink : Palette.muted)
+                }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
+            .buttonStyle(Gives(to: 0.98))
         }
-        .buttonStyle(.plain)
         .accessibilityLabel(title)
         .accessibilityAddTraits(on ? .isSelected : [])
     }
@@ -195,15 +196,17 @@ struct ThemesPage: View {
         let swatches = ["#E8DFD0", "#F3D9CF", "#D9E4D3", "#D3DFEA", "#E4D8EC", "#2B2B2E"]
         return HStack(spacing: 10) {
             ForEach(swatches, id: \.self) { hex in
-                Button {
-                    prefs.homeTuning.solid = hex
-                    prefs.homeTheme = .solid
-                } label: {
-                    Circle().fill(Color(hex: hex)).frame(width: 24, height: 24)
-                        .overlay(Circle().strokeBorder(prefs.homeTuning.solid == hex && prefs.homeTheme == .solid
-                                                       ? Palette.ink : Palette.hairline, lineWidth: 1.5))
+                Hovered { hovering in
+                    Button {
+                        prefs.homeTuning.solid = hex
+                        prefs.homeTheme = .solid
+                    } label: {
+                        Circle().fill(Color(hex: hex)).frame(width: 24, height: 24)
+                            .overlay(Circle().strokeBorder(prefs.homeTuning.solid == hex && prefs.homeTheme == .solid
+                                                           ? Palette.ink : hovering ? Palette.ring : Palette.hairline, lineWidth: 1.5))
+                    }
+                    .buttonStyle(Gives(to: 0.92))
                 }
-                .buttonStyle(.plain)
                 .accessibilityLabel("Colour \(hex)")
             }
             ColorPicker("Colour", selection: Binding(
@@ -268,8 +271,8 @@ struct ThemesPage: View {
                         if prefs.homeTheme == .custom { prefs.homeTheme = .off }
                     }
                 }
-                Text("A copy is kept inside Search.")
-                    .font(.system(size: 11)).foregroundStyle(Palette.muted)
+                Text("A copy is kept inside Lun.")
+                    .font(.system(size: 12)).foregroundStyle(Palette.muted)
             }
         }
     }
@@ -311,14 +314,15 @@ private struct ThemeSlider: View {
             Text(title)
                 .font(.system(size: 12)).foregroundStyle(Palette.muted)
                 .frame(width: 64, alignment: .leading)
-            Slider(value: Binding(get: { held ?? value }, set: { held = $0 }), in: range) { editing in
+            Slide(value: Binding(get: { held ?? value }, set: { held = $0 }), range: range) { editing in
                 if !editing, let done = held {
                     commit(done)
                     held = nil
                 }
             }
+            .accessibilityLabel(title)
             Text("\(Int((held ?? value).rounded()))\(unit)")
-                .font(.system(size: 11).monospacedDigit()).foregroundStyle(Palette.muted)
+                .font(.system(size: 12).monospacedDigit()).foregroundStyle(Palette.muted)
                 .frame(width: 40, alignment: .trailing)
         }
     }

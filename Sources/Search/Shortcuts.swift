@@ -174,7 +174,7 @@ struct KeyCombo: Codable, Hashable {
 /// A menu command, and the key it has unless you give it another.
 struct Command: Identifiable {
     enum Section: String, CaseIterable {
-        case app = "Search", file = "File", edit = "Edit", view = "View", tabs = "Tabs", spaces = "Spaces", profiles = "Profiles", bookmarks = "Bookmarks", history = "History"
+        case app = "Lun", file = "File", edit = "Edit", view = "View", tabs = "Tabs", spaces = "Spaces", profiles = "Profiles", bookmarks = "Bookmarks", history = "History"
     }
 
     let id: String
@@ -207,6 +207,7 @@ struct Command: Identifiable {
     /// The same commands, keys and order as the menus (see App.swift).
     static let all: [Command] = [
         Command("app.settings", "Settings…", .app, KeyCombo(",")) { $0.tuning = true },
+        Command("app.extensions", "Extensions…", .app, nil) { $0.showExtensions() },
         Command("app.welcome", "Welcome…", .app, nil) { $0.welcoming = true },
         Command("app.passwords", "Passwords…", .app, KeyCombo("l", option: true)) { $0.managing = true },
 
@@ -243,8 +244,11 @@ struct Command: Identifiable {
         Command("view.foldGroups", "Fold All Groups", .view, KeyCombo("[", option: true)) { $0.foldAllGroups(true) },
         Command("view.unfoldGroups", "Unfold All Groups", .view, KeyCombo("]", option: true)) { $0.foldAllGroups(false) },
         Command("view.reload", "Reload Page", .view, KeyCombo("r")) { $0.reload() },
-        Command("view.reloadOrigin", "Reload Page From Origin", .view, KeyCombo("r", option: true)) { $0.reload(fromOrigin: true) },
-        Command("view.reader", "Reading Mode", .view, KeyCombo("r", shift: true)) { $0.toggleReader() },
+        // ⇧⌘R is the hard refresh, as in Chrome, Arc and Firefox: it was
+        // Reading Mode, Safari's key for it, and a page reloaded from the
+        // network was on ⌥⌘R, which nobody's hand knows. The two swapped.
+        Command("view.reloadOrigin", "Reload Page From Origin", .view, KeyCombo("r", shift: true)) { $0.reload(fromOrigin: true) },
+        Command("view.reader", "Reading Mode", .view, KeyCombo("r", option: true)) { $0.toggleReader() },
         Command("view.float", "Float Video", .view, KeyCombo("p", shift: true)) { $0.toggleFloat() },
         Command("view.sitePanel", "Show Side Panel", .view, nil) { $0.toggleSitePanel() },
         Command("view.dusk", "Darken This Site", .view, KeyCombo("d", shift: true)) { $0.toggleDusk() },
@@ -275,6 +279,10 @@ struct Command: Identifiable {
             $0.switchTabs(backwards: false)
         },
         Command("tabs.previous", "Previous Tab", .tabs, KeyCombo("[", shift: true)) { $0.step(-1) },
+        // Reordering from the keys. With ⌃, so a page's own ⇧ and arrows
+        // (selecting text) are left alone.
+        Command("tabs.moveUp", "Move Tab Up", .tabs, KeyCombo("up", command: false, shift: true, control: true)) { $0.nudgeTab(-1) },
+        Command("tabs.moveDown", "Move Tab Down", .tabs, KeyCombo("down", command: false, shift: true, control: true)) { $0.nudgeTab(1) },
         Command("tabs.search", "Search Tabs…", .tabs, KeyCombo("k")) { browser in
             browser.searchTabsKey()
         },

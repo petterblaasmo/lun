@@ -574,7 +574,7 @@ private struct DeveloperTabDrop: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         guard let dragging, dragging != target else { return }
-        withAnimation(.easeOut(duration: 0.15)) { shell.panels.move(dragging, to: target) }
+        withAnimation(Motion.shift) { shell.panels.move(dragging, to: target) }
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }

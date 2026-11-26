@@ -72,7 +72,7 @@ extension Browser {
             withAnimation(Motion.glide) {
                 if prefs.narrowStrip { prefs.narrowed = false } else { prefs.sideIcons.toggle() }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + Motion.glideRested) { [weak self] in
                 guard let self, ticket == self.turnTicket else { return }
                 self.columnTurning = false
             }
@@ -275,8 +275,9 @@ extension Browser {
             guard page.responds(to: ask), let imp = page.method(for: ask) else { continue }
             typealias Then = @convention(block) () -> Void
             typealias After = @convention(c) (AnyObject, Selector, Then) -> Void
-            let then: Then = {
+            let then: Then = { [page] in
                 MainActor.assumeIsolated {
+                    Web.keepPastCallback(page)
                     left -= 1
                     if left == 0 { finish() }
                 }
@@ -330,6 +331,8 @@ extension Browser {
             return true
         }
         guard folded, !frontFillsHere, let size = window.contentView?.bounds.size else { return false }
+        // Back, forward and the address, down from the top edge (EdgeBar).
+        if edgeBar.shown, EdgeBar.frame(in: size).contains(CGPoint(x: point.x, y: size.height - point.y)) { return true }
         let right = prefs.sidebar && prefs.sidePosition == .right
         // Out, or still sliding back in: where it lies.
         func lies() -> Bool {
@@ -399,7 +402,7 @@ struct Fold: View {
     /// How long the pointer rests on the edge before the strip comes out,
     /// whose edge is the way to the menu bar. Long enough to cross the edge,
     /// short enough not to be waited for.
-    private static let dwell: TimeInterval = 0.15
+    static let dwell: TimeInterval = 0.15
     /// The same for a column hidden for good: a hand on its way along the
     /// side crosses its edge in a frame or two, and anything longer was felt
     /// as a wait (#1279).
@@ -486,7 +489,7 @@ struct Fold: View {
                         .padding(.vertical, floating ? Metrics.cardGap : 0)
                         // Faded rather than slid under Reduce Motion with
                         // Slide the column in and out on (Browser.moveColumn).
-                        .animation(Motion.fadesColumn ? .easeInOut(duration: Motion.fade) : nil) { column in
+                        .animation(Motion.columnFade) { column in
                             column.opacity(lightsOff && Motion.fadesColumn ? 0 : 1)
                         }
                         .modifier(PixelOffset(offset: CGSize(width: columnOffset, height: 0), scale: displayScale))
@@ -576,14 +579,19 @@ struct Fold: View {
         .onChange(of: browser.bookmarksOpen) { _, open in
             if !open, !inside, browser.peeking { peek(false) }
         }
+        // And the address bar, typed in and closed.
+        .onChange(of: browser.editingInline) { _, open in
+            if !open, !inside, browser.peeking, !holding { peek(false) }
+        }
     }
 
     /// A popover opened from a button in the column, still open: the
     /// bookmarks list or the extensions menu. Folding the column would take
     /// it along, so it holds the column out wherever the pointer has gone,
-    /// on the way to a bookmark over the page included (#88).
+    /// on the way to a bookmark over the page included (#88). The address
+    /// bar being typed in is the same: it stays until it is closed.
     private var holding: Bool {
-        if browser.bookmarksOpen { return true }
+        if browser.bookmarksOpen || browser.editingInline { return true }
         if #available(macOS 15.4, *), Extensions.shared.menuOpen { return true }
         return false
     }
@@ -934,21 +942,7 @@ struct Fold: View {
             bar.isHidden = off
             return
         }
-        let spring: CABasicAnimation
-        if let slide = Motion.slide(out: !off) {
-            // The column's eased slide (Slide the column in and out).
-            spring = CABasicAnimation(keyPath: path)
-            spring.timingFunction = CAMediaTimingFunction(name: off ? .easeIn : .easeOut)
-            spring.duration = slide
-        } else {
-            let fold = Motion.fold(out: !off)
-            let bounce = CASpringAnimation(keyPath: path)
-            bounce.mass = 1
-            bounce.stiffness = pow(2 * .pi / fold.response, 2)
-            bounce.damping = 4 * .pi * fold.damping / fold.response
-            bounce.duration = bounce.settlingDuration
-            spring = bounce
-        }
+        let spring = Motion.folding(out: !off, keyPath: path)
         spring.fromValue = from
         spring.toValue = to
         spring.fillMode = .forwards
@@ -1189,7 +1183,7 @@ struct LoadingLine: NSViewRepresentable {
             CATransaction.begin()
             // A new load starts from the left at once, not run back to it.
             CATransaction.setDisableActions(!animated || (loading && !was))
-            CATransaction.setAnimationDuration(0.2)
+            CATransaction.setAnimationDuration(Motion.lineRuns)
             place(animated: animated)
             if loading {
                 line.opacity = 0.9
@@ -1199,7 +1193,7 @@ struct LoadingLine: NSViewRepresentable {
                 CATransaction.setCompletionBlock { [weak self] in
                     guard let self, !self.shown else { return }
                     CATransaction.begin()
-                    CATransaction.setAnimationDuration(0.3)
+                    CATransaction.setAnimationDuration(Motion.lineFades)
                     self.line.opacity = 0
                     CATransaction.commit()
                 }

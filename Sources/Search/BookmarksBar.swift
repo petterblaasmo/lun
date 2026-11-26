@@ -145,17 +145,18 @@ struct BookmarksBar: View {
         @State private var hovering = false
 
         var body: some View {
-            Image(systemName: "chevron.right.2")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(Palette.muted)
-                .frame(width: 22, height: 22)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hovering ? Palette.hover : .clear))
-                .contentShape(Rectangle())
-                .onTapGesture(perform: act)
-                .onHover { hovering = $0 }
-                .help("More bookmarks")
-                .accessibilityLabel("More Bookmarks")
-                .accessibilityAddTraits(.isButton)
+            Button(action: act) {
+                Image(systemName: "chevron.right.2")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(hovering ? Palette.ink : Palette.muted)
+                    .frame(width: 22, height: 22)
+                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hovering ? Palette.hover : .clear))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(Gives(to: 0.9))
+            .hovers($hovering)
+            .help("More bookmarks")
+            .accessibilityLabel("More Bookmarks")
         }
     }
 
@@ -201,7 +202,7 @@ struct BookmarksBar: View {
                 if node.isFolder {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 7.5, weight: .semibold))
-                        .foregroundStyle(Palette.faint)
+                        .foregroundStyle(Palette.muted)
                 }
             }
             .padding(.horizontal, bare ? 0 : 8)
@@ -209,8 +210,8 @@ struct BookmarksBar: View {
             .frame(height: 22)
             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hovering ? Palette.hover : .clear))
             .contentShape(Rectangle())
-            .onTapGesture(perform: act)
-            .onHover { hovering = $0 }
+            .pressed(to: 0.96, act)
+            .hovers($hovering)
             .help(Item.tip(node, iconsOnly: iconsOnly))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(node.label)
@@ -363,10 +364,10 @@ struct SideBookmarks: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .foregroundStyle(prefs.highContrastText || hovering ? Palette.ink : Palette.ink.opacity(0.75))
-            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(hovering ? greys.hover : .clear))
-            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .onTapGesture {
+            .foregroundStyle(prefs.highContrastText || hovering ? Palette.ink : Palette.soft)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hovering ? greys.hover : .clear))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .pressed {
                 if node.isFolder {
                     BookmarkMenu.shared.popUp(node)
                 } else if let url {
@@ -380,7 +381,7 @@ struct SideBookmarks: View {
                     MiddleClick(command: true) { browser.openAll(node) }
                 }
             }
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .contextMenu { BookmarkActions(browser: browser, bookmarks: bookmarks, node: node) }
             .help(compact ? title : (node.url ?? node.title))
             .accessibilityElement(children: .ignore)

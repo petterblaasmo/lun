@@ -44,7 +44,7 @@ extension Browser {
             window.backgroundColor = .clear
         } else {
             window.isOpaque = true
-            window.backgroundColor = asCards ? Palette.NS.frame : Palette.NS.ground
+            window.backgroundColor = asCards || standsOnCard ? Palette.NS.frame : Palette.NS.ground
         }
     }
 }

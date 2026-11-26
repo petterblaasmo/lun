@@ -33,9 +33,9 @@ work = Path(tempfile.mkdtemp(prefix="search-cookiesquit-"))
 
 
 def own_copy():
-    app = work / "Search.app"
+    app = work / "Lun.app"
     shutil.rmtree(app, ignore_errors=True)
-    shutil.copytree(Path(sv.ROOT, "build", "Search.app"), app, symlinks=True)
+    shutil.copytree(Path(sv.ROOT, "build", "Lun.app"), app, symlinks=True)
     subprocess.run(["/usr/libexec/PlistBuddy", "-c", f"Set :CFBundleIdentifier {BUNDLE}", str(app / "Contents/Info.plist")], check=True)
     (app / "Contents/embedded.provisionprofile").unlink(missing_ok=True)
     subprocess.run(["codesign", "-f", "-s", "-", "--entitlements", str(Path(sv.ROOT, "Search.entitlements")), "--deep", str(app)],

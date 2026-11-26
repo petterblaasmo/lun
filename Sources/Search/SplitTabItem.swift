@@ -83,18 +83,23 @@ struct SplitTabItem: View {
             }
         }
         .background {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(greys.tile)
-                .padding(.vertical, inset)
-                .allowsHitTesting(false)
+            Group {
+                if live {
+                    LiveGround()
+                } else {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(greys.tile)
+                }
+            }
+            .padding(.vertical, inset)
+            .allowsHitTesting(false)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Palette.hairline, lineWidth: live && greys.lifts ? 0 : 1)
                 .padding(.vertical, inset)
                 .allowsHitTesting(false)
         }
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Split tabs")
         .animation(Motion.quick, value: hovered)
@@ -146,7 +151,7 @@ struct SplitTabItem: View {
                 .font(.system(size: 8, weight: .semibold))
                 .foregroundStyle(Palette.muted)
                 .frame(width: 15, height: 15)
-                .background(Palette.ink.opacity(0.07), in: Circle())
+                .background(Palette.fill, in: Circle())
                 .overlay {
                     CloseClick(armed: true) { browser.closeTab(tab) }
                         .frame(width: 30, height: 28)
@@ -207,7 +212,7 @@ private struct SplitTabHalf: View {
     /// With room for the site's name beside its lock and port; else the
     /// title stands in for it. A warning is said however little room.
     private var rest: AtRest? {
-        guard focused && !editing && !narrow, let said = AtRest.said(tab.restAddress, always: prefs.showsAddress) else { return nil }
+        guard focused && !editing && !narrow, let said = AtRest.said(tab.restAddress, always: prefs.saysAddressOnTab) else { return nil }
         guard let titleRoom, !said.warns else { return said }
         return titleRoom - AtRestLine.besideName(said, size: 12) >= Metrics.tabTitleRoom ? said : nil
     }
@@ -239,8 +244,8 @@ private struct SplitTabHalf: View {
             .modifier(OptionClick { if interactive && !editing { browser.optionClick(tab) } })
             .overlay {
                 if browser.selectedTabIDs.contains(tab.id) {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Palette.ring, lineWidth: 1)
                         .allowsHitTesting(false)
                 }
             }
@@ -277,7 +282,7 @@ private struct SplitTabHalf: View {
     /// The grey's shape: round, but square on the side it shares with the
     /// other half while that one is lit too.
     private var shape: UnevenRoundedRectangle {
-        let round: CGFloat = 9
+        let round: CGFloat = 10
         // Square where it meets a lit neighbour; round at the ends and
         // beside one that isn't.
         let before: CGFloat = !first && joinedBefore ? 0 : round
@@ -339,7 +344,7 @@ private struct SplitTabHalf: View {
         } else {
             HStack(spacing: stacked ? 8 : 5) {
                 if prefs.glyph == .icons || !tab.isBlank || narrow {
-                    Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: stacked ? 15 : 13, dim: tab.asleep)
+                    Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: stacked ? 16 : 13, dim: tab.asleep, globe: prefs.glyph == .icons)
                         .frame(width: stacked ? 15 : 13, height: stacked ? 15 : 13)
                 }
                 if tab.shy {
@@ -361,7 +366,7 @@ private struct SplitTabHalf: View {
                 if !narrow {
                     TitleAtRest(label: title, rest: rest, shown: atRest, hovering: hovering,
                                 size: stacked ? prefs.sideTitle : 12,
-                                colour: focused ? Palette.ink : hovering ? Palette.ink.opacity(0.7) : Palette.muted,
+                                colour: focused ? Palette.ink : hovering ? Palette.ink : Palette.muted,
                                 roomy: stacked, dim: dim, record: stacked ? nil : tab.id)
                 }
             }
@@ -384,7 +389,7 @@ private struct SplitTabHalf: View {
             .font(.system(size: 8, weight: .semibold))
             .foregroundStyle(Palette.muted)
             .frame(width: 15, height: 15)
-            .background(hovering ? Palette.ink.opacity(0.07) : .clear, in: Circle())
+            .background(hovering ? Palette.fill : .clear, in: Circle())
             .opacity(hovering ? 1 : 0)
             .overlay {
                 CloseClick(armed: hovering) { browser.closeTab(tab) }

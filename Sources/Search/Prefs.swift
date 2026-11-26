@@ -300,8 +300,8 @@ final class Preferences: ObservableObject {
         didSet { store.set(showsPlayer, forKey: "sidebar.player") }
     }
     /// One tab's line in the column, and the size its title is set in.
-    var sideRow: CGFloat { iconColumn ? Metrics.iconTile : roomyTabs ? 36 : 28 }
-    var sideTitle: CGFloat { roomyTabs ? 14 : 12.5 }
+    var sideRow: CGFloat { iconColumn ? Metrics.iconTile : roomyTabs ? 40 : 32 }
+    var sideTitle: CGFloat { roomyTabs ? 14 : 13 }
     /// How wide the column is. Pulled by its edge, and remembered.
     @Published var sideWidth: CGFloat {
         didSet { store.set(Double(sideWidth), forKey: "sidebar.width") }
@@ -566,6 +566,8 @@ final class Preferences: ObservableObject {
     /// The tab you're on says where its page is, at rest, without a click:
     /// its site, from the address on screen (see AtRest.swift). On unless
     /// turned off.
+    /// Whether the tab you're on says it: not while the address bar does.
+    var saysAddressOnTab: Bool { showsAddress && !(addressLine && !iconColumn) }
     @Published var showsAddress: Bool {
         didSet { store.set(showsAddress, forKey: "tabs.address") }
     }
@@ -1295,6 +1297,9 @@ final class Preferences: ObservableObject {
         // writes a line that would make it look like one from before.
         SyncDefault.settle(store, ranBefore: SidebarDefault.ranBefore(in: Store.folder))
         Preferences.settleLittleLinks(in: store)
+        // The switches Lun took out of Settings read as what they are fixed
+        // at (RetiredSettings).
+        if RetiredSettings.applies { RetiredSettings.settle(store) }
         navigationLeft = store.bool(forKey: "toolbar.left")
         compactStrip = store.bool(forKey: "tabs.compact")
         // Carried over from when there were four ways of holding the browser
@@ -1337,7 +1342,7 @@ final class Preferences: ObservableObject {
         slidesColumn = store.bool(forKey: Motion.slidesKey)
         roomyTabs = store.bool(forKey: "sidebar.roomy")
         doorsUp = store.bool(forKey: "sidebar.doorsUp")
-        foldButton = store.bool(forKey: "sidebar.foldButton")
+        foldButton = store.object(forKey: "sidebar.foldButton") as? Bool ?? true
         sideIcons = store.bool(forKey: "sidebar.icons")
         foldsToIcons = store.bool(forKey: "sidebar.foldIcons")
         narrowsToIcons = store.bool(forKey: "sidebar.narrowIcons")
@@ -1347,7 +1352,7 @@ final class Preferences: ObservableObject {
         sideWidth = min(Metrics.sideMax, max(Metrics.sideMin, CGFloat(width)))
         cards = store.object(forKey: "layout.cards") as? Bool ?? true
         cardsInFullScreen = store.bool(forKey: "layout.cardsFullScreen")
-        addressLine = store.bool(forKey: "address.shown")
+        addressLine = store.object(forKey: "address.shown") as? Bool ?? true
         let fades = store.bool(forKey: "scrollbars.fade")
         scrollbarsFade = fades
         Scrollbars.fade = fades
@@ -1357,7 +1362,9 @@ final class Preferences: ObservableObject {
         glassClear = (store.object(forKey: "window.glass.clear") as? Double).map { min(1, max(0, $0)) } ?? 0.5
         glassStyle = store.string(forKey: "window.glass.style").flatMap(GlassStyle.init) ?? .frosted
         liquidTabs = store.bool(forKey: "tabs.liquid")
-        glyph = store.string(forKey: "glyph").flatMap(Glyph.init) ?? .letters
+        // Site icons for everyone: its row is gone (RetiredSettings), and
+        // the key is left where it is, as the mark of an install from before.
+        glyph = Store.testing ? store.string(forKey: "glyph").flatMap(Glyph.init) ?? .icons : .icons
         engine = store.string(forKey: "search.engine").flatMap(Engine.init) ?? .standard
         customEngine = store.string(forKey: "search.custom") ?? ""
         customSuggest = store.string(forKey: "search.customSuggest") ?? ""
@@ -1399,7 +1406,9 @@ final class Preferences: ObservableObject {
         showsTabShortcuts = store.bool(forKey: "tabs.shortcuts")
         showsReading = store.bool(forKey: "tabs.reading")
         showsPinCounts = store.bool(forKey: "tabs.pinCounts")
-        highContrastText = store.bool(forKey: "tabs.highContrast")
+        // The Mac's own Increase Contrast decides, where a switch of Lun's
+        // did (RetiredSettings); followContrast keeps it in step.
+        highContrastText = store.bool(forKey: "tabs.highContrast") || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         // On for everyone who never touched it (Drice, 24 Oct 2026, on
         // Security's advice); a choice made before stands.
         showsAddress = store.object(forKey: "tabs.address") as? Bool ?? true
@@ -1491,7 +1500,7 @@ final class Preferences: ObservableObject {
         launcher = store.bool(forKey: "launcher.on")
         launcherLittle = store.bool(forKey: "launcher.little")
         launcherKey = store.data(forKey: "launcher.key").flatMap { try? JSONDecoder().decode(LauncherKey.self, from: $0) }
-        recentInNewTab = store.bool(forKey: "newtab.recent")
+        recentInNewTab = store.object(forKey: "newtab.recent") as? Bool ?? true
         arcTabPopup = store.bool(forKey: "newtab.arc")
         returnTakesTop = store.bool(forKey: "field.top")
         // On for everyone who never touched it (24 Oct 2026).
@@ -1530,7 +1539,7 @@ final class Preferences: ObservableObject {
         linksFindTabs = store.bool(forKey: "links.little.tabs")
         webmail = store.string(forKey: "mail.webmail").flatMap(Webmail.init(rawValue:)) ?? .none
         sendsLinksToSpaces = store.bool(forKey: SpaceRoutes.key)
-        spaceButtons = store.bool(forKey: Preferences.spaceButtonsKey)
+        spaceButtons = store.object(forKey: Preferences.spaceButtonsKey) as? Bool ?? true
         spaceRoutes = (store.array(forKey: SpaceRoutes.rulesKey) ?? []).compactMap(SpaceRoute.init(plist:))
         spaceForOtherLinks = store.string(forKey: SpaceRoutes.otherKey).flatMap(UUID.init)
         asksSpaceForLinks = store.bool(forKey: "links.ask")
@@ -1594,6 +1603,20 @@ final class Preferences: ObservableObject {
         for key in ["mind.model", "mind.effort", "mind.acting", "mind.width", "mind.open"] {
             store.removeObject(forKey: key)
         }
+        if !Store.testing { followContrast() }
+    }
+
+    /// Increase Contrast turned on or off in System Settings while Lun
+    /// runs: the tabs' titles follow at once.
+    private func followContrast() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                let wants = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+                if let self, self.highContrastText != wants { self.highContrastText = wants }
+            }
+        }
     }
 
     /// The folder the settings file is in, watched for as long as the app
@@ -1648,7 +1671,7 @@ final class Preferences: ObservableObject {
         take(\.slidesColumn, store.bool(forKey: Motion.slidesKey))
         take(\.roomyTabs, store.bool(forKey: "sidebar.roomy"))
         take(\.doorsUp, store.bool(forKey: "sidebar.doorsUp"))
-        take(\.foldButton, store.bool(forKey: "sidebar.foldButton"))
+        take(\.foldButton, store.object(forKey: "sidebar.foldButton") as? Bool ?? true)
         take(\.sideIcons, store.bool(forKey: "sidebar.icons"))
         take(\.foldsToIcons, store.bool(forKey: "sidebar.foldIcons"))
         take(\.narrowsToIcons, store.bool(forKey: "sidebar.narrowIcons"))
@@ -1659,7 +1682,7 @@ final class Preferences: ObservableObject {
             .flatMap { Preferences.sidePanelWidths.contains($0) ? $0 : nil }, or: 380)
         take(\.cards, "layout.cards", store.object(forKey: "layout.cards") as? Bool, or: true)
         take(\.cardsInFullScreen, store.bool(forKey: "layout.cardsFullScreen"))
-        take(\.addressLine, store.bool(forKey: "address.shown"))
+        take(\.addressLine, store.object(forKey: "address.shown") as? Bool ?? true)
         take(\.scrollbarsFade, store.bool(forKey: "scrollbars.fade"))
         take(\.addressWidth, "address.width", store.string(forKey: "address.width").flatMap(AddressWidth.init), or: .small)
         take(\.glass, store.bool(forKey: "window.glass"))
@@ -1669,7 +1692,7 @@ final class Preferences: ObservableObject {
         take(\.liquidTabs, store.bool(forKey: "tabs.liquid"))
         take(\.bounces, store.bool(forKey: "pages.bounce"))
         Swipe.bounces = bounces
-        take(\.glyph, "glyph", store.string(forKey: "glyph").flatMap(Glyph.init), or: .letters)
+        take(\.glyph, "glyph", store.string(forKey: "glyph").flatMap(Glyph.init), or: .icons)
         take(\.tabsGive, store.bool(forKey: "tabs.give"))
         take(\.tabClickAddressOnly, store.bool(forKey: "tabs.clickAddressOnly"))
         take(\.tabClickKeepsName, store.bool(forKey: "tabs.clickKeepsName"))

@@ -276,7 +276,7 @@ struct ProfileBadge: View {
     var body: some View {
         Button { ProfileMenu.show(for: browser) } label: {
             Text(String(name.prefix(1)).uppercased())
-                .font(.system(size: 10.5, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(hovering ? Palette.ink : Palette.muted)
                 .frame(width: 17, height: 17)
                 .background(Circle().strokeBorder(hovering ? Palette.ink.opacity(0.5) : Palette.muted.opacity(0.6), lineWidth: 1.2))
@@ -400,7 +400,7 @@ struct ProfilesSettings: View {
                         }
                     }
                     if !profile.isPersonal {
-                        Pill("Delete…", tint: .red) {
+                        Pill("Delete…", tint: Palette.danger) {
                             Ask.sure("Delete “\(profile.name)”?",
                                      detail: "Its windows close, its spaces go with their tabs and pins, and its cookies, sign-ins, history and bookmarks are erased from this Mac.",
                                      confirm: "Delete", returnCancels: true) {

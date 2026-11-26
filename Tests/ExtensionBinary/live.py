@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Real WKWebExtension binary reads and idle wake in a disposable test world.
-Build Search.app first. No Tampermonkey, VOT, accounts or remote HTTP needed.
+Build Lun.app first. No Tampermonkey, VOT, accounts or remote HTTP needed.
 """
 import json,sys,time,threading,signal
 from pathlib import Path

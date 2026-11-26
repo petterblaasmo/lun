@@ -1159,7 +1159,7 @@ enum DeveloperApplication {
             case .valueTooLarge: "The value exceeds the 64 KB editing limit."
             case .invalidCookieValue: "Use cookie-safe ASCII without spaces, quotes, commas, semicolons, or backslashes. The cookie must fit in 4 KB."
             case .cookieBusy: "Another edit to this cookie is in progress. Refresh and try again."
-            case .saveFailed: "Search could not verify the saved value. Refresh and check the entry."
+            case .saveFailed: "Lun could not verify the saved value. Refresh and check the entry."
             }
         }
     }

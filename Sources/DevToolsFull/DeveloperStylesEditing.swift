@@ -224,7 +224,7 @@ struct DeveloperStyleRuleView: View {
         }
         .padding(.leading, 4)
         .background(flashing ? Color.yellow.opacity(0.3) : Color.clear)
-        .animation(.easeOut(duration: 0.4), value: flashing)
+        .animation(Motion.flash, value: flashing)
         .contextMenu { declarationMenu(property) }
     }
 

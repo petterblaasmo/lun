@@ -310,14 +310,25 @@ enum DuskColours {
       // they start as, which is no colour of its own.
       var htmlSides = sides.filter(function (side) { return side[0] !== 'fill' && side[0] !== 'stroke'; });
       var inherited = { color: true, fill: true, stroke: true };
+      // A ::before or ::after has colours of its own too, and an unread
+      // sheet's are read off it as an element's are: a header's white
+      // ground is often one's. It can't hold a property, but takes its
+      // element's, so its dark colour goes on the element under its own
+      // name (beforebg), and a rule for the pseudo-element puts it to use.
+      // Each side of it, with which of the two it is at the end.
+      var pseudoSides = [];
+      ['before', 'after'].forEach(function (p) {
+        htmlSides.forEach(function (side) { pseudoSides.push(side.slice(0, 4).concat([p + side[4], p])); });
+      });
       var base = ':root { color-scheme: dark !important; }'
         + '[data-office-dusk-over] { --office-dusk-keep: 1; }'
         + 'img[data-office-dusk-icon] { filter: invert(1) hue-rotate(180deg) !important; }'
         // What paint finds, one rule a part, written once: the colour itself
         // sits on the element (see paint). Two ids nobody has, so a rule of
         // the unread sheet's with !important and a longer selector can't win.
-        + sides.map(function (side) {
-          return '[' + PAINT + '~="' + side[4] + '"]:not(#office-dusk):not(#office-dusk){' + side[1] + ':var(--office-dusk-' + side[4] + ') !important}';
+        + sides.concat(pseudoSides).map(function (side) {
+          return '[' + PAINT + '~="' + side[4] + '"]:not(#office-dusk):not(#office-dusk)' + (side[5] ? '::' + side[5] : '')
+            + '{' + side[1] + ':var(--office-dusk-' + side[4] + ') !important}';
         }).join('');
       // What the ground says as of the last time it was written whole, and
       // nothing once a rule has been put in after (see marker).
@@ -402,12 +413,19 @@ enum DuskColours {
       var untwinned = function (v) {
         return v && v.indexOf('oklch(') !== 0 && v !== 'transparent' && v !== 'none' && !/^rgba\(.*,\s*0\)$/.test(v) && !/^url\(/.test(v);
       };
-      var paint = function (tops) {
+      // `alone`: each of `tops` by itself, with nothing under it (see
+      // classes).
+      var paint = function (tops, alone) {
         if (!unreadable) return;
+        roots.forEach(watchClasses);
         var t = performance.now(), writing = 0;
         var all = [];
         tops.forEach(function (top) {
           if (!top || top.nodeType !== 1 && top.nodeType !== 11) return;
+          if (alone) {
+            if (top.nodeType === 1) all.push(top);
+            return;
+          }
           // Inside another of the batch, it is read with that one.
           if (tops.some(function (other) { return other !== top && other.contains && other.contains(top); })) return;
           // The root too: a site colours it as often as the body.
@@ -418,14 +436,25 @@ enum DuskColours {
         // A colour the same as the parent's may be inherited, or a rule's of
         // its own, as a link coloured like the writing around it. It's read
         // again once the parent is written, and taken if it hasn't followed.
+        // A pseudo-element's is held against its element's the same way.
         var read = function (el, list, found, unsure) {
           var mine = getComputedStyle(el), parent = el.parentElement && getComputedStyle(el.parentElement);
-          var parts = [], later = [];
+          var parts = [], later = [], pseudo = {};
+          // Read by itself, as its class changed: a colour the page fades
+          // in is taken as where it is going (see heading).
+          var goes = alone ? heading(el) : {};
           list.forEach(function (side) {
-            if (side[3] && parseFloat(mine[side[3]]) === 0) return;
-            var v = mine[side[0]];
+            var its = mine, from = parent;
+            if (side[5]) {
+              // Only one the page has made: without content there is none.
+              its = pseudo[side[5]] || (pseudo[side[5]] = getComputedStyle(el, '::' + side[5]));
+              if (its.content === 'none' || its.content === 'normal') return;
+              from = mine;
+            }
+            if (side[3] && parseFloat(its[side[3]]) === 0) return;
+            var v = !side[5] && goes[side[0]] || its[side[0]];
             if (!untwinned(v)) return;
-            if (inherited[side[0]] && parent && parent[side[0]] === v) later.push(side);
+            if (inherited[side[0]] && from && from[side[0]] === v) later.push(side);
             else parts.push([side[4], side[2](v)]);
           });
           if (parts.length) found.push([el, parts]);
@@ -445,7 +474,7 @@ enum DuskColours {
         };
         var todo = [], painted = 0;
         all.forEach(function (el) {
-          if (!skip[el.tagName] && !el.hasAttribute('data-office-dusk-style')) todo.push([el, el instanceof SVGElement ? sides : htmlSides]);
+          if (!skip[el.tagName] && !el.hasAttribute('data-office-dusk-style')) todo.push([el, el instanceof SVGElement ? sides : htmlAndPseudoSides]);
         });
         for (var round = 0; todo.length && round < 8; round++) {
           var found = [], unsure = [];
@@ -462,6 +491,21 @@ enum DuskColours {
         spent += performance.now() - t;
         took.paint += performance.now() - t;
         took.paints++;
+      };
+      var htmlAndPseudoSides = htmlSides.concat(pseudoSides);
+      // Where an element's colours are going, by property, while a
+      // transition of the page's carries them there. A class that turns a
+      // header white often fades it in: read as the fade starts, its ground
+      // is still what it was, and it went white a moment later and stayed.
+      var heading = function (el) {
+        var to = {};
+        if (!el.getAnimations) return to;
+        el.getAnimations().forEach(function (a) {
+          if (!a.transitionProperty || !a.effect || !a.effect.getKeyframes) return;
+          var frames = a.effect.getKeyframes(), last = frames[frames.length - 1];
+          if (last) Object.keys(last).forEach(function (key) { to[key] = last[key]; });
+        });
+        return to;
       };
       var skip = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, HEAD: 1, LINK: 1, META: 1, TITLE: 1, BR: 1 };
 
@@ -645,6 +689,7 @@ enum DuskColours {
       // is told, and puts the filter where the colours were in the same go.
       var giveUp = function (gone) {
         unwatch();
+        classes.disconnect();
         if (head) head.disconnect();
         quietly(function () { own().forEach(function (s) { s.disabled = true; }); });
         showing = false;
@@ -732,6 +777,53 @@ enum DuskColours {
           toPaint = [];
           if (showing && batch.length) paint(batch);
         }, 300);
+      };
+      // A class the page sets brings in whatever an unread sheet gives it,
+      // long after the page is no longer watched: a header turns white as
+      // it sticks to the top of the page, by a class set on scroll and a
+      // ::before under it. So on a page with such a sheet, and only there,
+      // the element whose class changed is read again before the frame is
+      // drawn, for the page's life. It alone, with its ::before and
+      // ::after, not what is under it: a page that sets a class on its
+      // body at every scroll has one element read each time, not the whole
+      // page. What a readable sheet colours has its twin, computes to
+      // oklch and is passed over. No more than CAP in a frame: the rest
+      // wait for the next.
+      var restyled = new Set(), restyling = false, classed = new WeakSet(), CAP = 200;
+      var restyle = function () {
+        if (restyling) return;
+        restyling = true;
+        var frame = 0, timer = 0;
+        var go = function () {
+          cancelAnimationFrame(frame);
+          clearTimeout(timer);
+          if (!restyling) return;
+          restyling = false;
+          if (!showing) return restyled.clear();
+          var batch = [];
+          restyled.forEach(function (el) {
+            if (batch.length >= CAP) return;
+            restyled.delete(el);
+            if (el.isConnected) batch.push(el);
+          });
+          if (batch.length) paint(batch, true);
+          if (restyled.size) restyle();
+        };
+        frame = requestAnimationFrame(go);
+        timer = setTimeout(go, 100);
+      };
+      var classes = new MutationObserver(function (records) {
+        if (!showing) return;
+        records.forEach(function (r) {
+          // Set to what it already was, as classList.add of one it has.
+          if (r.oldValue !== r.target.getAttribute('class')) restyled.add(r.target);
+        });
+        if (restyled.size) restyle();
+      });
+      var watchClasses = function (root) {
+        if (classed.has(root)) return;
+        classed.add(root);
+        classes.observe(root, { attributes: true, attributeOldValue: true, subtree: true, attributeFilter: ['class'] });
       };
       var watch = function (root) {
         var o = new MutationObserver(changed);

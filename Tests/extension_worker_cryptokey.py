@@ -3,7 +3,7 @@
 the extension (idea 439), in a hidden probe.
 
 Build first (`./build.sh`), then `python3 Tests/extension_worker_cryptokey.py`.
-A copy of build/Search.app under a bundle id of its own runs hidden in a
+A copy of build/Lun.app under a bundle id of its own runs hidden in a
 world of its own (split_view.py's harness); all of it is removed afterwards.
 
 WebKit runs an extension's worker on its web process's main thread, and
@@ -48,8 +48,8 @@ chrome.runtime.onMessage.addListener((m, s, reply) => {
 
 
 def probe_copy():
-    app = work / "Search.app"
-    shutil.copytree(Path(sv.ROOT, "build", "Search.app"), app, symlinks=True)
+    app = work / "Lun.app"
+    shutil.copytree(Path(sv.ROOT, "build", "Lun.app"), app, symlinks=True)
     subprocess.run(["/usr/libexec/PlistBuddy", "-c", f"Set :CFBundleIdentifier {BUNDLE}", str(app / "Contents/Info.plist")], check=True)
     (app / "Contents/embedded.provisionprofile").unlink(missing_ok=True)
     subprocess.run(["codesign", "-f", "-s", "-", "--entitlements", str(Path(sv.ROOT, "Search.entitlements")), "--deep", str(app)],

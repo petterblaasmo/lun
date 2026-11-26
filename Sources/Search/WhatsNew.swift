@@ -180,7 +180,7 @@ enum WhatsNew {
                since: "1.0.6", get: { $0.engineSuggests }, set: { $0.engineSuggests = $1 }),
         Toggle(title: "Pins keep their site", detail: "Links elsewhere open in a peek, and ⌘W takes a pin back to its page, as in Arc.",
                since: "1.0.6", get: { $0.pinsKeepSite }, set: { $0.pinsKeepSite = $1 }),
-        Toggle(title: "Darken light pages", detail: "While Search is dark, pages with no dark look of their own are darkened.",
+        Toggle(title: "Darken light pages", detail: "While Lun is dark, pages with no dark look of their own are darkened.",
                since: "1.0.6", get: { $0.darkensPages }, set: { $0.darkensPages = $1 }),
         Toggle(title: "Roomier tabs", detail: "Taller rows and larger titles in the sidebar.",
                since: "1.0.6", get: { $0.roomyTabs }, set: { $0.roomyTabs = $1 }),
@@ -220,6 +220,8 @@ enum WhatsNew {
         Toggle(title: "Scroll with the middle button", detail: "Click the wheel, then move the mouse to scroll, as on Windows.",
                since: "1.0.3", get: { $0.autoScroll }, set: { $0.autoScroll = $1 }),
     ]
+    // Not the ones Lun took out of Settings: there is nothing to turn on.
+    .filter { !RetiredSettings.offers.contains($0.title) }
 
     static let releases: [Release] = [
         Release(version: "1.0.20"),
@@ -314,7 +316,7 @@ enum WhatsNew {
                 "Clicking the tab you're on can keep its name while the address bar is shown, in Settings › Tabs.",
                 "A pinned row taken away from its page goes back with a click on its icon, as in Arc.",
                 "Several picked tabs move together into a pin folder or a group, and ⌘Z puts them back in one step.",
-                "A coding agent using Search shows as a card at the foot of the sidebar with Stop, like \"Update ready\".",
+                "A coding agent using Lun shows as a card at the foot of the sidebar with Stop, like \"Update ready\".",
                 "Scroll bars that fade once scrolling stops, even with a mouse, in Settings › Appearance › Window.",
                 "Drag a finished download out of the Downloads list as its file, onto a page or into the Finder.",
                 "Send links to a space: links from other apps that match none of your sites can go to a space you pick.",
@@ -333,7 +335,7 @@ enum WhatsNew {
                 "Go to a tab that has the page works without small windows too.",
                 "Find on Page finds text inside pages' own components, as on Reddit and MSN.",
                 "Extension popups take their content's size and follow it, growing and shrinking.",
-                "With AdGuard, Search no longer compiles its rules twice at every launch.",
+                "With AdGuard, Lun no longer compiles its rules twice at every launch.",
                 "A saved password is offered in the email box of more sign-ins.",
                 "Hidden on This Site… lets a restored row go at once, and can be moved.",
                 "A space's Colour… previews the colour as the window will wear it.",
@@ -350,7 +352,7 @@ enum WhatsNew {
                 "A closed tab's page process left spinning a core.",
                 "An extension's popup sent without its window's sign-ins, extension pages in quirks mode, and the extensions list closing as it opened.",
                 "A menu along the page's edge opening under the folded sidebar, and a tab dragged along the hidden sidebar opening Split View.",
-                "Settings › Themes in a narrow window, scroll bars on Search's own pages, the sidebar's foot buttons and long tab titles.",
+                "Settings › Themes in a narrow window, scroll bars on Lun's own pages, the sidebar's foot buttons and long tab titles.",
             ]
         ),
         Notes(
@@ -358,7 +360,7 @@ enum WhatsNew {
             headline: "Your fixes, and more of Arc's ways.",
             new: [
                 "Set Up Like Arc turns on Arc's newer habits too, and is offered on the welcome and after an Arc import.",
-                "Search › What's New… brings this card back.",
+                "Lun › What's New… brings this card back.",
                 "File › Open File…, Paste and Match Style, Open Link in Private Tab, Open Image in Split View and New Tab in Group.",
                 "A » at the end of the bookmarks bar for what doesn't fit, icons only if you like, and a middle-click or ⌘-click on a folder opens all of it.",
                 "Touch ID before a saved password is filled, in Settings › Passwords.",
@@ -392,7 +394,7 @@ enum WhatsNew {
             headline: "Sync on from the start, news by email, and your fixes.",
             new: [
                 "Sync with iCloud and Handoff are on for a new install, with both switches on the welcome's first page.",
-                "News by email and the Search for iPhone beta: leave your email on this card, in the welcome or in Settings › About.",
+                "News by email and the Lun for iPhone beta: leave your email on this card, in the welcome or in Settings › About.",
                 "A sidebar button beside the window's buttons, and a sidebar that narrows to icons. Settings › Appearance › Tabs.",
             ],
             better: [
@@ -432,7 +434,7 @@ enum WhatsNew {
             version: "1.0.16", date: "20 November 2026",
             headline: "Sync with your iPhone, Handoff, and two days of your fixes.",
             new: [
-                "Sync with iCloud: open tabs, pins, spaces and bookmarks with Search on iPhone, in public beta. Settings › General.",
+                "Sync with iCloud: open tabs, pins, spaces and bookmarks with Lun on iPhone, in public beta. Settings › General.",
                 "Handoff of the page in front to your iPhone and iPad. Settings › General.",
                 "The address bar always in sight, a glass window, and buttons at the top. Settings › Appearance.",
                 "Choose the space a link from another app opens in. Settings › Spaces & Pins.",
@@ -498,7 +500,7 @@ enum WhatsNew {
                 "Folders in pinned rows, as in Arc. Settings › Spaces & Pins.",
                 "Capture… in the View menu: a picture of part of a page, or all of it.",
                 "Commands in the address field, as Arc's Command Bar.",
-                "History › Archived Tabs: the tabs Search closed by itself, for 30 days.",
+                "History › Archived Tabs: the tabs Lun closed by itself, for 30 days.",
                 "A colour for each space, from the space's menu.",
                 "The address field from any app, with a key of your own. Settings › Keyboard & Mouse.",
             ],
@@ -556,7 +558,7 @@ enum WhatsNew {
         ),
         Notes(
             version: "1.0.10", date: "8 November 2026",
-            headline: "Site permissions in the site card, Claude in Chrome can act in Search, ⇧⌘T brings tabs back as they were, and your fixes.",
+            headline: "Site permissions in the site card, Claude in Chrome can act in Lun, ⇧⌘T brings tabs back as they were, and your fixes.",
             new: [
                 "Site Permissions in the site card: camera, microphone, location and notifications, each Ask, Allow or Block.",
                 "Codes from Apple's Passwords app under the box that asks for one.",
@@ -567,7 +569,7 @@ enum WhatsNew {
             ],
             better: [
                 "The address field says where Return goes, and the key that raised it puts it away.",
-                "⇧⌘T brings a tab back with its Back and Forward, and brings back Settings, History and the other pages of Search.",
+                "⇧⌘T brings a tab back with its Back and Forward, and brings back Settings, History and the other pages of Lun.",
                 "Turning the blocker off for one site is a switch in the site's card.",
                 "With Tabs show: Letters, a tab's letter is beside its title.",
                 "⌘S slides the column at once, and keeping a bookmark no longer stalls a window with many tabs.",
@@ -625,7 +627,7 @@ enum WhatsNew {
             fixed: [
                 "Typing in a new tab no longer stops with a beep after the first letters.",
                 "The page under a peek no longer reacts to the pointer.",
-                "1Password no longer quits Search on macOS 15; Claude's and ChatGPT's side panels and Vimium C work again.",
+                "1Password no longer quits Lun on macOS 15; Claude's and ChatGPT's side panels and Vimium C work again.",
                 "Picture in picture's button takes you back to the video, and a paused full-screen video takes clicks.",
                 "And many more, most from your messages and pull requests.",
             ]
@@ -675,7 +677,7 @@ enum WhatsNew {
                 "Leaving a video's full screen happens in one move.",
                 "Pins in spaces you aren't in sleep and give their memory back.",
                 "A bookmark opens in a tab of its own, never in a pin's place.",
-                "Claude in Chrome signs in, and signs in again quietly each time Search starts.",
+                "Claude in Chrome signs in, and signs in again quietly each time Lun starts.",
                 "Stylus and Vimium C work.",
             ],
             fixed: [
@@ -706,11 +708,11 @@ enum WhatsNew {
                 "Find says “3 of 17”, paints every match, and can match case or whole words.",
                 "Downloads pause and resume.",
                 "Open Link in New Tab leaves you where you are; hold ⌥ to go to it.",
-                "Search can start with a fresh window: your pinned tabs, tab groups and named tabs, and none of last time's others.",
+                "Lun can start with a fresh window: your pinned tabs, tab groups and named tabs, and none of last time's others.",
                 "Intel Macs get a download of their own.",
             ],
             better: [
-                "Search is built for size, so all of this fits in 6.8 MB, and pages that change all the time, like a chat writing its answer, stay quick.",
+                "Lun is built for size, so all of this fits in 6.8 MB, and pages that change all the time, like a chat writing its answer, stay quick.",
                 "An extension's popup window opens as a small window, as in Chrome: a password manager's vault, a sign-in.",
                 "Esc closes a new tab you haven't used, and words typed into a new tab wait for you.",
                 "Tampermonkey installs scripts from a link, and SingleFile saves pages again.",
@@ -757,12 +759,12 @@ enum WhatsNew {
                 "Scrolling asks far less of the window, and a tab still loading no longer keeps the Mac busy.",
                 "Where links go, peeking at a link with a shift-click, and flicking the floating video to a corner are now on.",
                 "Tab managers and other extensions see every tab, in every window.",
-                "Window › Move & Resize and the Mac's tiling work with Search's window.",
+                "Window › Move & Resize and the Mac's tiling work with Lun's window.",
                 "⌘K always opens the list of your tabs, whatever the page.",
             ],
             fixed: [
                 "⌘← and ⌘→ go back and forward again.",
-                "Links from Notion and other apps bring Search to the front.",
+                "Links from Notion and other apps bring Lun to the front.",
                 "Addresses a dev server prints, like 0.0.0.0:3000, open.",
                 "The tabs you had at quit are the ones that come back.",
                 "The × closes a tab in the tab bar folded away with ⌘S.",
@@ -785,7 +787,7 @@ enum WhatsNew {
             fixed: [
                 "The holes found in this week's reviews: an extension could read files outside its own folder, and a page or an ad could open another app without asking.",
                 "Bitwarden signs in to a self-hosted server, and extension popups hear what changes while they're open.",
-                "A link from Mail brings Search to the front, and a full-screen video no longer goes black.",
+                "A link from Mail brings Lun to the front, and a full-screen video no longer goes black.",
                 "Your extensions may each ask once more for their permissions at their next update.",
             ]
         ),
@@ -794,13 +796,13 @@ enum WhatsNew {
             headline: "Passkeys, password managers and Google.",
             new: [
                 "A site's passkey button brings up the Mac's own passkey sheet: Touch ID, your iPhone, a security key.",
-                "Search can be the Mac's default browser.",
+                "Lun can be the Mac's default browser.",
                 "Each off until you turn it on in Settings: a bookmarks bar, a peek at a link with a shift-click, the video that follows you to another app, pages at 120 Hz, and where a link goes.",
                 "Mute a tab, share a page, copy a link as Markdown, the mouse's back and forward buttons, and spaces in the bar across the top.",
             ],
             better: [
                 "Faster to open, and new tabs in about 10 ms.",
-                "Pages see nothing of Search that Safari doesn't show them, and a saved password is offered only on its own site.",
+                "Pages see nothing of Lun that Safari doesn't show them, and a saved password is offered only on its own site.",
             ],
             fixed: [
                 "1Password, Bitwarden and Proton Pass.",
@@ -816,7 +818,7 @@ enum WhatsNew {
             ],
             better: [],
             fixed: [
-                "Search opens again on macOS 14.",
+                "Lun opens again on macOS 14.",
                 "Signing in to Google no longer reloads the page over and over with iCloud Passwords installed.",
                 "⌘1–⌘9 on every keyboard layout, Tab between a form's fields, dragging tabs, a double-click along the top to fill the screen, and the Mac's beep while typing.",
             ]
@@ -869,7 +871,7 @@ struct WhatsNewCard: View {
     private var showsOptIn: Bool { (optInForced ?? offering ?? OptIn.offered()) && (optInForced != nil || reach.online) }
 
     var body: some View {
-        Plate("New in Search \(release.version)", width: 460, close: close) {
+        Plate("New in Lun \(release.version)", width: 460, close: close) {
             VStack(alignment: .leading, spacing: 14) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
@@ -889,12 +891,7 @@ struct WhatsNewCard: View {
             }
         } foot: {
             HStack {
-                Button(action: notes) {
-                    Text("Everything that's new…")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.muted)
-                }
-                .buttonStyle(.plain)
+                TextLink("Everything that's new…", action: notes)
                 Spacer()
                 Pill("Close", filled: true, action: close)
             }
@@ -915,7 +912,7 @@ struct WhatsNewCard: View {
                             .font(.system(size: 13))
                             .foregroundStyle(Palette.ink)
                         Text(toggle.detail)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -924,69 +921,109 @@ struct WhatsNewCard: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
+                .turnsItsSwitch(toggle.title)
             }
         }
     }
 }
 
-/// Every version's notes, newest first: Settings › About › What's New…
+/// Lun's own notes: Settings › About › What's New… What came before Lun isn't
+/// listed; the app it is now is.
 struct ReleaseNotesPanel: View {
     let close: () -> Void
+    @ObservedObject private var prefs = Shared.prefs
+
+    private static let notes: [(String, String)] = [
+        ("New", "The column, the tabs across the top, Settings and every page have a new look, light and dark."),
+        ("New", "The address opens where it stands, as one card with its suggestions."),
+        ("New", "A page that doesn’t load says how far it got."),
+        ("Changed", "Lun has its own name, icon, bundle ID, signing, data folder and keychain items."),
+        ("New", "Extensions have a page of their own, and a new extension’s button is in the row from the start."),
+        ("Changed", "Settings is half as long: 74 rows on eight pages, each page opening on the few most people come for."),
+        ("Changed", "Updates come from Lun’s own releases, checked every hour and put in place quietly."),
+        ("Removed", "The mailing list and the iPhone waitlist."),
+        ("Changed", "Send Feedback opens a draft issue with the version already in it."),
+    ]
 
     var body: some View {
-        Plate("What's New", width: 560, close: close) {
+        Plate("What’s New", width: 560, across: 720, close: close) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    ForEach(WhatsNew.notes, id: \.version) { note in
-                        version(note)
+                VStack(alignment: .leading, spacing: 32) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Version \(Updater.version)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Palette.muted)
+                        Text("Lun is its own browser now")
+                            .font(.system(size: 22, weight: .semibold))
+                            .kerning(-0.3)
+                            .foregroundStyle(Palette.ink)
+                        Text("Here are three things in it worth a try.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Palette.muted)
+                    }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12, alignment: .top)], spacing: 12) {
+                        Try(title: "The page gets the whole window", detail: "The column hides until the pointer reaches the window’s edge.",
+                            symbol: "sidebar.left", on: Binding(get: { prefs.sideHides }, set: { prefs.sideHides = $0 }))
+                        Try(title: "Peek at a link", detail: "⇧-click a link and its page opens in a panel over the one you’re reading.",
+                            symbol: "rectangle.on.rectangle", on: Binding(get: { prefs.peeksLinks }, set: { prefs.peeksLinks = $0 }))
+                        Try(title: "The address field from any app", detail: "A key of your own raises it over whatever you’re in, as Spotlight does.",
+                            symbol: "magnifyingglass", on: Binding(get: { prefs.launcher }, set: { prefs.launcher = $0 }))
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Also in \(Updater.version)")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.ink)
+                        Card {
+                            ForEach(Array(Self.notes.enumerated()), id: \.offset) { index, note in
+                                if index > 0 { Rule() }
+                                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                    Text(note.0).foregroundStyle(Palette.muted).frame(width: 72, alignment: .leading)
+                                    Text(note.1).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                                    Spacer(minLength: 0)
+                                }
+                                .font(.system(size: 13))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                            }
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
+                .padding(.bottom, 12)
             }
             .listHeight(480)
         }
     }
 
-    private func version(_ note: WhatsNew.Notes) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("Search \(note.version)")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
-                if !note.date.isEmpty {
-                    Text(note.date)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.faint)
-                }
-            }
-            Text(note.headline)
-                .font(.system(size: 13))
-                .foregroundStyle(Palette.ink)
-                .fixedSize(horizontal: false, vertical: true)
-            list("New", note.new)
-            list("Better", note.better)
-            list("Fixed", note.fixed)
-        }
-    }
+    /// Something to switch on, and what it looks like it is.
+    private struct Try: View {
+        let title: String
+        let detail: String
+        let symbol: String
+        @Binding var on: Bool
 
-    @ViewBuilder
-    private func list(_ title: String, _ lines: [String]) -> some View {
-        if !lines.isEmpty {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title)
-                    .font(.system(size: 11.5, weight: .medium))
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.system(size: 22, weight: .light))
                     .foregroundStyle(Palette.muted)
-                ForEach(lines, id: \.self) { line in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("•").foregroundStyle(Palette.faint)
-                        Text(line)
-                            .foregroundStyle(Palette.ink)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .font(.system(size: 12.5))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 84)
+                    .elevated(.lift, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .padding(.bottom, 6)
+                    .accessibilityHidden(true)
+                Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(Palette.ink)
+                Text(detail).font(.system(size: 12)).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                HStack {
+                    Text("Try it").font(.system(size: 12)).foregroundStyle(Palette.muted)
+                    Spacer()
+                    Switch(on: $on)
                 }
             }
+            .padding(12)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(Palette.fill, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
     }
 }

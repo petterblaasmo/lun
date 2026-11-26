@@ -222,10 +222,10 @@ final class FullScreenEscape {
         fades += 1
         let fade = fades
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.2
+            context.duration = Motion.hint(shown: false)
             panel.animator().alphaValue = 0
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + Motion.hint(shown: false) + 0.05) { [weak self] in
             // Up again for a new first press while it faded, or taken away
             // already: it stays as it is.
             MainActor.assumeIsolated {
@@ -337,7 +337,7 @@ final class FullScreenEscape {
         // A child is ordered in with its window, and kept above it.
         if panel.parent !== window { window.addChildWindow(panel, ordered: .above) }
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = Motion.reduced ? 0 : 0.15
+            context.duration = Motion.hint(shown: true)
             panel.animator().alphaValue = 1
         }
         // The pill is never focused, so VoiceOver is told what it says.
@@ -407,14 +407,14 @@ private struct ReminderView: View {
                 .padding(.horizontal, 6)
                 .frame(height: 20)
                 .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.6), lineWidth: 1))
+                    .strokeBorder(Palette.overPageEdge, lineWidth: 1))
             Text("again to exit full screen")
         }
         .font(.system(size: 14, weight: .medium))
         .foregroundStyle(Color.white)
         .padding(.horizontal, 18)
         .frame(height: 36)
-        .background(Capsule().fill(Color.black.opacity(0.72)))
+        .background(Capsule().fill(Palette.overPage))
         .fixedSize()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Self.words)

@@ -70,6 +70,8 @@ final class PageDraftTests: XCTestCase {
         let reason = await withCheckedContinuation { c in browser.sleep(tab) { c.resume(returning: $0) } }
         XCTAssertEqual(reason, "holding something typed")
         XCTAssertNotNil(tab.built)
+        // The tab's menu says so, for as long as the draft is there (#47).
+        XCTAssertEqual(browser.awakeLine(for: tab), "Awake: holding something typed")
         _ = try await edit(1, "reset")
         let cleared = await unsaved()
         XCTAssertFalse(cleared)
@@ -83,6 +85,7 @@ final class PageDraftTests: XCTestCase {
         let afterDraft = await withCheckedContinuation { c in browser.sleep(tab) { c.resume(returning: $0) } }
         XCTAssertEqual(afterDraft, "asleep")
         XCTAssertNil(tab.built)
+        XCTAssertNil(browser.awakeLine(for: tab))
         XCTAssertTrue(try XCTUnwrap(KeptSession.script(for: tab)).contains("review"))
     }
 }

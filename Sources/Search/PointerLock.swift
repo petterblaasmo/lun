@@ -109,7 +109,7 @@ final class PointerLock {
         }
         panel.place(over: page.convert(page.bounds, to: nil), in: window)
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = Motion.reduced ? 0 : 0.15
+            context.duration = Motion.hint(shown: true)
             panel.animator().alphaValue = 1
         }
         NSAccessibility.post(element: window, notification: .announcementRequested, userInfo: [
@@ -124,7 +124,7 @@ final class PointerLock {
         showing = false
         guard let panel, panel.parent != nil else { return }
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = Motion.reduced ? 0 : 0.2
+            context.duration = Motion.hint(shown: false)
             panel.animator().alphaValue = 0
         }, completionHandler: {
             MainActor.assumeIsolated {
@@ -184,14 +184,14 @@ private struct PointerLockHint: View {
                 .padding(.horizontal, 6)
                 .frame(height: 20)
                 .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.6), lineWidth: 1))
+                    .strokeBorder(Palette.overPageEdge, lineWidth: 1))
             Text("to show your pointer")
         }
         .font(.system(size: 14, weight: .medium))
         .foregroundStyle(Color.white)
         .padding(.horizontal, 18)
         .frame(height: 36)
-        .background(Capsule().fill(Color.black.opacity(0.72)))
+        .background(Capsule().fill(Palette.overPage))
         .fixedSize()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Self.words)

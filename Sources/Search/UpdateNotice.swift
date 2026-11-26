@@ -90,22 +90,22 @@ struct UpdateNoticeRow: View {
             .frame(height: prefs.sideRow)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(hovering ? greys.hover : .clear)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Palette.hairline, lineWidth: 1)
             )
-            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .onHover { hovering = $0 }
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .hovers($hovering)
             .contextMenu {
                 Button(UpdateNotice.button(shown.kind)) { UpdateNotice.act(shown.kind) }
                 Button("Hide") { prefs.updateHiddenBuild = shown.build }
             }
             .help(shown.kind == .ready
-                  ? "A new version of Search is ready. Restart to use it, or it starts the next time you open Search."
-                  : "A new version of Search is out. Install fetches it; it starts at the next launch.")
+                  ? "A new version of Lun is ready. Restart to use it, or it starts the next time you open Lun."
+                  : "A new version of Lun is out. Install fetches it; it starts at the next launch.")
             .animation(Motion.quick, value: hovering)
         }
     }
@@ -117,7 +117,7 @@ struct UpdateNoticeRow: View {
             .font(.system(size: prefs.sideTitle))
             .lineLimit(1)
             .truncationMode(.tail)
-            .foregroundStyle(hovering ? Palette.ink.opacity(0.7) : Palette.muted)
+            .foregroundStyle(hovering ? Palette.ink : Palette.muted)
     }
 }
 
@@ -136,10 +136,10 @@ struct UpdateNoticePill: View {
                     Image(systemName: "arrow.down.circle")
                         .font(.system(size: 10, weight: .medium))
                     Text(UpdateNotice.title(shown.kind))
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
                         .lineLimit(1)
                 }
-                .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.75))
+                .foregroundStyle(hovering ? Palette.ink : Palette.soft)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background(Palette.ground.opacity(hovering ? 1 : 0.6), in: Capsule())
@@ -149,14 +149,14 @@ struct UpdateNoticePill: View {
             }
             .buttonStyle(.plain)
             .focusable(false)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .contextMenu {
                 Button(UpdateNotice.button(shown.kind)) { UpdateNotice.act(shown.kind) }
                 Button("Hide") { prefs.updateHiddenBuild = shown.build }
             }
             .help(shown.kind == .ready
-                  ? "A new version of Search is ready. Click to restart and use it."
-                  : "A new version of Search is out. Click to install it.")
+                  ? "A new version of Lun is ready. Click to restart and use it."
+                  : "A new version of Lun is out. Click to install it.")
             .animation(Motion.quick, value: hovering)
         }
     }
@@ -180,8 +180,8 @@ struct CardButton<Spot: View>: View {
     var body: some View {
         Button(action: act) {
             Text(title)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.8))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(hovering ? Palette.ink : Palette.soft)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 2)
                 .background(Palette.ground, in: Capsule())
@@ -190,9 +190,11 @@ struct CardButton<Spot: View>: View {
                 .background(spot)
                 .fixedSize()
         }
-        .buttonStyle(.plain)
+        // Gives under the press, as Quick does: Stop and Restart did
+        // their thing with nothing to say they had been pressed.
+        .buttonStyle(Gives(to: 0.95))
         .focusable(false)
-        .onHover { hovering = $0 }
+        .hovers($hovering)
     }
 }
 
@@ -218,7 +220,7 @@ private struct UpdateNoticeCross: View {
         }
         .buttonStyle(.plain)
         .focusable(false)
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .help("Hide until the next version")
     }
 }

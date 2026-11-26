@@ -106,7 +106,7 @@ private struct LiveLens: View {
             if let mark = marks.first(where: { $0.tab == active }) ?? marks.first,
                !over || motion.moving > 0 {
                 let aim = Aim(rect: geo[mark.anchor], tab: mark.tab, space: space)
-                LiquidPane(cornerRadius: 9, motion: over ? nil : motion)
+                LiquidPane(cornerRadius: 10, motion: over ? nil : motion)
                     .frame(width: max(0, motion.frame.width), height: max(0, motion.frame.height))
                     .scaleEffect(x: motion.stretch.width, y: motion.stretch.height)
                     .position(x: motion.frame.midX, y: motion.frame.midY)
@@ -154,12 +154,10 @@ final class LensMotion: NSObject, ObservableObject {
     private var link: CADisplayLink?
     private var last: CFTimeInterval = 0
 
-    /// How hard it is pulled, and how much of its speed it loses: three
-    /// quarters of what would stop it without overshooting, so it overshoots
-    /// a touch and settles at once. Less, and the wobble was the thing to
-    /// watch rather than the tab.
-    private static let pull = 320.0
-    private static let damping = 27.0
+    /// How hard it is pulled, and how much of its speed it loses
+    /// (Motion.lens).
+    private static let pull = Motion.lens.pull
+    private static let damping = Motion.lens.damping
 
     func aim(_ rect: CGRect, tab: AnyHashable, space: AnyHashable) {
         let target = [Double(rect.midX), Double(rect.midY), Double(rect.width), Double(rect.height)]

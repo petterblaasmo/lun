@@ -80,19 +80,21 @@ struct HiddenPanel: View {
                         .truncationMode(.tail)
                     if let note = veil.note, !note.isEmpty {
                         Text(note)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(1)
                     }
                 }
                 Spacer(minLength: 8)
 
-                Quick("Restore", act: restore)
-                    .opacity(hovering ? 1 : 0)
+                // There at rest, greyer: out of sight until the pointer
+                // came, nothing said the row could be restored, and the
+                // keyboard never brought the pointer.
+                Quick("Restore", tint: hovering ? Palette.ink : Palette.muted, act: restore)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            .background(hovering ? Palette.hover : .clear)
+            .background(hovering ? Palette.fillHover : .clear)
             .contentShape(Rectangle())
             .onHover { inside in
                 hovering = inside

@@ -144,21 +144,21 @@ struct PopupSign: View {
                 Image(systemName: "rectangle.on.rectangle.slash")
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(hovering || showing || shown ? Palette.ink : colour.opacity(0.75))
-                    .symbolEffect(.bounce, value: tab.blockedPopups.last?.id)
+                    .bumps(on: tab.blockedPopups.last?.id)
                     .frame(width: 17, height: 15)
                     .background(Palette.ink.opacity(hovering || showing || shown ? 0.07 : 0),
                                 in: RoundedRectangle(cornerRadius: 4, style: .continuous))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .help(tab.blockedPopups.count == 1 ? "Pop-up blocked" : "\(tab.blockedPopups.count) pop-ups blocked")
             .accessibilityLabel("Pop-up blocked")
             .popover(isPresented: $showing, hangingFrom: .bottom) {
                 BlockedPopupsMenu(browser: browser, tab: tab) { showing = false }
             }
             .animation(Motion.quick, value: hovering)
-            .transition(.scale(scale: 0.5).combined(with: .opacity))
+            .transition(.pop)
         }
     }
 }
@@ -177,7 +177,7 @@ struct BlockedPopupsMenu: View {
         }
         VStack(alignment: .leading, spacing: 0) {
             Text(tab.blockedPopups.count == 1 ? "Pop-up blocked" : "\(tab.blockedPopups.count) pop-ups blocked")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Palette.muted)
                 .padding(.horizontal, 16)
                 .padding(.top, 11)
@@ -201,7 +201,7 @@ struct BlockedPopupsMenu: View {
                     browser.allowPopups(from: tab)
                     done()
                 }
-                .help(tab.shy ? "Only until this private tab closes" : "Settings › Privacy lists the sites you allow")
+                .help(tab.shy ? "Only until this private tab closes" : "Settings › Privacy & Passwords lists the sites you allow")
                 .padding(6)
             }
         }
@@ -216,19 +216,24 @@ struct BlockedPopupsMenu: View {
         let act: () -> Void
         @State private var hovering = false
 
+        // A button: the keyboard and VoiceOver can press it, and it gives
+        // under the press. It was a tap on a stack.
         var body: some View {
-            HStack(spacing: 8) {
-                Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 14)
-                Text(title).font(.system(size: 12.5)).foregroundStyle(Palette.ink).lineLimit(lines).truncationMode(.middle)
-                    .fixedSize(horizontal: false, vertical: lines > 1)
-                Spacer(minLength: 0)
+            Button(action: act) {
+                HStack(spacing: 8) {
+                    Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 14)
+                    Text(title).font(.system(size: 12.5)).foregroundStyle(Palette.ink).lineLimit(lines).truncationMode(.middle)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: lines > 1)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
-            .contentShape(Rectangle())
-            .onTapGesture(perform: act)
-            .onHover { hovering = $0 }
+            .buttonStyle(Gives(to: 0.98))
+            .hovers($hovering)
         }
     }
 }

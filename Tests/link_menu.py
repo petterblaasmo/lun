@@ -119,6 +119,16 @@ def main():
         r = sv.cmd({"do": "linkmenu", "id": a, "x": 60, "y": 60, "pick": "Open Link in New Tab"})
         t.ok("a link's picture: Open Link in New Tab opens the link",
              any(u.endswith("/pictured") for u in r["urls"]), r["urls"])
+        # …and the picture's Add Image to Photos is put under WebKit's
+        # Download Image, as Lun's own picture menu has it. Read, not
+        # picked: picking it would put macOS's question for Photos up.
+        items = r.get("menu", [])
+        at = items.index("Download Image") if "Download Image" in items else -1
+        t.ok("a link's picture: Add Image to Photos under Download Image",
+             at >= 0 and items[at + 1:at + 2] == ["Add Image to Photos"], items)
+        # A link with no picture has none.
+        r = menu(a, ("Open Link", "plain"))
+        t.ok("a plain link: no Add Image to Photos", "Add Image to Photos" not in r.get("menu", ["?"]), r.get("menu"))
     finally:
         sv.finish()
     try:

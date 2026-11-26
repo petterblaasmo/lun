@@ -63,6 +63,9 @@ enum Session {
         var sizes: [Double]
         /// The page last focused, by its place in `tabs`.
         var focused: Int?
+        /// Scroll Together on (TabSplit.scrollsTogether): absent when off,
+        /// and from files written before there was one.
+        var together: Bool?
     }
 
     /// The first space's is the session there always was; each other space
@@ -115,11 +118,16 @@ enum Session {
 
     static func erase(space: UUID) {
         guard space != Space.firstID else { return }
-        try? FileManager.default.removeItem(at: file(space))
+        // Through Disk: a save of the row still on its way, the one made as
+        // the space was left, doesn't land after this and bring it back.
+        Disk.remove(file(space), now: true)
     }
 
     static func read(space: UUID = Space.firstID) -> Shape {
         let file = file(space)
+        // A row saved a moment ago and still on its way to the disk is
+        // read as saved, not as it was before.
+        Disk.settle(file)
         guard let data = try? Data(contentsOf: file) else { return Shape(tabs: [], active: 0) }
         guard let shape = try? JSONDecoder().decode(Shape.self, from: data) else {
             // A file that's there but won't decode is not the same as no
@@ -133,10 +141,11 @@ enum Session {
 
     /// `now` writes on the calling thread. Quitting doesn't wait for a
     /// background queue, and a session handed to one on the way out is a
-    /// session that may never reach the disk.
+    /// session that may never reach the disk. Otherwise the row is encoded
+    /// and written off the main thread, at once: the newest asked for is
+    /// the one left on disk, and `read` waits for it (see Disk).
     static func write(now: Bool = false, space: UUID = Space.firstID, _ shape: Shape) {
-        // One after another, the newest last (see Disk).
-        Disk.write(file(space), now: now) { try? JSONEncoder().encode(shape) }
+        Disk.write(file(space), now: now, brisk: true) { try? JSONEncoder().encode(shape) }
     }
 }
 
@@ -181,7 +190,7 @@ extension Session.Shape {
 }
 
 extension Session.Split {
-    private enum Keys: String, CodingKey { case tabs, axis, sizes, focused, left, right, fraction }
+    private enum Keys: String, CodingKey { case tabs, axis, sizes, focused, together, left, right, fraction }
 
     /// Leniently: an axis this version doesn't know is drawn side by side,
     /// and the first shape Split View was written in on main — a left, a
@@ -200,6 +209,7 @@ extension Session.Split {
         }
         axis = (try? c.decodeIfPresent(TabSplit.Axis.self, forKey: .axis)) ?? .horizontal
         focused = try? c.decodeIfPresent(Int.self, forKey: .focused)
+        together = try? c.decodeIfPresent(Bool.self, forKey: .together)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -208,5 +218,6 @@ extension Session.Split {
         try c.encode(axis, forKey: .axis)
         try c.encode(sizes, forKey: .sizes)
         try c.encodeIfPresent(focused, forKey: .focused)
+        try c.encodeIfPresent(together, forKey: .together)
     }
 }

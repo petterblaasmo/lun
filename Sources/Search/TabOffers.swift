@@ -95,14 +95,17 @@ enum TabOffersPanel {
         window.addChildWindow(panel, ordered: .above)
         self.panel = panel
         self.host = host
+        Motion.arrive(panel)
     }
 
     static func hide() {
         guard let panel else { return }
-        panel.parent?.removeChildWindow(panel)
-        panel.orderOut(nil)
         self.panel = nil
         host = nil
+        Motion.leave(panel) {
+            panel.parent?.removeChildWindow(panel)
+            panel.orderOut(nil)
+        }
     }
 
     private final class Panel: NSPanel {
@@ -134,13 +137,15 @@ private struct TabOffersList: View {
             ForEach(Array(browser.tabOffers.enumerated()), id: \.element.id) { index, offer in
                 Omnibox.Row(offer: offer, picked: browser.tabPicked == index)
                     .contentShape(Rectangle())
-                    .onTapGesture { browser.takeTabOffer(offer) }
+                    .pressed(to: 0.99) { browser.takeTabOffer(offer) }
             }
         }
         .padding(6)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+        .background(Palette.ground, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.float, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
         .padding(8)
+        // Its own, not an elevation: the window is the 8 points above
+        // larger than the list, less than .float's shadow needs.
         .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
     }
 }

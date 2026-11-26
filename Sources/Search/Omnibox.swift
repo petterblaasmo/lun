@@ -19,16 +19,33 @@ final class FieldState: ObservableObject {
 /// addresses and only addresses: type something that isn't a place and it
 /// shivers and says so, rather than quietly handing your keystrokes to a
 /// search engine.
+///
+/// The field and its list are one card, as a command bar is: large type, a
+/// rule under it, and the places under that, the last few you went before
+/// anything is typed (Browser.recentPlaces). Its top edge stays where it is
+/// and the card grows down, so a list that arrives never moves the field out
+/// from under what is being typed.
 struct Omnibox: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var typing: FieldState
     /// Raised over a page by ⌘L, rather than standing on an empty tab.
     let over: Bool
 
-    /// The field's own height — the 22 of text and 14 of air above and below it
-    /// that `field` lays out — so the list can sit below it without being
-    /// stacked with it.
-    private static let fieldHeight: CGFloat = 22 + 14 * 2
+    /// The field's own height: the 28 of text and 16 of air above and below
+    /// it that `field` lays out.
+    static let fieldHeight: CGFloat = 28 + 16 * 2
+    /// As wide as it gets: wider than the address bar's card, which opens
+    /// from a line in the column.
+    static let width: CGFloat = 640
+
+    /// How wide it is on a page this size.
+    static func width(in page: CGSize) -> CGFloat { min(width, max(0, page.width - 28)) }
+    /// How far down a page this size its top edge is: in the upper part, as
+    /// Spotlight's, with room under it for the list.
+    static func top(in page: CGSize) -> CGFloat { max(20, page.height * 0.24) }
+    /// Where the field ends, for what hangs under it on an empty tab
+    /// (HomeGrid, a pair's open tabs).
+    static func under(in page: CGSize) -> CGFloat { top(in: page) + fieldHeight }
 
     @State private var shake: CGFloat = 0
     @State private var refused = false
@@ -41,8 +58,8 @@ struct Omnibox: View {
     /// (AddressLine.swift), which stands where the line is.
     var listOnly: CGFloat?
 
-    /// Centred on the window and nearer its top, as Spotlight's, for
-    /// Settings › The field in the middle of the window (idea 753).
+    /// Drawn by the window, centred on all of it, for Settings › The field
+    /// in the middle of the window (idea 753).
     var high = false
 
     init(browser: Browser, over: Bool, fitted: Bool = false, tab: Tab.ID? = nil, listOnly: CGFloat? = nil, high: Bool = false) {
@@ -59,27 +76,25 @@ struct Omnibox: View {
         Group {
             if let width = listOnly {
                 if browser.fieldShowing, !browser.offers.isEmpty || browser.siteOffer != nil || browser.switcherNote != nil {
-                    list.frame(width: width)
-                }
-            } else if fitted {
-                GeometryReader { geometry in
-                    content(width: min(Metrics.fieldWidth, max(0, geometry.size.width - 28)))
-                }
-            } else if high {
-                GeometryReader { geometry in
-                    content(width: min(Metrics.fieldWidth, max(0, geometry.size.width - 28)), top: geometry.size.height * 0.24)
+                    rows()
+                        .padding(6)
+                        .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1).padding(.horizontal, 16) }
+                        .frame(width: width)
                 }
             } else {
-                content(width: Metrics.fieldWidth)
+                GeometryReader { geometry in
+                    content(width: Omnibox.width(in: geometry.size), top: Omnibox.top(in: geometry.size))
+                }
             }
         }
         .allowsHitTesting(browser.fieldShowing)
     }
 
-    /// `top`: the field that far down from the top, rather than a little
-    /// above the middle.
-    private func content(width: CGFloat, top: CGFloat? = nil) -> some View {
-        ZStack(alignment: top == nil ? .center : .top) {
+    private var listed: Bool { !browser.offers.isEmpty || browser.siteOffer != nil || browser.switcherNote != nil }
+
+    /// `top`: the card that far down from the top.
+    private func content(width: CGFloat, top: CGFloat) -> some View {
+        ZStack(alignment: .top) {
             // Keep the container mounted: only the field scales, while the
             // page's cover fades without pulling its edges into view. Not
             // while the address line has the field (AddressLine.swift), nor
@@ -92,58 +107,47 @@ struct Omnibox: View {
                     // The page is still there, just out of the way.
                     // Or out of sight, for whoever asked (Settings › Hide
                     // the page behind the field).
+                    // In a light window that is white over white, so the
+                    // page is dimmed a little too (Palette.fieldDim).
                     Rectangle()
                         .fill(Palette.ground.opacity(browser.prefs.fieldHidesPage ? 1 : 0.74))
+                        .overlay(Palette.fieldDim)
                         .ignoresSafeArea(.all, edges: fitted ? [] : .all)
                         .onTapGesture { browser.dismiss() }
                         .transition(.opacity)
                 }
 
-                field
+                card
                     .frame(width: width)
-                // The list hangs below the field rather than stacking with it,
-                // so a list that grows never lifts the field out from under
-                // what is being typed.
-                .overlay(alignment: .top) {
-                    // Present or gone, not always-on-and-hidden: the list keeps
-                    // the appear and disappear it had, and the overlay is what
-                    // keeps that from moving the field.
-                    if !browser.offers.isEmpty || browser.siteOffer != nil || browser.switcherNote != nil {
-                        list
-                            .frame(width: width)
-                            .offset(y: Self.fieldHeight + 8)
-                    }
-                }
-                // Lifted a little above centre: dead centre reads as low,
-                // because the strip at the top isn't part of what the eye is
-                // measuring.
-                .padding(.bottom, top == nil ? 60 : 0)
-                .padding(.top, top ?? 0)
-                .transition(.scale(scale: 0.97).combined(with: .opacity))
-                // The list's arrival and its leaving are animated from here,
-                // briefly: nothing that changes the suggestions does it inside
-                // an animation of its own. Its rows follow what was typed or
-                // pasted at once — sliding into place on a spring between
-                // keystrokes, they trailed behind the field.
-                .animation(Motion.quick, value: browser.offers.isEmpty && browser.siteOffer == nil && browser.switcherNote == nil)
-                .animation(Motion.settle, value: refused)
+                    .padding(.top, top)
+                    .transition(.card(from: .top))
+                    // The list's arrival and its leaving are animated from here,
+                    // briefly: nothing that changes the suggestions does it inside
+                    // an animation of its own. Its rows follow what was typed or
+                    // pasted at once — sliding into place on a spring between
+                    // keystrokes, they trailed behind the field.
+                    .animation(Motion.quick, value: listed)
+                    .animation(Motion.settle, value: refused)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    private var field: some View {
-        HStack(spacing: 8) {
-            if let site = browser.siteChip {
-                SiteChip(site: site)
-                    .transition(.scale(scale: 0.9, anchor: .leading).combined(with: .opacity))
+    /// The field, and under a rule the places it thinks you mean, on one
+    /// ground.
+    private var card: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.middle, style: .continuous)
+        return VStack(spacing: 0) {
+            field
+            // Present or gone, not always-on-and-hidden: the rows keep the
+            // appear and disappear they had.
+            if listed {
+                Rectangle().fill(Palette.hairline).frame(height: 1).padding(.horizontal, 20)
+                rows(large: true)
+                    .padding(8)
+                    .transition(.opacity)
             }
-            AddressField(browser: browser, tab: tab)
         }
-            .animation(Motion.quick, value: browser.siteChip)
-            .frame(height: 22)
-            .padding(.horizontal, 22)
-            .padding(.vertical, 14)
             .background {
                 ZStack {
                     // A slow, almost invisible breath under the field. It is
@@ -154,19 +158,16 @@ struct Omnibox: View {
                     // picture as a white or dark smudge (idea 952).
                     UnlessThemed(over: over) { Breath() }
 
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Palette.ground)
+                    Color.clear.elevated(.float, in: shape)
                 }
             }
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(
-                        refused ? Color.red.opacity(0.35) : Palette.hairline,
-                        lineWidth: 1
-                    )
-                    .allowsHitTesting(false)
-            )
-            .shadow(color: .black.opacity(0.06), radius: 24, y: 8)
+            .overlay {
+                if refused {
+                    shape
+                        .strokeBorder(Palette.dangerRing, lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+            }
             .modifier(Shake(travel: shake))
             .onAppear {
                 shake = 0
@@ -175,49 +176,67 @@ struct Omnibox: View {
             .onChange(of: browser.refusals) { _, _ in
                 shake = 0
                 refused = true
-                withAnimation(.easeOut(duration: 0.5)) { shake = 1 }
+                withAnimation(Motion.shake) { shake = 1 }
             }
             .onChange(of: browser.typed) { _, _ in
                 withAnimation(Motion.quick) { refused = false }
             }
     }
 
-    /// What it thinks you mean. Places you have been come with their titles;
-    /// the handful of well-known addresses it starts life knowing come without
-    /// the weight of one.
-    ///
-    /// It lives below the field, in an overlay, so arriving or leaving never
-    /// moves the field — and the transition that carried it in and out before
-    /// is kept, only anchored to its own top edge.
-    private var list: some View {
+    private var field: some View {
+        HStack(spacing: 12) {
+            if let site = browser.siteChip {
+                SiteChip(site: site)
+                    .transition(.row(from: .leading))
+            } else {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Palette.muted)
+                    .frame(width: 20)
+                    .accessibilityHidden(true)
+            }
+            AddressField(browser: browser, tab: tab, size: 19)
+        }
+        .animation(Motion.quick, value: browser.siteChip)
+        .frame(height: 28)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+    }
+
+    /// What it thinks you mean: the rows alone. Places you have been come
+    /// with their titles; the handful of well-known addresses it starts life
+    /// knowing come without the weight of one. Under the address bar
+    /// (AddressLine.swift) they are the lower part of the card the bar opens
+    /// into, so the bar draws the card; in the middle of the window they are
+    /// `large`, as the field over them is.
+    private func rows(large: Bool = false) -> some View {
         VStack(spacing: 0) {
             if let site = browser.siteOffer {
                 SiteOfferRow(site: site)
                     .contentShape(Rectangle())
-                    .onTapGesture { _ = browser.lockSiteOffer() }
+                    .pressed(to: 0.99) { _ = browser.lockSiteOffer() }
             }
             ForEach(Array(browser.offers.enumerated()), id: \.element.id) { index, offer in
-                Row(offer: offer, picked: browser.picked == index)
+                // A line between the places and the words to search for.
+                if index > 0, offer.kind.isWords != browser.offers[index - 1].kind.isWords {
+                    Rectangle().fill(Palette.hairline).frame(height: 1).padding(.horizontal, large ? 12 : 10).padding(.vertical, 6)
+                }
+                Row(offer: offer, picked: browser.picked == index, typed: browser.typed, large: large)
                     .contentShape(Rectangle())
-                    .onTapGesture { browser.take(offer) }
+                    .pressed(to: 0.99) { browser.take(offer) }
             }
             if let note = browser.switcherNote {
                 Text(note)
-                    .font(.system(size: 13))
+                    .font(.system(size: large ? 14 : 13))
                     .foregroundStyle(Palette.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
+                    .padding(.horizontal, large ? 14 : 12)
+                    .padding(.vertical, large ? 11 : 9)
             }
         }
-        .padding(6)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.07), radius: 20, y: 6)
-        .transition(.scale(scale: 0.98, anchor: .top).combined(with: .opacity))
+        // The arrow over the rows: from the field's caret the pointer kept
+        // its text cursor down the list, nothing under it saying otherwise.
+        .background(CursorGround())
     }
 
     /// One row of a list of places, here and under the field in the tab.
@@ -226,92 +245,133 @@ struct Omnibox: View {
         /// Where the arrow keys have walked to. The pointer gets its own,
         /// quieter mark, and changes nothing but the look of the row.
         let picked: Bool
+        /// What is in the field, for the words an engine suggested.
+        var typed = ""
+        /// In the middle of the window, under its larger field.
+        var large = false
 
         @State private var hovering = false
 
         var body: some View {
-            HStack(spacing: 10) {
+            lineBody
+        }
+
+        private var isSearch: Bool { offer.kind == .search || offer.kind == .suggested || offer.kind == .searched }
+
+        /// The words the row leads with: a page's title, or the words to search.
+        private var headline: String {
+            if isSearch || offer.kind.isCommand || offer.title.isEmpty { return isSearch ? offer.key : Address.withoutWWW(offer.key) }
+            return offer.title
+        }
+
+        /// Under them: the site, or where the words are sent.
+        private var subline: String? {
+            if isSearch { return offer.kind == .search && !offer.title.isEmpty ? offer.title : nil }
+            if offer.kind.isCommand || offer.title.isEmpty { return nil }
+            return Address.withoutWWW(offer.kind == .open ? Address.editable(offer.url) : offer.key)
+        }
+
+        /// What stands before the words: the site's icon, or what kind of row.
+        @ViewBuilder private var icon: some View {
+            switch offer.kind {
+            case .search, .suggested:
+                if let icon = Favicons.shared.cached(for: offer.url) {
+                    Mark(icon: icon, letter: "", size: mark)
+                } else {
+                    symbol("magnifyingglass")
+                }
+            case .command:
+                symbol("command")
+            case .searched:
+                symbol("clock.arrow.circlepath")
+            default:
+                Mark(icon: Favicons.shared.cached(for: offer.url), letter: letter, size: mark)
+            }
+        }
+
+        private var mark: CGFloat { large ? 18 : 16 }
+
+        /// Kept, on another device, or pinned.
+        @ViewBuilder private var marks: some View {
+            if case .command(let command) = offer.kind, let key = command.key {
+                Text(key)
+                    .font(.system(size: large ? 13 : 12))
+                    .foregroundStyle(Palette.muted)
+            }
+            if offer.kind == .elsewhere {
+                symbol("laptopcomputer.and.iphone")
+            } else if offer.pinned {
+                symbol("pin")
+            }
+        }
+
+        private var lineBody: some View {
+            HStack(spacing: large ? 12 : 10) {
                 // Every row has the same column before its words, so the
                 // words line up whatever stands in it.
-                Group {
-                    switch offer.kind {
-                    case .search, .suggested:
-                        // The icon of where the words go, when this Mac already
-                        // has it: what you typed and what the engine suggests
-                        // are both searches sent there, and wear the same mark.
-                        // Nothing is fetched for one that isn't known; the
-                        // glass is what every search row wears until then.
-                        if let icon = Favicons.shared.cached(for: offer.url) {
-                            Mark(icon: icon, letter: "", size: 14)
-                        } else {
-                            symbol("magnifyingglass")
-                        }
-                    case .command:
-                        symbol("command")
-                    case .searched:
-                        // Words you searched this site for before: yours, not
-                        // the site's, so a mark of their own.
-                        symbol("clock.arrow.circlepath")
-                    default:
-                        // A place — open, kept or visited — wears its site's
-                        // icon, as it does in History and the bookmarks bar:
-                        // from what this Mac already keeps, nothing fetched
-                        // while typing, and the site's letter until a visit
-                        // brings one.
-                        Mark(icon: Favicons.shared.cached(for: offer.url), letter: letter, size: 14)
-                    }
-                }
-                .frame(width: 14, height: 14)
-                // The row reads as 1.0.4's did, without the www; the key
-                // itself keeps it, for completing and going there.
-                Text(offer.kind == .suggested || offer.kind == .searched ? offer.key : Address.withoutWWW(offer.key))
-                    .font(.system(size: 13))
-                    .foregroundStyle(Palette.ink)
+                icon.frame(width: large ? 20 : 16, height: large ? 20 : 16)
+                words
+                    .font(.system(size: large ? 15 : 13))
                     .lineLimit(1)
-
-                if !offer.title.isEmpty {
-                    Text(offer.title)
-                        .font(.system(size: 12))
+                    .layoutPriority(1)
+                if let subline {
+                    Text(subline)
+                        .font(.system(size: large ? 13 : 11))
                         .foregroundStyle(Palette.muted)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
                 Spacer(minLength: 0)
-                // A command's key, as Arc's Command Bar shows it.
-                if case .command(let command) = offer.kind, let key = command.key {
-                    Text(key)
-                        .font(.system(size: 12))
+                marks
+                if let says {
+                    Text(says)
+                        .font(.system(size: large ? 13 : 12))
                         .foregroundStyle(Palette.muted)
-                }
-                if offer.kind == .bookmark {
-                    // Kept by you, not only visited: the bookmark's mark,
-                    // at the end now that the site's icon leads the row.
-                    symbol("bookmark")
-                } else if offer.kind == .elsewhere {
-                    // Open on another device: iCloud Tabs' mark.
-                    symbol("laptopcomputer.and.iphone")
-                } else if offer.pinned {
-                    symbol("pin")
+                        .lineLimit(1)
+                        .fixedSize()
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
+            .padding(.horizontal, large ? 12 : 10)
+            .frame(height: large ? 44 : 36)
             .background {
                 if picked {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    RoundedRectangle(cornerRadius: large ? 12 : 10, style: .continuous)
                         .fill(Palette.wash)
                 } else if hovering {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    RoundedRectangle(cornerRadius: large ? 12 : 10, style: .continuous)
                         .fill(Palette.hover)
                 }
             }
             .onHover { hovering = $0 }
             .animation(Motion.quick, value: hovering)
+            .accessibilityElement(children: .combine)
+        }
+
+        /// The headline, and for words an engine suggested, what it adds to
+        /// what was typed in the quieter ink.
+        private var words: Text {
+            let typed = typed.trimmingCharacters(in: .whitespaces)
+            if offer.kind == .suggested, !typed.isEmpty, headline.lowercased().hasPrefix(typed.lowercased()) {
+                return Text(headline.prefix(typed.count)).foregroundStyle(Palette.ink)
+                    + Text(headline.dropFirst(typed.count)).foregroundStyle(Palette.muted)
+            }
+            return Text(headline).foregroundStyle(Palette.ink)
+        }
+
+        /// What Return does with it, where that isn't simply going there.
+        private var says: String? {
+            switch offer.kind {
+            case .open: return "Switch to Tab"
+            case .bookmark: return "Bookmark"
+            case .search: return "Search the Web"
+            case .searched: return "Searched Before"
+            default: return nil
+            }
         }
 
         private func symbol(_ name: String) -> some View {
             Image(systemName: name)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: large ? 12 : 10, weight: .medium))
                 .foregroundStyle(Palette.muted)
         }
 
@@ -363,7 +423,7 @@ private struct SiteChip: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 22)
-        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Searching \(site.name)")
     }
@@ -382,18 +442,18 @@ private struct SiteOfferRow: View {
                 .lineLimit(1)
             Spacer(minLength: 0)
             Text("Tab")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Palette.muted)
                 .padding(.horizontal, 6)
                 .frame(height: 18)
-                .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .padding(.horizontal, 10)
+        .frame(height: 36)
         .background {
-            if hovering { RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Palette.hover) }
+            if hovering { RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Palette.hover) }
         }
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Search \(site.name), press Tab")
     }
@@ -484,7 +544,6 @@ private struct Breath: NSViewRepresentable {
         /// it on stills a breath already going.
         @objc private func breathe() {
             glow.removeAnimation(forKey: "breath")
-            guard !Motion.reduced else { return }
             let size = CABasicAnimation(keyPath: "transform.scale")
             size.fromValue = 0.97
             size.toValue = 1.03
@@ -493,11 +552,7 @@ private struct Breath: NSViewRepresentable {
             fade.toValue = 1.0
             let both = CAAnimationGroup()
             both.animations = [size, fade]
-            both.duration = 2.6
-            both.autoreverses = true
-            both.repeatCount = .infinity
-            both.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            glow.add(both, forKey: "breath")
+            if let both = Motion.loop(.breathe, both) { glow.add(both, forKey: "breath") }
         }
     }
 }
@@ -566,11 +621,11 @@ struct AddressField: NSViewRepresentable {
     /// In the address bar there is no doubt where: it is the tab's own.
     private static func placeholderWords(for browser: Browser) -> String {
         if let site = browser.siteChip { return "Search \(site.name)" }
-        if browser.editingInline { return "Enter a web address" }
+        if browser.editingInline { return "Search or enter address" }
         switch browser.fieldMode {
-        case .blank: return "Enter a web address"
-        case .newTab: return "New tab: enter a web address"
-        case .thisTab: return "This tab: enter a web address"
+        case .blank: return "Search or enter address"
+        case .newTab: return "New tab: search or enter address"
+        case .thisTab: return "This tab: search or enter address"
         case .switcher: return "Switch to an open tab"
         }
     }
@@ -591,7 +646,7 @@ struct AddressField: NSViewRepresentable {
             string: words,
             attributes: [
                 .font: NSFont.systemFont(ofSize: size),
-                .foregroundColor: NSColor(Palette.ink.opacity(0.3)),
+                .foregroundColor: Palette.NS.muted,
             ]
         )
     }
@@ -600,6 +655,11 @@ struct AddressField: NSViewRepresentable {
         let coordinator = context.coordinator
         coordinator.browser = browser
         coordinator.tab = tab
+        // The address bar's card, larger once something is typed.
+        if field.font?.pointSize != size {
+            field.font = .systemFont(ofSize: size)
+            if let editor = field.currentEditor() as? NSTextView { editor.font = field.font }
+        }
 
         // Only when something other than typing changed it — ⌘L arriving with
         // an address, a walk through the list, a submit clearing it.

@@ -67,8 +67,12 @@ final class TabSwitcher: ObservableObject {
     /// pages pictured side by side (see Browser.switchTabs).
     var partners: [Tab.ID: Tab.ID] = [:]
 
+    /// The card the button is down on, until it comes up: it gives under
+    /// the press, as a tab does (see `press(at:)` and `lift(at:pick:)`).
+    @Published private(set) var pressedID: Tab.ID?
+
     /// Where the panel and each card are in the window, for the pointer to be
-    /// matched against (see `hover(at:)` and Browser.clickTabSwitcher). From
+    /// matched against (see `hover(at:)` and Browser.pressTabSwitcher). From
     /// #358, by oddharsh.
     var panelFrame: CGRect = .zero
     var moonsFrame: CGRect = .zero
@@ -97,17 +101,37 @@ final class TabSwitcher: ObservableObject {
         cardFrames.first { $0.value.contains(point) && ring.contains($0.key) }?.key
     }
 
-    /// A click while the panel is up, at a point in the window's top-left
-    /// coordinates: on a card, that card is picked; outside the panel, the
-    /// switcher goes. True when the click was the switcher's.
-    func click(at point: CGPoint, pick: (Tab.ID) -> Void) -> Bool {
+    /// The button going down while the panel is up, at a point in the
+    /// window's top-left coordinates: on a card, that card is the pick and
+    /// gives under the press until the button comes up (`lift`); outside
+    /// the panel, the switcher goes. True when the press was the
+    /// switcher's.
+    ///
+    /// A card was taken the moment the button went down, and the switcher
+    /// was gone with it: nothing said the press had landed, where every
+    /// other thing pressed gives first. The tab is yours when you let go,
+    /// as letting go of ⌃ takes the card the keys are on.
+    func press(at point: CGPoint) -> Bool {
         guard visible else { return false }
         guard panelFrame.contains(point) || moonsFrame.contains(point) else {
             cancel()
             return true
         }
         // Between two cards: the switcher's, and nothing happens.
-        if let id = card(at: point) { pick(id) }
+        if let id = card(at: point) {
+            if selectedID != id { selectedID = id }
+            pressedID = id
+        }
+        return true
+    }
+
+    /// The button coming up: over the card it went down on, that card is
+    /// taken; anywhere else the press is let go of and the switcher stays.
+    /// True when there was a press of the switcher's to end.
+    func lift(at point: CGPoint, pick: (Tab.ID) -> Void) -> Bool {
+        guard let pressed = pressedID else { return false }
+        pressedID = nil
+        if visible, card(at: point) == pressed { pick(pressed) }
         return true
     }
 
@@ -278,6 +302,7 @@ final class TabSwitcher: ObservableObject {
         moons.removeAll { $0 == id }
         cardFrames[id] = nil
         guard ring.count > 1 else { return cancel() }
+        if pressedID == id { pressedID = nil }
         if selectedID == id { selectedID = before[(index + 1) % before.count] }
     }
 
@@ -302,6 +327,7 @@ final class TabSwitcher: ObservableObject {
         home = nil
         moonsLead = false
         selectedID = nil
+        pressedID = nil
         visible = false
         panelFrame = .zero
         moonsFrame = .zero
@@ -415,6 +441,12 @@ struct TabSwitcherOverlay: View {
     /// small window is.
     private static let moonScale: CGFloat = 0.62
 
+    /// How far a card gives under the press: a row's, less than a tab's,
+    /// as a card is the larger. By the switcher's own word for the press
+    /// (TabSwitcher.pressedID), not a button's: the window takes the click
+    /// before any view does (Browser.pressTabSwitcher).
+    private static let give: CGFloat = 0.98
+
     /// A moon's size by its page's length, as a moon's goes by its mass: a
     /// page one screen long is the smallest, sixteen screens or more fills
     /// the column, on a log scale between, so a 40-comment thread and a
@@ -431,13 +463,13 @@ struct TabSwitcherOverlay: View {
                 let moonColumns = switcher.moonColumns
                 // The moons' panel, its gap to the grid and its own padding,
                 // come out of the room the grid's cards had.
-                let moonRoom: CGFloat = moonColumns == 0 ? 0 : 14 + 16 + CGFloat(moonColumns - 1) * 6
+                let moonRoom: CGFloat = moonColumns == 0 ? 0 : 14 + 24 + CGFloat(moonColumns - 1) * 6
                 let width = min(176, (geometry.size.width - 64 - CGFloat(columns - 1) * 8 - moonRoom)
                     / (CGFloat(columns) + Self.moonScale * CGFloat(moonColumns)))
                 let previewHeight = (width - 16) * 0.62
                 let cardHeight = previewHeight + 39
                 ZStack {
-                    Color.black.opacity(0.12)
+                    Palette.ground.opacity(0.74)
                         .ignoresSafeArea()
                         .onTapGesture { switcher.cancel() }
 
@@ -468,9 +500,11 @@ struct TabSwitcherOverlay: View {
         ZStack(alignment: .topLeading) {
             if let selected = switcher.selectedID,
                let index = switcher.candidates.firstIndex(of: selected) {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Palette.faint)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Palette.fill)
                     .frame(width: width, height: cardHeight)
+                    // With the card on it, or the card would shrink in it.
+                    .modifier(Give(pressed: switcher.pressedID == selected, to: Self.give))
                     .offset(
                         x: CGFloat(index % 5) * (width + 8),
                         y: CGFloat(index / 5) * (cardHeight + 8)
@@ -491,9 +525,8 @@ struct TabSwitcherOverlay: View {
                 if prefs.switcherKeys { legend }
             }
         }
-        .padding(12)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.hairline))
+        .padding(16)
+        .elevated(.overlay, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .background(GeometryReader { box in
             Color.clear.preference(key: PanelFrame.self, value: box.frame(in: .global))
         })
@@ -506,12 +539,12 @@ struct TabSwitcherOverlay: View {
     /// TabSwitcher.Action), under the grid; Open in Search only on a moon.
     private var legend: some View {
         let moon = switcher.selectedID.map(switcher.moons.contains) == true
-        let keys = [("W", "Close"), ("R", "Reload"), ("M", "Mute")] + (moon ? [("O", "Open in Search")] : [])
+        let keys = [("W", "Close"), ("R", "Reload"), ("M", "Mute")] + (moon ? [("O", "Open in Lun")] : [])
         return HStack(spacing: 14) {
             ForEach(keys, id: \.0) { key, name in
                 HStack(spacing: 4) {
-                    Text("⌃" + key).font(.system(size: 10.5, weight: .medium)).foregroundStyle(Palette.ink)
-                    Text(name).font(.system(size: 10.5)).foregroundStyle(Palette.muted)
+                    Text("⌃" + key).font(.system(size: 12, weight: .medium)).foregroundStyle(Palette.ink)
+                    Text(name).font(.system(size: 12)).foregroundStyle(Palette.muted)
                 }
             }
         }
@@ -538,8 +571,7 @@ struct TabSwitcherOverlay: View {
             }
         }
         .padding(8)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.hairline))
+        .elevated(.overlay, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .background(GeometryReader { box in
             Color.clear.preference(key: MoonsFrame.self, value: box.frame(in: .global))
         })
@@ -583,7 +615,7 @@ struct TabSwitcherOverlay: View {
                     .frame(width: width, height: height)
                     .clipped()
             } else {
-                Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: mark)
+                Mark(icon: prefs.glyph == .icons ? tab.icon : nil, letter: tab.monogram, size: mark, globe: prefs.glyph == .icons)
             }
         }
         .frame(width: width, height: height)
@@ -611,16 +643,21 @@ struct TabSwitcherOverlay: View {
                     }
                 }
                 .frame(width: width - 16, height: previewHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay {
+                    let picked = tab.id == switcher.selectedID
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(picked ? Palette.ink : Palette.rule, lineWidth: picked ? 2 : 1)
+                        .animation(Motion.quick, value: picked)
+                }
 
                 HStack(spacing: 6) {
                     if prefs.glyph == .icons, !tab.isBlank {
-                        Mark(icon: tab.icon, letter: tab.monogram, size: 13)
+                        Mark(icon: tab.icon, letter: tab.monogram, size: 14, globe: true)
                     }
-                    Text(caption)
-                        .font(.system(size: 11.5))
+                    FadingLine(text: caption)
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.ink)
-                        .lineLimit(1)
                     if tab.muted || partner?.muted == true { mutedMark }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -630,6 +667,7 @@ struct TabSwitcherOverlay: View {
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+        .modifier(Give(pressed: switcher.pressedID == tab.id, to: Self.give))
         .background(GeometryReader { box in
             Color.clear.preference(key: CardFrames.self, value: [tab.id: box.frame(in: .global)])
         })
@@ -654,7 +692,7 @@ struct TabSwitcherOverlay: View {
 
                 HStack(spacing: 4) {
                     Text(tab.label)
-                        .font(.system(size: 10.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.ink)
                         .lineLimit(1)
                     if tab.muted { mutedMark }
@@ -663,11 +701,12 @@ struct TabSwitcherOverlay: View {
             }
             .padding(6)
             .frame(width: width, alignment: .topLeading)
-            .background(selected ? Palette.faint : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .background(selected ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .animation(Motion.glide, value: selected)
             .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .buttonStyle(.plain)
+        .modifier(Give(pressed: switcher.pressedID == tab.id, to: Self.give))
         .background(GeometryReader { box in
             Color.clear.preference(key: CardFrames.self, value: [tab.id: box.frame(in: .global)])
         })

@@ -987,6 +987,7 @@ private struct DeveloperHoverButton: View {
         DeveloperPanelIcon(symbol: symbol, title: title, size: 16, action: action)
             .opacity(hovering ? 1 : 0.001)
             .onHover { hovering = $0 }
+            .animation(Motion.quick, value: hovering)
             .padding(.trailing, 4)
     }
 }

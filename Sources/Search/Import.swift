@@ -220,14 +220,14 @@ enum Chromium {
             }
             if partial {
                 let reason = Self.permissionDenied(failure)
-                    ? "macOS hasn't allowed Search to read all of them."
+                    ? "macOS hasn't allowed Lun to read all of them."
                     : failure.localizedDescription
                 return "Some of \(source.name)'s profiles in \(looked) couldn't be read: \(reason) Choose its data folder in Settings › Bring Things Over to allow access for this session."
             }
             if Self.permissionDenied(failure) {
-                return "macOS hasn't allowed Search to read \(source.name)'s data in \(looked). Choose its data folder in Settings › Bring Things Over to allow access for this session."
+                return "macOS hasn't allowed Lun to read \(source.name)'s data in \(looked). Choose its data folder in Settings › Bring Things Over to allow access for this session."
             }
-            return "Search couldn't read \(source.name)'s data in \(looked): \(failure.localizedDescription)"
+            return "Lun couldn't read \(source.name)'s data in \(looked): \(failure.localizedDescription)"
         }
 
         private static func permissionDenied(_ error: NSError) -> Bool {
@@ -1448,9 +1448,17 @@ enum ImportSource: Identifiable, Hashable {
         return out
     }
 
+    /// "a, b and c", in the app's own language, not the Mac's: on a
+    /// Norwegian one it read "passwords og open tabs".
+    static func listed(_ parts: [String]) -> String {
+        let english = ListFormatter()
+        english.locale = Locale(identifier: "en")
+        return english.string(from: parts) ?? parts.joined(separator: ", ")
+    }
+
     /// The same, as a line: "Bookmarks, history, passwords and open tabs".
     var canBringLine: String {
-        let line = ListFormatter.localizedString(byJoining: canBring)
+        let line = ImportSource.listed(canBring)
         return line.prefix(1).uppercased() + line.dropFirst()
     }
 

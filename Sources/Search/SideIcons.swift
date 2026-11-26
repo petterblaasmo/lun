@@ -115,7 +115,7 @@ struct IconTile: View {
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(Palette.muted)
                     .frame(width: 15, height: 15)
-                    .background(Palette.ink.opacity(0.07), in: Circle())
+                    .background(Palette.fill, in: Circle())
             } else if interactive, let number = shortcutNumbers[tab.id] {
                 TabShortcutNumber(number: number)
             } else if tab.loading {
@@ -143,7 +143,7 @@ struct IconTile: View {
         .overlay(alignment: .topTrailing) {
             if tab.recording {
                 Circle()
-                    .fill(Color(nsColor: .systemRed))
+                    .fill(Palette.recording)
                     .frame(width: 6, height: 6)
                     .overlay(Circle().strokeBorder(Palette.ground, lineWidth: 1))
                     .padding(4)
@@ -158,13 +158,13 @@ struct IconTile: View {
         .background { if !half { ground.animation(Motion.quick, value: live) } }
         .overlay {
             if browser.selectedTabIDs.contains(tab.id) {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Palette.ring, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
         .modifier(Give(pressed: pressed && prefs.tabsGive))
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .modifier(TabPress(enabled: interactive && !browser.isPickedAmongOthers(tab), active: live, selected: $selectedOnPress, pressing: $pressed) {
             browser.clearTabSelection()
             browser.select(tab)
@@ -226,19 +226,18 @@ struct IconTile: View {
         .animation(Motion.quick, value: tab.loading)
         .animation(Motion.quick, value: speaker)
         .animation(Motion.quick, value: tab.recording)
-        .transition(.scale(scale: 0.9).combined(with: .opacity))
+        .transition(.row(from: .center))
     }
 
     @ViewBuilder
     private var ground: some View {
         if live {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(greys.pinLive)
+            LiveGround()
                 .modifier(LiveMatch(id: LivePill.id(browser), in: pill))
         } else if browser.selectedTabIDs.contains(tab.id) {
-            RoundedRectangle(cornerRadius: 9, style: .continuous).fill(greys.wash)
+            RoundedRectangle(cornerRadius: 10, style: .continuous).fill(greys.wash)
         } else if hovering {
-            RoundedRectangle(cornerRadius: 9, style: .continuous).fill(greys.hover)
+            RoundedRectangle(cornerRadius: 10, style: .continuous).fill(greys.hover)
         }
     }
 }
@@ -258,7 +257,10 @@ private struct CornerSpeaker: View {
                 .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: 0.5))
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        // As small to land on as it is drawn: the tile around it is the
+        // tab's own press.
+        .buttonStyle(Gives(to: 0.85, dims: false))
+        .accessibilityLabel(tab.muted ? "Unmute Tab" : "Mute Tab")
         .help(tab.muted ? "Unmute Tab" : "Mute Tab")
         .offset(x: 3, y: 3)
     }
@@ -321,7 +323,7 @@ struct IconPair: View {
             .opacity(separation.leaving.map { leaving in leaving != tab.id && pages.contains { $0.id == leaving } } == true ? 0.35 : 1)
             .background {
                 if focused == tab.id {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(greys.pinLive)
                         .padding(2)
                         .modifier(LiveMatch(id: LivePill.id(browser), in: pill))

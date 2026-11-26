@@ -165,9 +165,9 @@ enum AIAssist {
     /// What a provider off this Mac is sent, said once, the first time it is
     /// used — and a word on what it does with it where that matters.
     static func notice(for provider: AIProvider) -> String {
-        var text = "When you ask, Search sends this page's text, its address and your question to \(provider.host)"
+        var text = "When you ask, Lun sends this page's text, its address and your question to \(provider.host)"
         text += provider == .openRouter ? ", which passes them to the model's provider." : "."
-        text += " Their terms and privacy policy apply. Nothing is sent until you ask, never from a private tab, and Search keeps no copy."
+        text += " Their terms and privacy policy apply. Nothing is sent until you ask, never from a private tab, and Lun keeps no copy."
         switch provider {
         case .gemini:
             text += "\n\nOn Gemini's free tier, outside the EEA, Switzerland and the UK, Google may use this to improve its products, and people may read it. Don't use it on sensitive pages."
@@ -270,9 +270,9 @@ struct AssistantPanel: View {
             Rectangle().fill(Palette.hairline).frame(height: 1)
             HStack(spacing: 8) {
                 if drawn {
-                    Text("Ask about this page…").font(.system(size: 12.5)).foregroundStyle(Palette.faint)
+                    Text("Ask about this page…").font(.system(size: 12.5)).foregroundStyle(Palette.muted)
                 } else {
-                    TextField("", text: $assistant.draft, prompt: Text("Ask about this page…").foregroundStyle(Palette.faint))
+                    TextField("", text: $assistant.draft, prompt: Text("Ask about this page…").foregroundStyle(Palette.muted))
                         .textFieldStyle(.plain)
                         .font(.system(size: 12.5))
                         .foregroundStyle(Palette.ink)
@@ -284,16 +284,14 @@ struct AssistantPanel: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             Text("AI — may be wrong · \(assistant.place)")
-                .font(.system(size: 10.5))
-                .foregroundStyle(Palette.faint)
+                .font(.system(size: 12))
+                .foregroundStyle(Palette.muted)
                 .lineLimit(1)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 10)
         }
         .frame(width: 380, alignment: .leading)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.14), radius: 24, y: 8)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
         .onAppear { if !assistant.summary, !drawn { typing = true } }
     }
 
@@ -319,7 +317,7 @@ struct AssistantPanel: View {
     private func caution(_ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Image(systemName: "exclamationmark.triangle").font(.system(size: 10, weight: .medium))
-            Text(verbatim: text).font(.system(size: 11.5)).fixedSize(horizontal: false, vertical: true)
+            Text(verbatim: text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
         }
         .foregroundStyle(Palette.muted)
         .padding(8)
@@ -369,7 +367,7 @@ struct AssistantPanel: View {
                         .foregroundStyle(Palette.muted)
                 }
                 if turn.answer.isEmpty, !turn.done {
-                    Text("…").font(.system(size: 13)).foregroundStyle(Palette.faint)
+                    Text("…").font(.system(size: 13)).foregroundStyle(Palette.muted)
                 }
                 // As written, and never as markdown: no link to follow, no
                 // picture to fetch.
@@ -389,7 +387,7 @@ struct AssistantPanel: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 10, weight: .medium))
                         Text(verbatim: "Not on the page: " + turn.strays.joined(separator: ", "))
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .foregroundStyle(Palette.muted)
@@ -424,19 +422,16 @@ struct AISettings: View {
             if prefs.ai {
                 Card {
                     Line("Where it runs", place) {
+                        let chosen = prefs.aiProvider.map(Self.runsOn) ?? "Choose…"
                         if drawn {
-                            Stand(prefs.aiProvider.map { $0.isLocal ? "\($0.name), on this Mac" : $0.name } ?? "Choose…", menu: true)
+                            PopUpFace(shows: chosen)
                         } else {
-                        Picker("", selection: Binding(get: { prefs.aiProvider }, set: { prefs.aiProvider = $0 })) {
-                            Text("Choose…").tag(AIProvider?.none)
-                            ForEach(AIProvider.allCases.filter { $0 != .thisMac || engine.available || prefs.aiProvider == .thisMac }) { provider in
-                                Text(provider == .thisMac ? provider.name : provider.isLocal ? "\(provider.name), on this Mac" : provider.name)
-                                    .tag(AIProvider?.some(provider))
+                            PopUp("Where it runs", shows: chosen, selection: Binding(get: { prefs.aiProvider }, set: { prefs.aiProvider = $0 })) {
+                                Text("Choose…").tag(AIProvider?.none)
+                                ForEach(AIProvider.allCases.filter { $0 != .thisMac || engine.available || prefs.aiProvider == .thisMac }) { provider in
+                                    Text(Self.runsOn(provider)).tag(AIProvider?.some(provider))
+                                }
                             }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .fixedSize()
                         }
                     }
                     if let provider = prefs.aiProvider {
@@ -468,7 +463,7 @@ struct AISettings: View {
     private var onThisMac: some View {
         let size = ByteCountFormatter.string(fromByteCount: engine.downloadSize, countStyle: .file)
         if AIEngine.translated {
-            Line("Model", "Needs the Apple Silicon version of Search — this copy runs translated") { EmptyView() }
+            Line("Model", "Needs the Apple Silicon version of Lun — this copy runs translated") { EmptyView() }
         } else {
             switch engine.state {
             case .absent:
@@ -510,17 +505,17 @@ struct AISettings: View {
                 }
             }
         } else if !AIKeys.available {
-            Line("Key", "This copy of Search can't keep keys safely — it isn't the signed release. An app on this Mac still works") { EmptyView() }
+            Line("Key", "This copy of Lun can't keep keys safely — it isn't the signed release. An app on this Mac still works") { EmptyView() }
         } else {
             Line("Key", provider == .openRouter ? "Paste one, or sign in and OpenRouter makes one for you" : "Paste your API key") {
                 HStack(spacing: 6) {
-                    SecureField("", text: $pasted, prompt: Text("Key").foregroundStyle(Palette.faint))
+                    SecureField("", text: $pasted, prompt: Text("Key").foregroundStyle(Palette.muted))
                         .textFieldStyle(.plain)
                         .font(.system(size: 12))
                         .frame(width: 130)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
-                        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                         .onSubmit { save(provider) }
                     Pill("Save") { save(provider) }
                     if provider == .openRouter {
@@ -540,33 +535,33 @@ struct AISettings: View {
             } else {
             TextField("", text: Binding(get: { prefs.aiModels[provider.rawValue] ?? "" },
                                         set: { prefs.setAIModel($0, for: provider) }),
-                      prompt: Text(provider.defaultModel).foregroundStyle(Palette.faint))
+                      prompt: Text(provider.defaultModel).foregroundStyle(Palette.muted))
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .frame(width: 170)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 5)
-                .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             }
         }
     }
 
-    /// A menu or a field, as a picture shows it.
+    /// A provider as the pop-up names it: an app on this Mac says so.
+    private static func runsOn(_ provider: AIProvider) -> String {
+        provider == .thisMac ? provider.name : provider.isLocal ? "\(provider.name), on this Mac" : provider.name
+    }
+
+    /// A field, as a picture shows it.
     private struct Stand: View {
         let text: String
-        var menu = false
         var width: CGFloat?
-        init(_ text: String, menu: Bool = false, width: CGFloat? = nil) { self.text = text; self.menu = menu; self.width = width }
+        init(_ text: String, width: CGFloat? = nil) { self.text = text; self.width = width }
         var body: some View {
-            HStack(spacing: 5) {
-                Text(text).font(.system(size: 12)).foregroundStyle(menu ? Palette.ink : Palette.faint)
-                if menu { Image(systemName: "chevron.up.chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(Palette.muted) }
-            }
-            .frame(width: width, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(menu ? Palette.ground : Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(menu ? Palette.hairline : .clear, lineWidth: 1))
+            Text(text).font(.system(size: 12)).foregroundStyle(Palette.muted)
+                .frame(width: width, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
     }
 
@@ -578,13 +573,12 @@ struct AISettings: View {
             }
         } else {
             Line("Model", "From \(provider.name) on this Mac") {
-                Picker("", selection: Binding(get: { prefs.aiModel(for: provider) }, set: { prefs.setAIModel($0, for: provider) })) {
+                let chosen = prefs.aiModel(for: provider)
+                PopUp("Model", shows: chosen.isEmpty ? "Choose…" : chosen,
+                      selection: Binding(get: { prefs.aiModel(for: provider) }, set: { prefs.setAIModel($0, for: provider) })) {
                     Text("Choose…").tag("")
                     ForEach(models, id: \.self) { Text($0).tag($0) }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
             }
         }
     }
@@ -594,7 +588,7 @@ struct AISettings: View {
         pasted = ""
         switch AIKeys.save(key, for: provider) {
         case .kept: browser.announce("Key kept in the keychain")
-        case .unavailable: browser.announce("This copy of Search can't keep keys")
+        case .unavailable: browser.announce("This copy of Lun can't keep keys")
         case .failed: browser.announce("The key wasn't kept")
         }
         refresh()

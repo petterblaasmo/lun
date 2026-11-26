@@ -680,15 +680,6 @@ final class Fetches: ObservableObject {
 /// wherever Settings says (see Browser.showDownloads) — beside it, as the
 /// side panel's card floating there (DownloadsFloat), among them.
 struct FetchDoor: View {
-    /// How far the icon swells when a download starts, and how long it takes
-    /// each way. Under Reduce Motion it goes nowhere, for the same length: a
-    /// keyframe of no length comes out as not a number, and AppKit stops the
-    /// whole app over a transform like that.
-    static func pulse(reduced: Bool, light: Bool) -> (peak: CGFloat, up: Double, down: Double) {
-        let seconds = light ? 0.16 : 0.3
-        return (reduced ? 1 : 1.35, seconds * 0.4, seconds * 0.6)
-    }
-
     @ObservedObject var browser: Browser
     @ObservedObject var fetches: Fetches
     @ObservedObject var prefs: Preferences
@@ -740,21 +731,21 @@ struct FetchDoor: View {
                     if !fetches.showing {
                         Image(systemName: "arrow.down.circle")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(hovering ? Palette.ink.opacity(0.7) : Palette.muted)
+                            .foregroundStyle(hovering ? Palette.ink : Palette.muted)
                             .transition(.opacity)
                     } else if fetches.done {
                         Image(systemName: "arrow.down")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Palette.ink.opacity(0.75))
+                            .foregroundStyle(Palette.soft)
                             .transition(.opacity)
                     } else if let fraction = fetches.fraction {
                         Circle()
                             .stroke(Palette.muted.opacity(0.3), lineWidth: 1.5)
                         Circle()
                             .trim(from: 0, to: max(0.02, fraction))
-                            .stroke(Palette.ink.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                            .stroke(Palette.soft, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
                             .rotationEffect(.degrees(-90))
-                            .animation(.easeOut(duration: 0.2), value: fraction)
+                            .animation(Motion.quick, value: fraction)
                     } else {
                         // No size given: turning, on Core Animation's time.
                         Ring(size: 12)
@@ -770,7 +761,7 @@ struct FetchDoor: View {
                 .keyframeAnimator(initialValue: CGFloat(1), trigger: fetches.started) { icon, scale in
                     icon.scaleEffect(scale)
                 } keyframes: { _ in
-                    let pulse = Self.pulse(reduced: Motion.reduced, light: Motion.light)
+                    let pulse = Motion.pulse()
                     CubicKeyframe(pulse.peak, duration: pulse.up)
                     CubicKeyframe(1, duration: pulse.down)
                 }
@@ -784,14 +775,14 @@ struct FetchDoor: View {
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .shortcutHelp("Downloads", "history.downloads")
             .background(ButtonSpot { spot.view = $0; if browser.downloadsHanging { float(true) } })
             .onChange(of: browser.downloadsHanging) { _, on in float(on) }
             // The doors moving while the list hangs: it follows them.
             .onChange(of: live) { _, _ in float(browser.downloadsHanging) }
             .onDisappear { DownloadsFloat.hide(for: browser) }
-            .transition(.scale(scale: 0.6).combined(with: .opacity))
+            .transition(.pop)
             .animation(Motion.quick, value: fetches.done)
             .animation(Motion.quick, value: fetches.showing)
             .animation(Motion.quick, value: hovering)

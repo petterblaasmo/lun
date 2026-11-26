@@ -293,15 +293,11 @@ private struct LinkChooserView: View {
         .padding(6)
         .frame(width: 360)
         .frame(maxHeight: chooser.room)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        // The card's shadow alone: without it the marked row and each dot
-        // cast their own on the white.
-        .compositingGroup()
-        .shadow(color: .black.opacity(0.16), radius: 24, y: 8)
+        // The card's shadow alone, under its ground: on the card whole,
+        // the marked row and each dot cast their own on the white.
+        // Floating, not over everything: the panel's margin has room for
+        // that shadow and no deeper one (LauncherPanel.margin).
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
         .padding(LauncherPanel.margin)
         // A click beside it, in the panel, is a click outside it.
         .background(Color.clear.contentShape(Rectangle()).onTapGesture { chooser.cancel() })
@@ -320,7 +316,7 @@ private struct LinkChooserView: View {
             if chooser.gone {
                 Text("That space is gone. Choose another.")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.red.opacity(0.8))
+                    .foregroundStyle(Palette.danger)
             }
         }
         .padding(.horizontal, 12)
@@ -345,7 +341,7 @@ private struct LinkChooserView: View {
                         }
                         SpaceRow(row: row, marked: index == chooser.marked)
                             .contentShape(Rectangle())
-                            .onTapGesture { chooser.choose(row: index) }
+                            .pressed(to: 0.99) { chooser.choose(row: index) }
                     }
                 }
             }
@@ -369,7 +365,7 @@ private struct LinkChooserView: View {
                 }
             }
             Text(chooser.alwaysShown ? "1–0 or Return opens · Space: Always · Esc cancels" : "1–0 or Return opens · Esc cancels")
-                .font(.system(size: 10.5))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.muted)
         }
         .padding(.horizontal, 12)
@@ -411,7 +407,7 @@ private struct SpaceRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
         .background(marked ? Palette.wash : hovering ? Palette.hover : .clear,
-                    in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .onHover { hovering = $0 }
         .animation(Motion.quick, value: hovering)
     }

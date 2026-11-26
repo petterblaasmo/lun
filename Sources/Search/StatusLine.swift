@@ -138,9 +138,7 @@ struct LinkBubble: View {
                             .truncationMode(.middle)
                             .padding(.horizontal, 11)
                             .frame(height: 26)
-                            .background(Palette.ground, in: Capsule())
-                            .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
-                            .shadow(color: .black.opacity(0.08), radius: 12, y: 3)
+                            .elevated(.lift, in: Capsule())
                             .frame(maxWidth: min(space.size.width * 0.6, 640),
                                    alignment: status.onRight ? .trailing : .leading)
                         if !status.onRight { Spacer(minLength: 0) }
@@ -152,6 +150,6 @@ struct LinkBubble: View {
             }
         }
         .allowsHitTesting(false)
-        .animation(Motion.timed(.easeOut(duration: 0.12)), value: status.destination == nil)
+        .animation(Motion.dissolve, value: status.destination == nil)
     }
 }

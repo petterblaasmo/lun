@@ -146,7 +146,17 @@ extension Browser {
     /// asked for this one happened a moment ago, in JavaScript, with no
     /// native event left to hang an NSMenu off of.
     func showImageMenu(for tab: Tab, at url: URL) {
-        guard let webView = tab.built else { return }
+        guard let webView = tab.built, let menu = imageMenu(for: tab, at: url) else { return }
+        let screen = NSEvent.mouseLocation
+        guard let window = webView.window else { return }
+        let atWindow = window.convertPoint(fromScreen: screen)
+        let atView = webView.convert(atWindow, from: nil)
+        menu.popUp(positioning: nil, at: atView, in: webView)
+    }
+
+    /// What that menu offers for the picture at `url`, in order.
+    func imageMenu(for tab: Tab, at url: URL) -> NSMenu? {
+        guard let webView = tab.built else { return nil }
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.addItem(ImageMenuItem("Open Image in New Tab") { [weak self] in
@@ -168,17 +178,16 @@ extension Browser {
         menu.addItem(ImageMenuItem("Download Image") { [weak self] in
             self?.downloadImage(at: url, from: webView)
         })
+        // As Safari's picture menu has it (AddToPhotos.swift).
+        menu.addItem(ImageMenuItem(Browser.addToPhotosTitle) { [weak self] in
+            self?.addImageToPhotos(at: url, in: tab)
+        })
         menu.addItem(.separator())
         menu.addItem(ImageMenuItem("Copy Image Address") {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(url.absoluteString, forType: .string)
         })
-
-        let screen = NSEvent.mouseLocation
-        guard let window = webView.window else { return }
-        let atWindow = window.convertPoint(fromScreen: screen)
-        let atView = webView.convert(atWindow, from: nil)
-        menu.popUp(positioning: nil, at: atView, in: webView)
+        return menu
     }
 
     /// Fetched once, written as an actual image rather than a reference to

@@ -73,10 +73,10 @@ struct AccountList: View {
                 Image(systemName: contactsOnly ? "person.crop.rectangle" : "key")
                     .font(.system(size: 9, weight: .medium))
                 Text(footer)
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 12))
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(Palette.faint)
+            .foregroundStyle(Palette.muted)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .background(Palette.wash.opacity(0.5))
@@ -84,13 +84,8 @@ struct AccountList: View {
         }
         .frame(width: max(240, min(360, asked.spot.width)), alignment: .leading)
         }
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.14), radius: 22, y: 8)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
     /// The rows in the order ↓ walks them (Suggesting.choices): the Mac's
@@ -106,8 +101,8 @@ struct AccountList: View {
             ForEach(Array(choices.enumerated()), id: \.offset) { at, choice in
                 if at == asked.othersFrom {
                     Text("Other accounts on \(Vault.registrable(asked.host))")
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(Palette.faint)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 5)
@@ -207,27 +202,20 @@ struct AccountList: View {
                             .font(.system(size: 9, weight: .medium))
                             .frame(width: 22)
                         Text("Use your Apple passwords?")
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .lineLimit(1)
                         Spacer(minLength: 0)
                     }
                     .foregroundStyle((hovering && !onCross) || lit ? Palette.ink : Palette.muted)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .help("Turns on Apple Passwords and pairs with a code from your Mac. Settings › Passwords turns it off.")
-                Button(action: never) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 7.5, weight: .semibold))
-                        .foregroundStyle(Palette.faint)
-                        .frame(width: 16, height: 16)
-                        .background(Palette.ink.opacity(onCross ? 0.07 : 0), in: Circle())
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .onHover { onCross = $0 }
-                .help("Don't offer again")
-                .accessibilityLabel("Don't offer again")
+                .buttonStyle(Gives(to: 0.99))
+                .help("Turns on Apple Passwords and pairs with a code from your Mac. Settings › Privacy & Passwords turns it off.")
+                // Drawn as small as it was, with more than its sixteen
+                // points to land on.
+                IconButton("xmark", label: "Don't offer again", glyph: 7.5, weight: .semibold, size: 16, hit: 22,
+                           round: true, wash: Palette.fill, action: never)
+                    .onHover { onCross = $0 }
             }
             .padding(.leading, 10)
             .padding(.trailing, 8)
@@ -253,7 +241,7 @@ struct AccountList: View {
                 HStack(spacing: 10) {
                     Group {
                         switch mark {
-                        case .letter(let letter): Text(letter).font(.system(size: 11, weight: .medium))
+                        case .letter(let letter): Text(letter).font(.system(size: 12, weight: .medium))
                         case .symbol(let name): Image(systemName: name).font(.system(size: 10, weight: .medium))
                         }
                     }
@@ -266,7 +254,7 @@ struct AccountList: View {
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
                         Text(detail)
-                            .font(.system(size: 10.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(1)
                     }
@@ -277,7 +265,7 @@ struct AccountList: View {
                 .background(hovering || lit ? Palette.hover : .clear)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(Gives(to: 0.99))
             .onHover { hovering = $0 }
             .animation(Motion.quick, value: hovering)
         }

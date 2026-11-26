@@ -168,7 +168,7 @@ final class Launcher: NSObject, ObservableObject, NSWindowDelegate {
         if HotKey.usedByMacOS(code: key.code, modifiers: HotKey.modifiers(of: key.combo)) {
             refusal = "\(key.combo.display) is used by macOS"
         } else {
-            refusal = status == noErr ? nil : "macOS won’t give Search \(key.combo.display)"
+            refusal = status == noErr ? nil : "macOS won’t give Lun \(key.combo.display)"
         }
     }
 
@@ -411,9 +411,10 @@ final class Launcher: NSObject, ObservableObject, NSWindowDelegate {
             let browser = Browsers.ensureWindow()
             browser.show(page)
             Self.bringUp(browser)
-        } else if Shared.prefs.launcherLittle {
+        } else if Shared.prefs.launcherLittle || Shared.prefs.littleLinks {
             // In a small window over the app you're in, as a link from
-            // another app can open (Settings › From any app).
+            // another app opens: its own switch is gone (RetiredSettings),
+            // and "in a small window" is said once, in Settings › Browsing.
             Links.openLittle(url, for: target)
             return
         } else if let open = openTab(for: url, in: target) {
@@ -480,8 +481,10 @@ final class LauncherPanel: NSPanel {
         if let area = Self.area {
             setFrameOrigin(NSPoint(x: area.midX - frame.width / 2, y: area.maxY - area.height * Self.drop - frame.height))
         }
+        let wasUp = isVisible
         orderFrontRegardless()
         makeKey()
+        if !wasUp { Motion.arrive(self) }
     }
 
     /// How tall what it holds can be there: from its top down to the foot
@@ -527,19 +530,19 @@ private struct LauncherView: View {
             .frame(height: 22)
             .padding(.horizontal, 22)
             .padding(.vertical, 14)
-            .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            // Floating, not over everything: the panel's margin has room
+            // for that shadow and no deeper one (LauncherPanel.margin).
+            .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(refused ? Color.red.opacity(0.35) : Palette.hairline, lineWidth: 1)
+                RoundedRectangle(cornerRadius: Radius.float, style: .continuous)
+                    .strokeBorder(refused ? Palette.dangerRing : .clear, lineWidth: 1)
                     .allowsHitTesting(false)
             )
-            // Deeper than over a page: it stands over another app's window.
-            .shadow(color: .black.opacity(0.16), radius: 24, y: 8)
             .modifier(Shake(travel: shake))
             .onChange(of: launcher.refusals) { _, _ in
                 shake = 0
                 refused = true
-                withAnimation(.easeOut(duration: 0.5)) { shake = 1 }
+                withAnimation(Motion.shake) { shake = 1 }
             }
             .onChange(of: launcher.typed) { _, _ in
                 withAnimation(Motion.quick) { refused = false }
@@ -551,17 +554,13 @@ private struct LauncherView: View {
             ForEach(Array(launcher.offers.enumerated()), id: \.element.id) { index, offer in
                 Omnibox.Row(offer: offer, picked: launcher.picked == index)
                     .contentShape(Rectangle())
-                    .onTapGesture { launcher.take(offer) }
+                    .pressed(to: 0.99) { launcher.take(offer) }
             }
         }
         .padding(6)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.14), radius: 20, y: 6)
-        .transition(.scale(scale: 0.98, anchor: .top).combined(with: .opacity))
+        // Floating, as the field over it is, for the same reason (LauncherPanel.margin).
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
+        .transition(.card(from: .top))
     }
 }
 
@@ -589,9 +588,9 @@ private struct LauncherField: NSViewRepresentable {
         field.cell?.isScrollable = true
         field.placeholderAttributedString = NSAttributedString(
             string: "Search or enter a web address",
-            attributes: [.font: Self.font, .foregroundColor: NSColor(Palette.ink.opacity(0.3))]
+            attributes: [.font: Self.font, .foregroundColor: Palette.NS.muted]
         )
-        field.setAccessibilityLabel("Address, opened in Search")
+        field.setAccessibilityLabel("Address, opened in Lun")
         return field
     }
 
@@ -723,31 +722,19 @@ struct LauncherKeyBox: View {
         HStack(spacing: 8) {
             if let refusal = launcher.refusal, !listening {
                 Text(refusal)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color.red.opacity(0.8))
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.danger)
                     .lineLimit(1)
             }
             if prefs.launcherKey == nil, !listening {
                 Pill("Use \(LauncherKey.suggested.combo.display)") { prefs.launcherKey = .suggested }
             }
             Button(action: listen) {
-                Text(label)
-                    .font(.system(size: 12))
-                    .foregroundStyle(listening || prefs.launcherKey != nil ? Palette.ink : Palette.muted)
-                    .lineLimit(1)
-                    .padding(.horizontal, 10)
-                    .frame(minWidth: 64, minHeight: 24)
-                    .background(listening || hovering ? Palette.hover : Palette.ground,
-                                in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .strokeBorder(listening ? Palette.ink.opacity(0.4) : Palette.hairline, lineWidth: 1)
-                    )
-                    .contentShape(Rectangle())
+                KeyFace(label: label, set: prefs.launcherKey != nil, listening: listening, hovering: hovering)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(Gives(to: 0.96))
             .help("Click, then press the key. ⌫ takes it away")
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .onDisappear(perform: stop)
         }
     }

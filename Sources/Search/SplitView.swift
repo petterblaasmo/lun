@@ -44,6 +44,7 @@ struct SplitStage: View {
                 case .even: browser.evenSplit()
                 case .separate: if let tab = browser.active { browser.detachSplit(tab) }
                 case .closeBoth: browser.closeSplit()
+                case .scrollTogether: browser.toggleScrollTogether()
                 }
             },
             hover: { hovered = $0 },
@@ -111,10 +112,10 @@ private struct SplitDropHint: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Palette.ground.opacity(0.35))
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Palette.ink.opacity(0.18), lineWidth: 1)
+                .strokeBorder(Palette.drop, lineWidth: 1)
             Image(systemName: "rectangle.split.2x1")
                 .font(.system(size: 15))
-                .foregroundStyle(Palette.ink.opacity(0.4))
+                .foregroundStyle(Palette.muted)
         }
         .padding(6)
         .frame(width: band)
@@ -141,7 +142,7 @@ private struct PaneLayers: View {
     private var whose: some View {
         if paired, !focused, hovered || browser.folded, let host = tab.address?.host(), !tab.isBlank {
             Text(host.hasPrefix("www.") ? String(host.dropFirst(4)) : host)
-                .font(.system(size: 11.5))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.muted)
                 .lineLimit(1)
                 .padding(.horizontal, 10)
@@ -180,13 +181,14 @@ private struct PaneLayers: View {
             if let question = browser.paneQuestions.first(where: { $0.tab == tab.id }) {
                 PaneQuestionCard(browser: browser, tab: tab, question: question, width: width)
                     .id(question.id)
-                    .transition(.opacity)
+                    // A card, so it comes as the other cards do.
+                    .transition(.card)
             }
         }
         // Gone to another page: what the last one asked goes unanswered no
         // longer.
         .onChange(of: tab.committed) { _, _ in browser.dropQuestions(for: tab.id) }
-        .animation(Motion.quick, value: browser.paneQuestions.map(\.id))
+        .animation(Motion.settle, value: browser.paneQuestions.map(\.id))
         .overlay {
             // Over the page the link is on, focused or not.
             if browser.prefs.showsLinks {
@@ -306,7 +308,7 @@ private struct OpenTabs: View {
             if !list.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Or bring in an open tab")
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .padding(.horizontal, 10)
                         .padding(.bottom, 4)
@@ -316,11 +318,11 @@ private struct OpenTabs: View {
                 }
                 // As wide as the field, its rows' text under the field's.
                 .padding(.horizontal, 12)
-                .frame(width: min(Metrics.fieldWidth, max(0, geo.size.width - 28)), alignment: .leading)
+                .frame(width: Omnibox.width(in: geo.size), alignment: .leading)
                 .frame(maxWidth: .infinity)
-                // Under the field, which stands 60 points above the middle,
-                // and under the Home grid when it stands there (#1381).
-                .offset(y: geo.size.height / 2 + 10 + below)
+                // Under the field (Omnibox.under), and under the Home grid
+                // when it stands there (#1381).
+                .offset(y: Omnibox.under(in: geo.size) + 15 + below)
             }
         }
     }
@@ -332,25 +334,27 @@ private struct OpenTabRow: View {
     @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            Mark(icon: tab.icon, letter: tab.monogram, size: 15)
-                .frame(width: 15, height: 15)
-            Text(tab.label.isEmpty ? "New Tab" : tab.label)
-                .font(.system(size: 12.5))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.75))
-            Spacer(minLength: 0)
+        Button(action: bring) {
+            HStack(spacing: 8) {
+                Mark(icon: tab.icon, letter: tab.monogram, size: 15)
+                    .frame(width: 15, height: 15)
+                Text(tab.label.isEmpty ? "New Tab" : tab.label)
+                    .font(.system(size: 12.5))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(hovering ? Palette.ink : Palette.soft)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.hover : .clear))
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 10)
-        .frame(height: 28)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.hover : .clear))
-        .contentShape(Rectangle())
-        .onTapGesture(perform: bring)
-        .onHover { hovering = $0 }
-        .accessibilityElement(children: .ignore)
+        // A button, where a tap on a stack was all it had: the keyboard
+        // can press it, and it gives.
+        .buttonStyle(Gives(to: 0.98))
+        .hovers($hovering)
         .accessibilityLabel(tab.label)
-        .accessibilityAddTraits(.isButton)
         .accessibilityHint("Bring this tab into the split")
     }
 }
@@ -403,18 +407,19 @@ private struct PaneQuestionCard: View {
                 }
                 HStack(spacing: 8) {
                     Spacer(minLength: 0)
+                    // The pills every other question has. Dimmed for the
+                    // half second a page's question can't be answered by
+                    // a click meant for the page.
                     if question.kind != .alert {
-                        choice("Cancel", strong: false) { answer(false) }
+                        Pill("Cancel", large: true) { answer(false) }.disabled(!ready)
                     }
-                    choice("OK", strong: true) { answer(true) }
+                    Pill("OK", filled: true, large: true) { answer(true) }.disabled(!ready)
                 }
                 .padding(.top, 2)
             }
             .padding(18)
             .frame(width: min(380, max(0, width - 32)))
-            .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-            .shadow(color: .black.opacity(0.14), radius: 18, y: 6)
+            .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
             .simultaneousGesture(TapGesture().onEnded { browser.focusPane(tab) })
             .padding(.top, 56)
         }
@@ -431,17 +436,4 @@ private struct PaneQuestionCard: View {
         browser.answer(question, ok: ok, text: prompting ? text : nil)
     }
 
-    private func choice(_ title: String, strong: Bool, act: @escaping () -> Void) -> some View {
-        Button(action: act) {
-            Text(title)
-                .font(.system(size: 12.5, weight: strong ? .medium : .regular))
-                .foregroundStyle(strong ? Palette.ground : Palette.ink)
-                .padding(.horizontal, 14)
-                .frame(height: 26)
-                .background(strong ? Palette.ink : Palette.ink.opacity(0.07), in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .disabled(!ready)
-        .opacity(ready ? 1 : 0.5)
-    }
 }

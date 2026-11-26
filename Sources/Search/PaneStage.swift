@@ -78,9 +78,14 @@ final class PaneStage: NSView {
     /// past the window's.
     private var cardSize: (() -> CGSize)?
     private var cardCorner: CGFloat?
+    /// The card in the stage's middle across, or from its leading edge
+    /// (CardClip.centred).
+    private var cardCentred = true
 
-    func clip(card: (() -> CGSize)?, corner: CGFloat) {
+    func clip(card: (() -> CGSize)?, corner: CGFloat, squareTop: Bool = false, centred: Bool = true) {
+        cardCentred = centred
         cardSize = card
+        for slot in slots { slot.squaresTop = squareTop }
         cardCorner = corner
         // In this pass's layout, once the stage is where this frame has it
         // (see StageView.clip).
@@ -94,7 +99,8 @@ final class PaneStage: NSView {
             let card = size()
             return CGSize(width: max(0, bounds.width - card.width), height: max(0, bounds.height - card.height))
         } ?? .zero
-        let card = CGRect(x: 0, y: 0, width: max(0, bounds.width - cardShort.width),
+        // In the stage's middle across, at its top down (StageView.applyCard).
+        let card = CGRect(x: cardCentred ? cardShort.width / 2 : 0, y: 0, width: max(0, bounds.width - cardShort.width),
                           height: max(0, bounds.height - cardShort.height))
         let whole = cardShort.width < 0.25 && cardShort.height < 0.25
         let hairline = 1 / max(1, window?.backingScaleFactor ?? 2)
@@ -127,7 +133,7 @@ final class PaneStage: NSView {
     var onHover: ((Tab.ID?) -> Void)?
     private var hovered: Tab.ID?
 
-    enum Action { case swap, even, separate, closeBoth }
+    enum Action { case swap, even, separate, closeBoth, scrollTogether }
 
     /// Between the pages: room for the divider, and to keep it off the left
     /// page's scroll bar.
@@ -505,7 +511,7 @@ final class PaneStage: NSView {
                     findWidth = page.width
                     bar.rootView.availableWidth = page.width
                 }
-                let width = min(390, page.width)
+                let width = min(440, page.width)
                 bar.frame = CGRect(x: page.maxX - width, y: page.minY,
                                    width: width, height: min(60, page.height))
             }
@@ -711,6 +717,8 @@ final class PaneStage: NSView {
     fileprivate var pageCount: Int { tabs.count }
 
     fileprivate func act(_ action: Action) { onAction?(action) }
+    /// Whether the split shown scrolls as one: the divider's menu ticks it.
+    fileprivate var scrollsTogether: Bool { split?.scrollsTogether ?? false }
 
     // MARK: - a click on a page focuses it
 
@@ -773,8 +781,8 @@ final class PaneStage: NSView {
         if fading, !Motion.reduced, tabs.first !== tab, let layer {
             let fade = CATransition()
             fade.type = .fade
-            fade.duration = 0.15
-            fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            fade.duration = Motion.spaceFade
+            fade.timingFunction = Motion.timing(.dissolve)
             layer.add(fade, forKey: "space")
         }
         // The usual way in, so a move under way is cut short as any change of
@@ -884,8 +892,8 @@ final class PaneDivider: NSView {
         let still = pill.actions
         pill.actions = nil
         CATransaction.begin()
-        CATransaction.setAnimationDuration(Motion.reduced ? 0 : 0.14)
-        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeOut))
+        CATransaction.setAnimationDuration(Motion.duration(.quick))
+        CATransaction.setAnimationTimingFunction(Motion.timing(.quick))
         place()
         paint()
         CATransaction.commit()
@@ -958,6 +966,13 @@ final class PaneDivider: NSView {
             menu.addItem(item)
             if action == .even { menu.addItem(.separator()) }
         }
+        // This split's own, ticked while it is on (Browser.toggleScrollTogether).
+        menu.addItem(.separator())
+        let together = NSMenuItem(title: "Scroll Together", action: #selector(chose(_:)), keyEquivalent: "")
+        together.target = self
+        together.representedObject = PaneStage.Action.scrollTogether
+        together.state = stage?.scrollsTogether == true ? .on : .off
+        menu.addItem(together)
         return menu
     }
 
@@ -1114,7 +1129,7 @@ extension PaneStage {
             let slot = slots[index]
             slot.alphaValue = 0
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = Motion.seconds(reduced ? 0.15 : 0.3)
+                context.duration = reduced ? Motion.duration(.reveal) : Motion.duration(.settle)
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 slot.animator().alphaValue = 1
             }
@@ -1123,14 +1138,14 @@ extension PaneStage {
             for line in dividers where !line.isHidden {
                 line.alphaValue = 0
                 NSAnimationContext.runAnimationGroup { context in
-                    context.duration = reduced ? 0 : 0.14
+                    context.duration = Motion.duration(.quick)
                     line.animator().alphaValue = 1
                 }
             }
         }
         let fade = { [weak self] in
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = Motion.seconds(reduced ? 0.15 : 0.12)
+                context.duration = Motion.duration(.reveal)
                 for (view, _) in moving { view.animator().alphaValue = 0 }
             }, completionHandler: { [weak self] in
                 MainActor.assumeIsolated {
@@ -1145,8 +1160,8 @@ extension PaneStage {
         NSAnimationContext.runAnimationGroup({ context in
             // Search's glide, as near as a curve comes to its spring:
             // quick away, settling without a bounce, in about 0.3 s.
-            context.duration = 0.32
-            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
+            context.duration = Motion.panes
+            context.timingFunction = Motion.timing(.glide)
             context.allowsImplicitAnimation = true
             for (view, end) in moving {
                 if let end {

@@ -66,7 +66,7 @@ struct DeveloperFrameDetailsView: View {
                             }
                             .disabled(!hasOwner)
                             .help(hasOwner ? "Select the element that holds this frame"
-                                  : "The element is inside a cross-origin frame, which Search can’t reach")
+                                  : "The element is inside a cross-origin frame, which Lun can’t reach")
                         }
                     }
                     resources(node)

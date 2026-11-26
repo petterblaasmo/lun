@@ -125,6 +125,29 @@ def case(t, name, path, expect, wait=2.5, behind=False, **extra):
     return page
 
 
+NOTE = "Opened in a new tab"
+
+
+def heard(wait=1.0):
+    """What the window last said, given a moment to say it."""
+    until = time.monotonic() + wait
+    note = sv.sp("state")["announced"]
+    while not note and time.monotonic() < until:
+        time.sleep(0.05)
+        note = sv.sp("state")["announced"]
+    return note
+
+
+def said(t, name, path, expect, **extra):
+    """A click on the page's link, and what the window says of it. The line
+    before it, if any, is let go first: it lasts under two seconds."""
+    page = sv.page(path); sv.sp("select", id=page)
+    time.sleep(2.2)
+    tap(page, **extra)
+    note = heard()
+    t.ok(f"{name}: says {expect!r}", note == expect, note)
+
+
 def main():
     t = sv.T()
     try:
@@ -142,6 +165,18 @@ def main():
         case(t, "middle-click, the page opening on auxclick", "gmail-aux", "gmaila", behind=True, button="middle")
         # And the next click still opens its one tab.
         case(t, "a click after all that", "anchor", "anchor")
+        # With the tabs folded away, a link opened behind says so; one
+        # opened in front, or with the tabs in sight, says nothing.
+        said(t, "tabs in sight, ⌘-click", "plain", "", mods=["cmd"])
+        sv.cmd({"do": "ui", "folded": True}); time.sleep(0.3)
+        said(t, "folded, ⌘-click", "plain", NOTE, mods=["cmd"])
+        said(t, "folded, ⌘-click on the Gmail pattern", "gmail", NOTE, mods=["cmd"])
+        said(t, "folded, middle-click", "plain", NOTE, button="middle")
+        said(t, "folded, ⌘⇧-click (in front)", "plain", "", mods=["cmd", "shift"])
+        said(t, "folded, a plain click on target=_blank (in front)", "anchor", "")
+        page = sv.page("plain"); sv.sp("select", id=page); time.sleep(0.4)
+        sv.cmd({"do": "linkmenu", "id": page, "x": 80, "y": 60, "pick": "Open Link in New Tab"})
+        t.ok("folded, Open Link in New Tab: said", heard() == NOTE, heard())
     finally:
         t.done(); sv.finish()
     return 1 if t.failed else 0
@@ -149,5 +184,5 @@ def main():
 
 if __name__ == "__main__":
     if sys.platform != "darwin":
-        sys.exit("Tests/one_click_one_tab.py requires macOS and a built Search.app")
+        sys.exit("Tests/one_click_one_tab.py requires macOS and a built Lun.app")
     sys.exit(main())

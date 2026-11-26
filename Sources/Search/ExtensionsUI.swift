@@ -3,6 +3,25 @@ import WebKit
 
 /// Settings › Extensions: what is installed, and the two ways in — a Chrome
 /// Web Store link, or a folder.
+/// Extensions as a page in a tab of its own (search://extensions): what
+/// Settings › Extensions lists, under its own title, as wide as Settings.
+struct ExtensionsPanel: View {
+    @ObservedObject var browser: Browser
+
+    var body: some View {
+        Plate("Extensions", line: "Chrome extensions, from the Chrome Web Store or a folder of your own.",
+              width: 600, across: 640, close: { browser.putAway(.extensions) }) {
+            ScrollView {
+                ExtensionsPage(browser: browser)
+                    .padding(.bottom, 24)
+            }
+            .listHeight(420)
+        } foot: {
+            EmptyView()
+        }
+    }
+}
+
 struct ExtensionsPage: View {
     @ObservedObject var browser: Browser
 
@@ -39,7 +58,7 @@ struct ExtensionsPage: View {
                             ZStack(alignment: .leading) {
                                 if link.isEmpty {
                                     Text("Paste a link to an extension, or its id")
-                                        .foregroundStyle(Palette.muted.opacity(0.8))
+                                        .foregroundStyle(Palette.muted)
                                 }
                                 TextField("", text: $link)
                                     .textFieldStyle(.plain)
@@ -49,7 +68,7 @@ struct ExtensionsPage: View {
                             .font(.system(size: 12.5))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 7)
-                            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                             if !extensions.busy.isEmpty {
                                 Ring(size: 12)
                             } else {
@@ -57,8 +76,8 @@ struct ExtensionsPage: View {
                                     .disabled(Crx.id(in: link) == nil)
                             }
                         }
-                        Text("Or find it in the store and press Add to Search on its page.")
-                            .font(.system(size: 11.5))
+                        Text("Or find it in the store and press Add to Lun on its page.")
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -75,7 +94,7 @@ struct ExtensionsPage: View {
                 }
 
                 if extensions.installed.isEmpty {
-                    Card { Nothing("No extensions yet.") }
+                    Card { Nothing("No extensions yet. Open the Store above, or bring over the ones another browser has.") }
                 } else {
                     Card {
                         ForEach(Array(extensions.installed.enumerated()), id: \.element.id) { index, item in
@@ -84,7 +103,7 @@ struct ExtensionsPage: View {
                         }
                     }
                     Text("Each extension stays out of private tabs until you allow it in its … menu. One you allow can tell which tabs are private, but may still keep what you visit in them.")
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -203,7 +222,7 @@ struct ExtensionsPage: View {
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
                         Text(detail(context))
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(1)
                             .help(item.source ?? "")
@@ -211,7 +230,7 @@ struct ExtensionsPage: View {
                         // WebKit's reason, not a row like any other (#1208).
                         if item.enabled, context == nil, let reason = extensions.notStarted[item.id] {
                             Text("Couldn’t start: \(reason)")
-                                .font(.system(size: 11.5))
+                                .font(.system(size: 12))
                                 .foregroundStyle(Palette.unsafe)
                                 .lineLimit(3)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -220,7 +239,7 @@ struct ExtensionsPage: View {
                         // Running, but without what it is for (#1208).
                         if let limit = context.flatMap({ Extensions.cantDo($0.webExtension.manifest) }) {
                             Text(limit)
-                                .font(.system(size: 11.5))
+                                .font(.system(size: 12))
                                 .foregroundStyle(Palette.unsafe)
                                 .lineLimit(3)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -256,8 +275,8 @@ struct ExtensionsPage: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(hovering ? Palette.hover : .clear)
-            .onHover { hovering = $0 }
+            .background(hovering ? Palette.fillHover : .clear)
+            .hovers($hovering)
             .contextMenu { actions(context) }
         }
 
@@ -295,7 +314,9 @@ struct ExtensionsPage: View {
                 }
             }
             Divider()
-            Button("Remove", role: .destructive) { extensions.remove(item.id) }
+            // Asks first, as Remove in the button's own menu does: here it
+            // was gone on the click, settings and data with it.
+            Button("Remove…", role: .destructive) { ExtensionActions.confirmRemove(item.id, name: item.name, extensions) }
         }
 
         /// Where it was loaded from, by the folder's name — the whole path
@@ -327,35 +348,14 @@ private struct RunsOn: View {
 
     var body: some View {
         let access = extensions.siteAccess(item.id)
-        Menu {
-            Picker("Runs on", selection: Binding(
-                get: { access.mode },
-                set: { extensions.setSiteAccess(item.id, SiteAccess(mode: $0, hosts: access.hosts)) }
-            )) {
-                Text("All Sites It Asks For").tag(SiteAccess.Mode.all)
-                Text("Only Sites I Name").tag(SiteAccess.Mode.some)
-                Text("Only When I Click It").tag(SiteAccess.Mode.click)
-            }
-            .pickerStyle(.inline)
-            .labelsHidden()
-        } label: {
-            HStack(spacing: 3) {
-                Text(access.mode.title)
-                    .font(.system(size: 11.5))
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 8, weight: .semibold))
-            }
-            .foregroundStyle(access.restricted ? Palette.ink : Palette.muted)
-            .padding(.horizontal, 8)
-            .frame(height: 22)
-            .background(Palette.wash, in: Capsule())
-            .contentShape(Capsule())
+        PopUp("\(item.name) runs on", shows: access.mode.title, selection: Binding(
+            get: { access.mode },
+            set: { extensions.setSiteAccess(item.id, SiteAccess(mode: $0, hosts: access.hosts)) }
+        )) {
+            Text("All Sites It Asks For").tag(SiteAccess.Mode.all)
+            Text("Only Sites I Name").tag(SiteAccess.Mode.some)
+            Text("Only When I Click It").tag(SiteAccess.Mode.click)
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .accessibilityLabel("\(item.name) runs on")
-        .accessibilityValue(access.mode.title)
         .help("Where \(item.name) runs. Fewer sites, less memory on the rest")
     }
 }
@@ -379,25 +379,16 @@ private struct SiteList: View {
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
                         Spacer(minLength: 6)
-                        Button {
+                        IconButton("xmark", label: "Remove \(host)", glyph: 9, weight: .semibold, size: 18) {
                             extensions.setSiteAccess(item.id, access.removing(host))
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(Palette.muted)
-                                .frame(width: 18, height: 18)
-                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Remove \(host)")
-                        .help("Remove \(host)")
                     }
                 }
                 HStack(spacing: 8) {
                     ZStack(alignment: .leading) {
                         if typed.isEmpty {
                             Text("Add a site, like example.com")
-                                .foregroundStyle(Palette.muted.opacity(0.8))
+                                .foregroundStyle(Palette.muted)
                         }
                         TextField("", text: $typed)
                             .textFieldStyle(.plain)
@@ -408,13 +399,13 @@ private struct SiteList: View {
                     .font(.system(size: 12))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                     Pill("Add", action: add)
                         .disabled(SiteAccess.host(from: typed) == nil)
                 }
             }
             Text(note(access))
-                .font(.system(size: 11))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -453,37 +444,42 @@ struct StoreOffer: View {
         @ObservedObject var tab: Tab
         @ObservedObject var extensions: Extensions
 
+        /// The extension the offer is for, while there is one to make.
+        private var offered: String? {
+            guard let url = tab.address, let id = Crx.storeID(of: url),
+                  tab.storePlaced != id, !extensions.installed.contains(where: { $0.id == id }) else { return nil }
+            return id
+        }
+
         var body: some View {
+            Group { offer }
+                // Outside the `if`: on the pill itself nothing carried it in.
+                .animation(Motion.settle, value: offered)
+        }
+
+        @ViewBuilder
+        private var offer: some View {
             // Only where the page's own "Add to Search" isn't in place — a
             // store that has changed its markup still gets a way in.
-            if let url = tab.address, let id = Crx.storeID(of: url),
-               tab.storePlaced != id, !extensions.installed.contains(where: { $0.id == id }) {
+            if let id = offered {
                 HStack(spacing: 12) {
                     Image(systemName: "puzzlepiece.extension")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(Palette.muted)
-                    Text(extensions.busy.contains(id) ? "Adding…" : "Add this extension to Search")
+                    Text(extensions.busy.contains(id) ? "Adding…" : "Add this extension to Lun")
                         .font(.system(size: 12.5))
                         .foregroundStyle(Palette.ink)
                     if extensions.busy.contains(id) {
                         Ring(size: 10)
                     } else {
-                        Button("Add") { extensions.install(from: id) }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 12))
-                            .foregroundStyle(Palette.ground)
-                            .padding(.horizontal, 11)
-                            .padding(.vertical, 5)
-                            .background(Palette.ink, in: Capsule())
+                        Pill("Add", filled: true) { extensions.install(from: id) }
                     }
                 }
                 .padding(.leading, 16)
                 .padding(.trailing, 10)
                 .padding(.vertical, 9)
-                .background(Palette.ground, in: Capsule())
-                .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
-                .shadow(color: .black.opacity(0.12), radius: 20, y: 6)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .elevated(.float, in: Capsule())
+                .transition(.bar(.bottom))
             }
         }
     }
@@ -518,17 +514,14 @@ struct HomePageLine: View {
             if !askers.isEmpty {
                 Rule()
                 SettingRow(icon: "house", title: "Home page", detail: detail(askers, current)) {
-                    Picker("", selection: Binding(
+                    PopUp("Home page", shows: askers.first { $0.id == current }?.name ?? "Lun's own", selection: Binding(
                         get: { current ?? "" },
                         set: { extensions.setNewTabPage($0.isEmpty ? nil : $0) }
                     )) {
-                        Text("Search's own").tag("")
+                        Text("Lun's own").tag("")
                         Divider()
                         ForEach(askers) { Text($0.name).tag($0.id) }
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .fixedSize()
                 }
             }
         }

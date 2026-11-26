@@ -13,6 +13,12 @@ import WebKit
 // whole web view is lifted out of the window and into a small floating one. The
 // video never stops, because it is the same page it always was — it has only
 // changed windows.
+//
+// And, wherever it can, the page keeps the size it had in its tab: the little
+// window shows the part of it the picture is in, scaled to the window by the
+// view around it (see `kept`). A page given the window's size instead is laid
+// out again by WebKit, and has to be covered with a still of the video until
+// that is done, going out and coming back.
 
 @MainActor
 final class Float {
@@ -53,6 +59,31 @@ final class Float {
     /// (see `film float` in Bench.swift).
     var covered: Bool { cover != nil }
     var coveredByStill: Bool { cover?.layer?.contents != nil }
+
+    /// Whether the page in the window kept its tab's size (see `kept`), and
+    /// whether the window is up but not shown yet, the frame or two until
+    /// the page is drawn in it. For the bench.
+    private(set) var keeps = false
+    private(set) var unseen = false
+    /// The window itself, for the bench and the tests.
+    var benchWindow: NSWindow? { panel }
+    /// How the page was sized by its superview before it came here.
+    private var resizing: NSView.AutoresizingMask = []
+
+    /// A test run's bench has every page laid out at the window's size, as
+    /// one that can't keep its own is (see `film float` in Bench.swift).
+    static var benchFits = false
+
+    /// For the bench: the size of the page's view, and where the whole of
+    /// that view is in the window, from the window's top left, as the views
+    /// have it and as the layers that are drawn do.
+    func benchShows() -> (page: NSSize, views: NSRect, layers: NSRect)? {
+        guard let page, let ground = panel?.contentView, let layer = page.layer, let top = ground.layer else { return nil }
+        func down(_ rect: NSRect) -> NSRect {
+            NSRect(x: rect.minX, y: ground.bounds.height - rect.maxY, width: rect.width, height: rect.height)
+        }
+        return (page.bounds.size, down(page.convert(page.bounds, to: ground)), down(layer.convert(layer.bounds, to: top)))
+    }
 
     /// Where a test run's bench opens the window instead: off every screen,
     /// at the size it would have had, and not remembered (see `film float`
@@ -106,10 +137,153 @@ final class Float {
     /// everywhere else.
     static var benchScreens: [NSRect]?
 
+    /// How far two fingers go, with flicks on, before the window flies to a
+    /// corner: at once past `flickAt`, or as they lift past `nudge`. A swipe
+    /// shorter than that has only placed the window, point for point.
+    nonisolated static let flickAt: CGFloat = 120
+    nonisolated static let nudge: CGFloat = 20
+
+    /// Whether a swipe this long is a flick, now or as the fingers lift.
+    nonisolated static func flies(_ swipe: CGVector, lifted: Bool) -> Bool {
+        let length = hypot(swipe.dx, swipe.dy)
+        return length > flickAt || (lifted && length > nudge)
+    }
+
+    /// How much of a pinch is taken at a time. Where every step lays the
+    /// page out again, a fiftieth: below what an eye reads as a jump, and an
+    /// order of magnitude less work than a step an event. Where the page
+    /// keeps its size and only the window's scale changes, a step costs
+    /// nothing, and the window follows the fingers.
+    nonisolated static let coarsePinch: CGFloat = 0.02
+    nonisolated static let finePinch: CGFloat = 0.002
+
+    /// The window `was`, made `width` wide. Its shape is kept: a video
+    /// window that can be squashed is a video window showing bars. `shape`
+    /// is that shape where the window has one of its own: the frame's is in
+    /// whole points, and taken from it the shape drifted a little with
+    /// every step of a pinch. No narrower than `least`, and no larger than
+    /// fits whole, both ways, in most of a screen `area` in size: by its
+    /// width alone, a window on a wide screen grew taller than the screen.
+    /// About `anchor`, the place under the pointer stays under it; without
+    /// one, the top left stays.
+    nonisolated static func sized(_ was: NSRect, to width: CGFloat, around anchor: NSPoint? = nil,
+                                  shape: NSSize? = nil, least: CGFloat, within area: NSSize) -> NSRect {
+        guard was.width > 0, was.height > 0 else { return was }
+        let shape = shape.flatMap { $0.width > 0 && $0.height > 0 ? $0 : nil } ?? was.size
+        let most = min(area.width, area.height * shape.width / shape.height) * 0.85
+        let wide = max(least, min(width, most))
+        let tall = wide * shape.height / shape.width
+        guard let anchor else {
+            return NSRect(x: was.minX, y: was.maxY - tall, width: wide, height: tall)
+        }
+        // Where the pointer sits within the window, as a fraction, kept at
+        // the same fraction of the new one.
+        let across = (anchor.x - was.minX) / was.width
+        let up = (anchor.y - was.minY) / was.height
+        return NSRect(x: anchor.x - across * wide, y: anchor.y - up * tall, width: wide, height: tall)
+    }
+
+    /// `frame` in whole points, its top edge where it was to the nearest
+    /// one. A window's frame is taken out to the pixels around it when it
+    /// isn't on them, a point or so wider at a time, or two on a screen
+    /// with a pixel to the point: a pinch taken in fine steps then grew
+    /// faster than the fingers went, and barely shrank at all.
+    nonisolated static func whole(_ frame: NSRect) -> NSRect {
+        let wide = frame.width.rounded(), tall = frame.height.rounded()
+        return NSRect(x: frame.minX.rounded(), y: frame.maxY.rounded() - tall, width: wide, height: tall)
+    }
+
+    /// The part of its page a window of `shape` shows: around the video's
+    /// `picture`, of the window's shape, and no larger than holds the
+    /// picture whole. In the page's own points, down from its top left. It
+    /// may run past the page's edges: the page around the picture is black,
+    /// and so is the window behind it.
+    nonisolated static func crop(around picture: NSRect, shape: NSSize) -> NSRect? {
+        guard picture.width > 0, picture.height > 0, shape.width > 0, shape.height > 0 else { return nil }
+        let across = max(picture.width, picture.height * shape.width / shape.height)
+        let down = across * shape.height / shape.width
+        return NSRect(x: picture.midX - across / 2, y: picture.midY - down / 2, width: across, height: down)
+    }
+
+    /// Where the video's picture is in its page's view, if the page can
+    /// stay the size it is while it floats; nil if it has to be laid out at
+    /// the window's size. `picture` and `page` are what the page said of
+    /// itself as it was isolated (Isolate.on), in its own pixels, `zoom`
+    /// points each. Only for the page as it is now: an answer can come
+    /// after its view was resized. And not for a page pinched larger, whose
+    /// view shows a part of the page and not all of it.
+    nonisolated static func kept(picture: [Double], page: [Double], zoom: CGFloat, magnification: CGFloat, view: NSSize) -> NSRect? {
+        guard picture.count == 4, page.count == 2,
+              (picture + page).allSatisfy(\.isFinite), zoom.isFinite, zoom > 0,
+              abs(magnification - 1) < 0.001, view.width > 0, view.height > 0,
+              abs(page[0] * zoom - view.width) <= max(1, zoom), abs(page[1] * zoom - view.height) <= max(1, zoom)
+        else { return nil }
+        let rect = NSRect(x: picture[0] * zoom, y: picture[1] * zoom, width: picture[2] * zoom, height: picture[3] * zoom)
+        guard rect.width >= 1, rect.height >= 1,
+              NSRect(origin: .zero, size: view).insetBy(dx: -2, dy: -2).contains(rect) else { return nil }
+        return rect
+    }
+
+    /// The same, from the page's answer and its view.
+    static func kept(_ answer: Any?, in web: WKWebView) -> NSRect? {
+        guard !benchFits, let found = answer as? [String: Any], found["kept"] as? Bool == true else { return nil }
+        return kept(
+            picture: (found["alone"] as? [NSNumber] ?? []).map(\.doubleValue),
+            page: (found["page"] as? [NSNumber] ?? []).map(\.doubleValue),
+            zoom: web.pageZoom, magnification: web.magnification, view: web.bounds.size
+        )
+    }
+
+    /// A trackpad pinch goes to the window with the keys, not to the one
+    /// under the fingers, and this window takes the keys only when clicked:
+    /// a pinch over it went to the browser window behind, and zoomed the
+    /// page there instead of sizing this. So pinches are looked at on their
+    /// way in, and one that begins over a floating window is that window's
+    /// until the fingers lift.
+    private static var pinchWatch: Any?
+    private static weak var pinched: Panel?
+    /// A pinch begun over a floating window is its to the end, even if the
+    /// window closes under the fingers: the page behind would otherwise get
+    /// the rest of a pinch it never saw begin.
+    private static var steering = false
+
+    private static func watchPinches() {
+        guard pinchWatch == nil else { return }
+        pinchWatch = NSEvent.addLocalMonitorForEvents(matching: .magnify) { event in
+            MainActor.assumeIsolated { steer(event) } ? nil : event
+        }
+    }
+
+    /// Whether `event`, a pinch, was a floating window's, and went to it.
+    static func steer(_ event: NSEvent) -> Bool {
+        if event.phase.contains(.began) || event.phase.isEmpty {
+            let spot = event.window.map { $0.convertPoint(toScreen: event.locationInWindow) } ?? NSEvent.mouseLocation
+            // The window on top there: an alert or a popover over the
+            // floating window is the one pinched.
+            // Of Lun's own, front to back: with Lun in front the pinch is
+            // one of its windows' whatever else is on screen.
+            pinched = (NSWindow.windowNumbers(options: []) ?? []).lazy
+                .compactMap { NSApp.window(withWindowNumber: $0.intValue) }
+                .first { $0.isVisible && !$0.ignoresMouseEvents && $0.frame.contains(spot) } as? Panel
+            steering = pinched != nil
+        }
+        guard steering else { return false }
+        pinched?.onPinch?(event)
+        if event.phase.isEmpty || !event.phase.isDisjoint(with: [.ended, .cancelled]) {
+            steering = false
+            pinched = nil
+        }
+        return true
+    }
+
     /// `still`: the video as it was in its tab, cut out of a picture of the
     /// page with the rest of it hidden (see `still(of:picture:page:)`),
     /// shown until the page is laid out at this window's size.
-    func lift(_ page: NSView, still: NSImage? = nil) {
+    ///
+    /// `picture`: where the video's picture is in the page's view, down
+    /// from its top left, for a page that keeps its size (see `kept`). The
+    /// window shows that part of it, and there is nothing to cover.
+    func lift(_ page: NSView, still: NSImage? = nil, picture: NSRect? = nil) {
         guard panel == nil else { return }
         self.page = page
 
@@ -124,6 +298,9 @@ final class Float {
             height: size.height
         )
         if let away = Float.benchAway { spot.origin = away }
+        let crop = (page is WKWebView ? picture : nil).flatMap { Float.crop(around: $0, shape: spot.size) }
+        keeps = crop != nil
+        resizing = page.autoresizingMask
 
         let panel = Panel(
             contentRect: spot,
@@ -181,23 +358,48 @@ final class Float {
         (page as? WKWebView)?.allowsMagnification = false
 
         page.removeFromSuperview()
-        page.frame = ground.bounds
-        page.autoresizingMask = [.width, .height]
-        ground.addSubview(page)
+        if let crop {
+            // The page at the size it had in its tab, placed so that the
+            // part around the picture is what the cutout shows. WebKit is
+            // never told of another size: nothing is laid out again here, as
+            // the window is resized, or back in the tab, and the video's own
+            // picture, drawn by another of WebKit's processes, is never
+            // drawn anew. The live video is what the window opens on.
+            let cutout = Cutout(frame: ground.bounds, showing: crop.size)
+            cutout.autoresizingMask = [.width, .height]
+            page.autoresizingMask = []
+            page.setFrameOrigin(NSPoint(x: -crop.minX, y: crop.maxY - page.frame.height))
+            cutout.addSubview(page)
+            ground.addSubview(cutout)
+            // The isolation was asked for a moment ago, and what the page's
+            // view holds may still be the page as it was before: the window
+            // waits unseen, a frame or two, until the video alone is drawn
+            // in it (see uncover). All but clear, and not quite: WebKit
+            // draws nothing in a window it is told nobody can see, and a
+            // window wholly clear is one macOS may count as that.
+            panel.alphaValue = 0.01
+            unseen = true
+        } else {
+            page.frame = ground.bounds
+            page.autoresizingMask = [.width, .height]
+            ground.addSubview(page)
 
-        // WebKit takes a moment to lay a page out at a new size, a third of
-        // a second for YouTube's, and shows the layout it had meanwhile. The
-        // still covers that moment, fitted as the video itself will be.
-        let cover = NSView(frame: ground.bounds)
-        cover.wantsLayer = true
-        cover.layer?.backgroundColor = NSColor.black.cgColor
-        cover.layer?.contents = still?.cgImage(forProposedRect: nil, context: nil, hints: nil)
-        cover.layer?.contentsGravity = .resizeAspect
-        cover.autoresizingMask = [.width, .height]
-        ground.addSubview(cover)
-        self.cover = cover
+            // WebKit takes a moment to lay a page out at a new size, a third
+            // of a second for YouTube's, and shows the layout it had
+            // meanwhile. The still covers that moment, fitted as the video
+            // itself will be.
+            let cover = NSView(frame: ground.bounds)
+            cover.wantsLayer = true
+            cover.layer?.backgroundColor = NSColor.black.cgColor
+            cover.layer?.contents = still?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+            cover.layer?.contentsGravity = .resizeAspect
+            cover.autoresizingMask = [.width, .height]
+            ground.addSubview(cover)
+            self.cover = cover
+        }
 
         let controls = Controls(frame: ground.bounds)
+        controls.fine = keeps
         controls.autoresizingMask = [.width, .height]
         controls.onClose = { [weak self] in self?.onClose?() }
         controls.onReturn = { [weak self] in self?.onReturn?() }
@@ -212,6 +414,8 @@ final class Float {
         controls.onEnter = { [weak self] in self?.refreshControls() }
         ground.addSubview(controls)
         self.controls = controls
+        panel.onPinch = { [weak controls] event in controls?.magnify(with: event) }
+        Float.watchPinches()
 
         panel.contentView = ground
         panel.orderFrontRegardless()
@@ -220,10 +424,15 @@ final class Float {
 
         // Off once the page has drawn a frame at the window's size with the
         // video alone in it, and never later than the limit: a page that
-        // stops answering does not leave the window frozen.
+        // stops answering does not leave the window frozen. A page that
+        // keeps its size has only to be drawn with the video alone, at the
+        // size it already is: a frame or two for a page of little, a tenth
+        // of a second for YouTube's, which takes that long to hide the rest
+        // of itself.
         if let web = page as? WKWebView {
             let zoom = max(web.pageZoom, 0.1)
-            web.evaluateInSearch(Isolate.fits(width: spot.width / zoom, height: spot.height / zoom))
+            let laid = keeps ? web.bounds.size : spot.size
+            web.evaluateInSearch(Isolate.fits(width: laid.width / zoom, height: laid.height / zoom, kept: keeps))
             settling.watch(web, within: 0.8) { [weak self] in self?.uncover() }
         } else {
             uncover()
@@ -238,7 +447,7 @@ final class Float {
                 // and rather than hunt every path that could, this makes it
                 // impossible for the empty black rectangle to outlive it by
                 // more than half a second.
-                if self.page?.superview !== ground {
+                if self.page?.isDescendant(of: ground) != true {
                     self.onClose?()
                     return
                 }
@@ -251,7 +460,7 @@ final class Float {
                 // A video that ended or went closes its window, rather than
                 // leave the page's black in it (idea 923).
                 self.onGone? { [weak self] gone in
-                    guard gone, let self, self.panel != nil, self.page?.superview === ground else { return }
+                    guard gone, let self, self.panel != nil, self.page?.isDescendant(of: ground) == true else { return }
                     self.onClose?()
                 }
             }
@@ -309,6 +518,11 @@ final class Float {
         if Float.shown === self { Float.shown = nil }
         (page as? WKWebView)?.allowsMagnification = true
         page?.removeFromSuperview()
+        // Sized by whoever takes it back as it was before it came here; its
+        // size is still the one it had there.
+        if keeps { page?.autoresizingMask = resizing }
+        keeps = false
+        unseen = false
         page = nil
         controls = nil
         panel.orderOut(nil)
@@ -317,12 +531,17 @@ final class Float {
     }
 
     /// The live page from under the still. A short fade, for the frames of
-    /// film that went by while it was up.
+    /// film that went by while it was up. A page that kept its size had no
+    /// still over it: its window, unseen until now, is shown.
     private func uncover() {
+        if unseen {
+            unseen = false
+            panel?.alphaValue = 1
+        }
         guard let cover else { return }
         self.cover = nil
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = Motion.seconds(0.12)
+            context.duration = Motion.duration(.reveal)
             cover.animator().alphaValue = 0
         }, completionHandler: {
             cover.removeFromSuperview()
@@ -356,7 +575,7 @@ final class Float {
     ///
     /// Out of sight until the pointer is over the window — the whole point of
     /// this window is the picture.
-    private final class Controls: NSView {
+    final class Controls: NSView {
         var onClose: (() -> Void)?
         var onReturn: (() -> Void)?
         var onPlayPause: (() -> Void)?
@@ -484,12 +703,12 @@ final class Float {
         private func fade(to value: CGFloat) {
             near = value > 0
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = Motion.seconds(0.16)
+                context.duration = Motion.duration(.reveal)
                 buttons.forEach { $0.animator().alphaValue = value }
                 line.animator().alphaValue = value
             }
             CATransaction.begin()
-            CATransaction.setAnimationDuration(Motion.seconds(0.16))
+            CATransaction.setAnimationDuration(Motion.duration(.reveal))
             scrim.opacity = Swift.Float(value)
             CATransaction.commit()
         }
@@ -579,17 +798,17 @@ final class Float {
 
             let spot = window.frame.origin
             window.setFrameOrigin(NSPoint(x: spot.x + dx, y: spot.y - dy))
+            carryPointer(to: NSPoint(x: NSEvent.mouseLocation.x + dx, y: NSEvent.mouseLocation.y - dy))
+        }
 
+        /// The pointer, put at `spot` on screen. Never a test run's: its
+        /// windows are off every screen, and the pointer is somebody's.
+        private func carryPointer(to spot: NSPoint) {
             // Screen coordinates run up from the bottom, the cursor's run down
             // from the top of the first display.
-            guard let ground = NSScreen.screens.first else { return }
-            let mouse = NSEvent.mouseLocation
-            CGWarpMouseCursorPosition(
-                CGPoint(
-                    x: mouse.x + dx,
-                    y: ground.frame.height - (mouse.y - dy)
-                )
-            )
+            guard Float.benchAway == nil, Float.benchScreens == nil, !Store.testing,
+                  let ground = NSScreen.screens.first else { return }
+            CGWarpMouseCursorPosition(CGPoint(x: spot.x, y: ground.frame.height - spot.y))
             // Without this the pointer and the physical trackpad stay parted
             // for a moment, and the next flick arrives from the wrong place.
             CGAssociateMouseAndMouseCursorPosition(1)
@@ -600,8 +819,22 @@ final class Float {
         /// the left at the height it is at, a diagonal one to that corner —
         /// one move a swipe, however long the swipe. Dragging it anywhere is
         /// still the click's.
+        ///
+        /// Until it flies, the window is under the fingers, point for point,
+        /// and a swipe too short to be a flick leaves it where they put it:
+        /// a corner is rarely quite where a video is wanted, and with flicks
+        /// on there was no way to move it a little but to click and drag.
         private var swipe: CGVector = .zero
         private var flicked = false
+        /// Whether this swipe has the window under the fingers. Not one
+        /// that began while it was still on its way to a corner, which it
+        /// is left to reach, nor one at a docked window.
+        private var placing = false
+        /// Where the pointer was as the swipe began. It rides with the
+        /// window while it is placed, so that the window stays the one the
+        /// fingers are talking to, and is put back as the window flies off,
+        /// which leaves it where a flick always left it.
+        private var pointerFrom: NSPoint = .zero
         /// For a wheel, which has no gesture to belong to: one flick a turn.
         private var lastWheelFlick = Date.distantPast
 
@@ -629,6 +862,8 @@ final class Float {
                 flicked = false
                 pulling = nil
                 pullFrom = window?.frame.origin ?? .zero
+                placing = docked == nil && gliding == nil && ticking == nil
+                pointerFrom = NSEvent.mouseLocation
             }
             swipe.dx += step.dx
             swipe.dy += step.dy
@@ -649,9 +884,13 @@ final class Float {
 
             // Against a side, and swiped at it: it gives, heavily, under the
             // fingers, and on lifting either goes into the side — only a
-            // sliver left — or springs back out.
-            if pulling == nil, !flicked, let side = against(), outward(swipe, from: side), abs(swipe.dx) > 6 {
+            // sliver left — or springs back out. The side it was against as
+            // the swipe began: placed, it is wherever the fingers have it.
+            let side = against(placing ? rest : nil)
+            if pulling == nil, !flicked, let side, outward(swipe, from: side), abs(swipe.dx) > 6 {
                 pulling = side
+                if placing { carryPointer(to: pointerFrom) }
+                placing = false
                 // A spring still settling from the last one would pull the
                 // other way, a frame at a time.
                 stopGlide()
@@ -671,15 +910,29 @@ final class Float {
             // Read from the whole swipe, as the fingers lift: a swipe often
             // sets off along one side before it turns diagonal, and read
             // early it went the wrong way. A long one doesn't wait.
-            let length = hypot(swipe.dx, swipe.dy)
-            if !flicked, length > 120 || (lifted && length > 20) {
+            if !flicked, Float.flies(swipe, lifted: lifted) {
                 flicked = true
-                flick(swipe)
+                // To the corner it would have gone to from where it rested.
+                let from = placing ? rest : nil
+                if placing { carryPointer(to: pointerFrom) }
+                placing = false
+                flick(swipe, from: from)
+            } else if placing, !flicked, !(side.map { outward(swipe, from: $0) } ?? false) {
+                // Not at the side it is against: the first of a pull at it
+                // would move it out, and the pull then take it back.
+                window?.setFrameOrigin(NSPoint(x: pullFrom.x + swipe.dx, y: pullFrom.y + swipe.dy))
+                carryPointer(to: NSPoint(x: pointerFrom.x + swipe.dx, y: pointerFrom.y + swipe.dy))
             }
             if lifted {
                 swipe = .zero
                 flicked = false
+                placing = false
             }
+        }
+
+        /// The window where it was as the swipe began.
+        private var rest: NSRect? {
+            window.map { NSRect(origin: pullFrom, size: $0.frame.size) }
         }
 
         // Docking at a side, as in Dia: a strong swipe at the side the window
@@ -708,14 +961,14 @@ final class Float {
         }
 
         /// The side the window is up against, if it is, and if it can go
-        /// into it.
-        private func against() -> Side? {
-            guard let window, let area else { return nil }
+        /// into it. `at`: where it was, for one moved since.
+        private func against(_ at: NSRect? = nil) -> Side? {
+            guard let frame = at ?? window?.frame, let area else { return nil }
             let screens = Float.benchScreens ?? NSScreen.screens.map(\.frame)
-            if window.frame.maxX >= area.maxX - 16,
-               Float.dockable(window.frame, right: true, in: area, screens: screens) { return .right }
-            if window.frame.minX <= area.minX + 16,
-               Float.dockable(window.frame, right: false, in: area, screens: screens) { return .left }
+            if frame.maxX >= area.maxX - 16,
+               Float.dockable(frame, right: true, in: area, screens: screens) { return .right }
+            if frame.minX <= area.minX + 16,
+               Float.dockable(frame, right: false, in: area, screens: screens) { return .left }
             return nil
         }
 
@@ -763,10 +1016,11 @@ final class Float {
         }
 
         /// To the corner the swipe points at, a margin in from the edges of
-        /// the screen's usable part.
-        private func flick(_ way: CGVector) {
+        /// the screen's usable part. `from`: where the window was before
+        /// the swipe placed it, which is what the corner is read from.
+        private func flick(_ way: CGVector, from: NSRect? = nil) {
             guard let window, let area else { return }
-            let target = Float.corner(for: window.frame, in: area, toward: way)
+            let target = Float.corner(for: from ?? window.frame, in: area, toward: way)
             guard target != window.frame.origin else { return }
             glide(to: target)
         }
@@ -784,6 +1038,13 @@ final class Float {
 
         private func glide(to target: NSPoint, bouncing: Bool = false) {
             guard let window else { return }
+            // Under Reduce Motion it is simply there, as the rows are after
+            // a swipe between spaces.
+            guard !Motion.reduced else {
+                stopGlide()
+                window.setFrameOrigin(target)
+                return
+            }
             glideBounces = bouncing
             glideFrom = window.frame.origin
             glideTo = target
@@ -812,13 +1073,13 @@ final class Float {
             let done: Bool
             if glideBounces {
                 // Underdamped: past the place, and back to it.
-                let omega: CGFloat = 16, zeta: CGFloat = 0.5
+                let omega = Motion.flingBack.pull, zeta = Motion.flingBack.damping
                 let damped = omega * sqrt(1 - zeta * zeta)
-                done = t > 0.9
+                done = t > Motion.flingBack.within
                 p = done ? 1 : 1 - exp(-zeta * omega * t) * (cos(damped * t) + zeta / sqrt(1 - zeta * zeta) * sin(damped * t))
             } else {
-                let omega: CGFloat = 15
-                done = t > 0.6
+                let omega = Motion.fling.pull
+                done = t > Motion.fling.within
                 p = done ? 1 : 1 - (1 + omega * t) * exp(-omega * t)
             }
             window.setFrameOrigin(NSPoint(
@@ -840,49 +1101,50 @@ final class Float {
         /// about the centre instead makes the picture slide sideways under a
         /// hand that never moved, which is what felt wrong.
         private var pinching: CGFloat = 0
+        /// How wide the pinch has the window, to a fraction of a point. The
+        /// window's own width is in whole points: taken from that, a fine
+        /// step was a whole point or nothing.
+        private var pinchedTo: CGFloat = 0
+        /// Whether the page in the window keeps its size whatever the
+        /// window's (see Float.kept): a pinch is then taken in fine steps.
+        var fine = false
 
         override func magnify(with event: NSEvent) {
-            guard let window else { return }
-            if event.phase == .began { pinching = 0 }
+            // Docked, only a sliver of it is on screen: nothing there to
+            // size, and sizing it would pull part of it back out at the side.
+            guard let window, docked == nil else { return }
+            if event.phase.contains(.began) { pinching = 0 }
             pinching += event.magnification
 
             // Every event would mean a window resize, a web view relayout and a
-            // video re-fit sixty times a second, which is the stutter. Moving
-            // in steps of a fiftieth is below what an eye reads as a jump and
-            // an order of magnitude less work.
-            guard abs(pinching) > 0.02 else { return }
-            let by = pinching
+            // video re-fit sixty times a second, which is the stutter: taken
+            // in steps (see Float.coarsePinch). What is left of a pinch as
+            // the fingers lift is taken too: without it the smallest pinch
+            // did nothing, and none ended quite where the fingers had it.
+            let over = !event.phase.isDisjoint(with: [.ended, .cancelled])
+            guard abs(pinching) > (fine ? Float.finePinch : Float.coarsePinch) || (over && pinching != 0) else { return }
+            // From the window as it is, unless it is where the last step
+            // left it: at its least or its most, it is held there.
+            if abs(pinchedTo - window.frame.width) > 1 { pinchedTo = window.frame.width }
+            pinchedTo *= 1 + pinching
             pinching = 0
+            // About the pointer, which a test run's window has none over.
+            let hand = NSEvent.mouseLocation
             resize(
-                to: window.frame.width * (1 + by),
+                to: pinchedTo,
                 from: window.frame,
-                around: NSEvent.mouseLocation
+                around: window.frame.contains(hand) ? hand : NSPoint(x: window.frame.midX, y: window.frame.midY)
             )
         }
 
         private func resize(to width: CGFloat, from was: NSRect, around anchor: NSPoint? = nil) {
             guard let window, was.width > 0 else { return }
-            let limit = NSScreen.main?.visibleFrame.width ?? 1600
-            // Keeps the shape: a video window that can be squashed is a video
-            // window showing bars.
-            let wide = min(max(window.minSize.width, width), limit * 0.85)
-            let tall = wide * was.height / was.width
-
-            let spot: NSPoint
-            if let anchor {
-                // Where the pointer sits within the window, as a fraction, kept
-                // at the same fraction of the new one.
-                let across = (anchor.x - was.minX) / was.width
-                let up = (anchor.y - was.minY) / was.height
-                spot = NSPoint(x: anchor.x - across * wide, y: anchor.y - up * tall)
-            } else {
-                spot = NSPoint(x: was.minX, y: was.maxY - tall)
-            }
             // Not display: true — asking for an immediate redraw on every step
             // is what makes a live resize stutter. The next frame is soon
             // enough.
             window.setFrame(
-                NSRect(x: spot.x, y: spot.y, width: wide, height: tall),
+                Float.whole(Float.sized(was, to: width, around: anchor, shape: window.aspectRatio, least: window.minSize.width,
+                                        within: area?.size ?? NSSize(width: 1600, height: 1000))),
                 display: false
             )
         }
@@ -920,7 +1182,7 @@ final class Float {
             tuck.image = glyph("plus", 11)
             hideTransport(true)
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.18
+                context.duration = Motion.tuck
                 window.animator().setFrame(target, display: false)
             }
         }
@@ -933,7 +1195,7 @@ final class Float {
             tuck.image = glyph("minus", 11)
             hideTransport(false)
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.18
+                context.duration = Motion.tuck
                 window.animator().setFrame(home, display: false)
             }, completionHandler: {
                 window.minSize = min
@@ -1043,6 +1305,50 @@ enum Grounded {
 private final class Panel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+    /// A pinch over it, whichever window macOS sent it to (see Float.steer).
+    var onPinch: ((NSEvent) -> Void)?
+}
+
+/// A part of a page, shown at whatever size this view is. The page inside
+/// keeps the size it had in its tab; this view's own points are the page's,
+/// `showing` of them across and down from its corner, however large it is
+/// in the window. Sizing the window changes how large a point of the page
+/// is drawn and nothing else: WebKit is never asked to lay the page out
+/// again.
+private final class Cutout: NSView {
+    private let showing: NSSize
+
+    init(frame: NSRect, showing: NSSize) {
+        self.showing = showing
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.masksToBounds = true
+        // The page stays where it was put, whatever size this is.
+        autoresizesSubviews = false
+        show()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    /// A view given a new size keeps its scale, and so shows more or less
+    /// of what is in it: the same part is asked for again.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        show()
+    }
+
+    /// The part, whole and in the middle, a point of it as wide as it is
+    /// tall: a window not quite the part's shape, as one in whole points
+    /// rarely is, shows a sliver more of the black around it and never the
+    /// picture squashed.
+    private func show() {
+        guard frame.width > 0, frame.height > 0, showing.width > 0, showing.height > 0 else { return }
+        let by = min(frame.width / showing.width, frame.height / showing.height)
+        let seen = NSSize(width: frame.width / by, height: frame.height / by)
+        setBoundsSize(seen)
+        setBoundsOrigin(NSPoint(x: (showing.width - seen.width) / 2, y: (showing.height - seen.height) / 2))
+    }
 }
 
 /// Waits for a page moved between the tab and the floating window to settle
@@ -1107,7 +1413,7 @@ final class Settling {
         guard web.responds(to: selector) else { return then() }
         typealias Call = @convention(c) (AnyObject, Selector, @escaping @convention(block) () -> Void) -> Void
         unsafeBitCast(web.method(for: selector), to: Call.self)(web, selector) {
-            MainActor.assumeIsolated { then() }
+            MainActor.assumeIsolated { Web.keepPastCallback(web); then() }
         }
     }
 
@@ -1373,6 +1679,14 @@ enum Isolate {
         // them over the video, the player bar's buttons stacked (idea 933).
         'html.office-floating body *:not([data-office-float]):not(:has([data-office-float])):not(#office-float-art)',
         ':not(.player-timedtext):not(.player-timedtext *) { visibility:hidden !important }',
+        // And what a page keeps outside its body. A consent manager hangs
+        // its banner on the root itself, beside the body, in a shadow of its
+        // own (Vimeo's does): none of the rules for the body reached it, and
+        // it lay over the video in the little window, or filled it. Clear
+        // as well as hidden: what is inside a shadow can make itself
+        // visible again, and nothing in there undoes its host's opacity.
+        'html.office-floating > *:not(head):not(body):not([data-office-float]):not(:has([data-office-float])) {',
+        'visibility:hidden !important; opacity:0 !important; pointer-events:none !important}',
         'html.office-floating [data-office-float] {',
         'visibility:visible !important; position:fixed !important;',
         'left:0 !important; top:0 !important; right:0 !important; bottom:0 !important;',
@@ -1507,7 +1821,18 @@ enum Isolate {
       var whole = shown[0] && shown[1] ? shown : [vw, vh];
       var by = Math.min(innerWidth / whole[0], innerHeight / whole[1]) || 0;
       var alone = [(innerWidth - whole[0] * by) / 2, (innerHeight - whole[1] * by) / 2, whole[0] * by, whole[1] * by];
-      return { floating: true, alone: alone, page: [innerWidth, innerHeight] };
+      // Whether the page can stay the size it is while it floats, the part
+      // of it around the picture shown at the window's size (Float.kept):
+      // only where the picture is, as the page lays it out now, where it
+      // was worked out to be, and can be seen. A player whose styles get
+      // the better of these is laid out at the window's size, as before.
+      var now = best.getBoundingClientRect(), fit = vw && vh ? Math.min(now.width / vw, now.height / vh) : 0;
+      var real = fit ? [now.left + (now.width - vw * fit) / 2, now.top + (now.height - vh * fit) / 2, vw * fit, vh * fit]
+        : [now.left, now.top, now.width, now.height];
+      var kept = alone[2] > 0 && alone[3] > 0 && getComputedStyle(best).objectPosition === '50% 50%';
+      for (var q = 0; q < 4; q++) if (!isFinite(alone[q]) || Math.abs(alone[q] - real[q]) > 2) kept = false;
+      if (kept && best.checkVisibility && !best.checkVisibility({ contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true })) kept = false;
+      return { floating: true, alone: alone, kept: kept, page: [innerWidth, innerHeight] };
     })();
     """
 
@@ -1518,9 +1843,12 @@ enum Isolate {
     /// Out in the floating window: settled once the page is laid out at the
     /// window's size, CSS pixels, with the video alone in it. Checked as
     /// each frame is drawn, so the frame it answers for is drawn so too.
-    static func fits(width: Double, height: Double) -> String {
+    /// `kept`: the page keeps the size it had in its tab, which is the size
+    /// given here, and is told so for its way back (see off).
+    static func fits(width: Double, height: Double, kept: Bool = false) -> String {
         """
         (function () {
+          window.__officeFloatKept = \(kept);
           var wait = window.__officeFloatWait = { settled: false }, began = Date.now();
           (function frame() {
             if (window.__officeFloatWait !== wait || Date.now() - began > 3000) return;
@@ -1594,6 +1922,11 @@ enum Isolate {
       } catch (e) {}
 
       var root = document.documentElement;
+      // Whether the page kept its tab's size while it was out (see fits):
+      // nothing in it was laid out for the little window, and nothing has
+      // to be laid out again.
+      var kept = !!window.__officeFloatKept;
+      window.__officeFloatKept = false;
       var landing = window.__officeFloatLanding = {};
       var wait = window.__officeFloatWait = { settled: false, landing: true };
       function put() {
@@ -1622,7 +1955,8 @@ enum Isolate {
       // it anew: full screen, or a reload. Taken out of the layout for a
       // frame once its tab is in front, it is drawn at its own size.
       function redraw(video) {
-        if (document.visibilityState !== 'hidden') return;
+        // Never drawn at another size, where the page kept its own.
+        if (kept || document.visibilityState !== 'hidden') return;
         document.addEventListener('visibilitychange', function seen() {
           if (document.visibilityState !== 'visible') return;
           document.removeEventListener('visibilitychange', seen);
@@ -1646,7 +1980,7 @@ enum Isolate {
       function reopen() {
         var home = window.__officeFloatHome;
         if (!home || !home.chat || root.classList.contains('office-floating')) return;
-        if (innerWidth === wide && innerHeight === high) {
+        if (!kept && innerWidth === wide && innerHeight === high) {
           // Put back by the clock, its tab not in front: once it is.
           addEventListener('resize', function again() {
             removeEventListener('resize', again);
@@ -1691,8 +2025,12 @@ enum Isolate {
       // little window's — the tab's — and its player has had that frame's
       // resize to fit the video to it. A page not drawn, its tab no longer
       // the one in front, is put back by the clock.
+      // A page that kept its size has no other size to wait for: only to be
+      // drawn in its tab again. Two frames on: one may still be owed from
+      // the little window, and a page in no window draws none.
       var wide = innerWidth, high = innerHeight, began = Date.now();
-      (function frame() {
+      if (kept) requestAnimationFrame(function () { requestAnimationFrame(put); });
+      else (function frame() {
         if (window.__officeFloatLanding !== landing) return;
         if (innerWidth !== wide || innerHeight !== high || Date.now() - began > 400) return put();
         requestAnimationFrame(frame);

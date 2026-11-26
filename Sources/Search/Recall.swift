@@ -1,4 +1,6 @@
+import ImageIO
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Everywhere you have been, and everything you have kept. Two lists in the
 /// same white-and-hairline panel as the rest, and in both cases the point is
@@ -52,74 +54,57 @@ struct HistoryPanel: View {
     @State private var clearsIn: UUID?
     private var clearing: Bool { browser.recallMode == .clearing }
 
-    var body: some View {
-        Plate("History", width: 600, close: { browser.recalling = false }) {
-            VStack(alignment: .leading, spacing: 14) {
-                Hunt(text: $browser.recallHunt, prompt: "Search everywhere you have been", focus: $hunting)
+    /// Which days the list is of.
+    private enum Span: CaseIterable, Identifiable {
+        case all, today, yesterday, week, earlier
+        var id: Self { self }
+        var title: String {
+            switch self {
+            case .all: return "Everything"
+            case .today: return "Today"
+            case .yesterday: return "Yesterday"
+            case .week: return "This Week"
+            case .earlier: return "Earlier"
+            }
+        }
 
-                if traces.isEmpty {
-                    Card { Nothing(browser.recallHunt.isEmpty ? "Nothing yet." : "Nothing matches.") }
-                } else {
-                    // Lazy: only the lines in view are made. Two thousand of
-                    // them, each with its icon, took the panel a third of a
-                    // second to open, and scrolling redrew them all.
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(lines) { line in
-                                switch line.kind {
-                                case .day(let day):
-                                    Caption(day)
-                                        .padding(.top, line.id == lines.first?.id ? 0 : 14)
-                                        .padding(.bottom, 6)
-                                case .trace(let trace, let first, let last):
-                                    VStack(spacing: 0) {
-                                        if !first { Rule() }
-                                        Row(
-                                            trace: trace,
-                                            go: {
-                                                // In this tab, as Chrome's
-                                                // history does: Back returns here.
-                                                (browser.pageTab(.history) ?? browser.active)?.go(to: trace.url)
-                                            },
-                                            forget: {
-                                                browser.history.forget(trace.key)
-                                                refresh()
-                                            }
-                                        )
-                                    }
-                                    // A day's card, drawn a line at a time.
-                                    .background(Palette.ground)
-                                    .clipShape(Slice(first: first, last: last))
-                                    // The card's outline, reaching a point past the lines it
-                                    // shares with its neighbours and cut to its own: only
-                                    // its sides, and its rounded top or bottom, remain.
-                                    .overlay(
-                                        Slice(first: first, last: last)
-                                            .strokeBorder(Palette.hairline, lineWidth: 1)
-                                            .padding(.top, first ? 0 : -1)
-                                            .padding(.bottom, last ? 0 : -1)
-                                            .clipped()
-                                    )
-                                }
-                            }
-                        }
-                        .padding(.bottom, 2)
+        func holds(_ date: Date) -> Bool {
+            let calendar = Calendar.current
+            switch self {
+            case .all: return true
+            case .today: return calendar.isDateInToday(date)
+            case .yesterday: return calendar.isDateInYesterday(date)
+            case .week: return calendar.isDate(date, equalTo: Date(), toGranularity: .weekOfYear)
+            case .earlier: return !calendar.isDate(date, equalTo: Date(), toGranularity: .weekOfYear)
+            }
+        }
+    }
+    @State private var span: Span = .all
+    /// One site alone.
+    @State private var site: String?
+    /// How many there are of each, before one is picked.
+    @State private var counts: [Span: Int] = [:]
+    /// The sites been to most, by how often.
+    @State private var most: [(host: String, visits: Int)] = []
+    @State private var width: CGFloat = 900
+
+    var body: some View {
+        Plate("History", width: 600, tools: AnyView(tools), close: { browser.recalling = false }) {
+            HStack(alignment: .top, spacing: 32) {
+                if width > 620, !clearing { sides.frame(width: 200) }
+                VStack(alignment: .leading, spacing: 14) {
+                    if clearing {
+                        sweeps
+                    } else if lines.isEmpty {
+                        Card { Nothing(browser.recallHunt.isEmpty ? "Nothing yet." : "Nothing matches.") }
+                    } else {
+                        list
                     }
-                    .listHeight(420)
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-        } foot: {
-            if clearing {
-                sweeps
-            } else {
-                HStack {
-                    Text(traces.count == 1 ? "1 page" : "\(traces.count) pages")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.muted)
-                    Spacer()
-                    Pill("Clear…") { withAnimation(Motion.settle) { browser.recallMode = .clearing } }
-                }
-            }
+            .frame(maxHeight: .infinity, alignment: .topLeading)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         }
         .animation(Motion.settle, value: clearing)
         .onAppear {
@@ -127,8 +112,90 @@ struct HistoryPanel: View {
             refresh()
         }
         .onChange(of: browser.recallHunt) { _, _ in refresh() }
+        .onChange(of: span) { _, _ in refresh() }
+        .onChange(of: site) { _, _ in refresh() }
         // Another space may keep a history of its own (Spaces.history).
         .onChange(of: browser.spaceID) { _, _ in refresh() }
+    }
+
+    private var tools: some View {
+        HStack(spacing: 8) {
+            if clearing {
+                Pill("Back") { withAnimation(Motion.settle) { browser.recallMode = .history } }
+            } else {
+                Hunt(text: $browser.recallHunt, prompt: "Search titles and addresses", focus: $hunting)
+                    .frame(width: 300)
+                Pill("Clear…") { withAnimation(Motion.settle) { browser.recallMode = .clearing } }
+            }
+        }
+    }
+
+    private var sides: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            heading("When")
+            ForEach(Span.allCases) { choice in
+                SideChoice(title: choice.title, count: counts[choice] ?? 0, on: span == choice && site == nil) {
+                    span = choice
+                    site = nil
+                }
+            }
+            if !most.isEmpty {
+                heading("Most visited").padding(.top, 16)
+                ForEach(most, id: \.host) { one in
+                    SideChoice(title: Address.withoutWWW(one.host), icon: Favicons.shared.cached(one.host), globe: true, count: one.visits, on: site == one.host) {
+                        site = site == one.host ? nil : one.host
+                    }
+                }
+            }
+        }
+    }
+
+    private func heading(_ words: String) -> some View {
+        Text(words)
+            .font(.system(size: 12))
+            .foregroundStyle(Palette.muted)
+            .padding(.leading, 10)
+            .padding(.bottom, 4)
+    }
+
+    private var list: some View {
+        // Lazy: only the lines in view are made. Two thousand of
+        // them, each with its icon, took the panel a third of a
+        // second to open, and scrolling redrew them all.
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(lines) { line in
+                    switch line.kind {
+                    case .day(let day, let date):
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(day).font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.ink)
+                            if !date.isEmpty { Text(date).font(.system(size: 12)).foregroundStyle(Palette.muted) }
+                        }
+                        .padding(.leading, 4)
+                        .padding(.top, line.id == lines.first?.id ? 0 : 20)
+                        .padding(.bottom, 8)
+                    case .trace(let trace, let first, let last):
+                        Row(
+                            trace: trace,
+                            go: {
+                                // In this tab, as Chrome's
+                                // history does: Back returns here.
+                                (browser.pageTab(.history) ?? browser.active)?.go(to: trace.url)
+                            },
+                            forget: {
+                                browser.history.forget(trace.key)
+                                refresh()
+                            }
+                        )
+                        // A day's card, drawn a line at a time.
+                        .background(Palette.fill)
+                        .clipShape(Slice(first: first, last: last))
+                    }
+                }
+            }
+            .padding(.bottom, 2)
+        }
+        .listHeight(420)
     }
 
     /// Three separate things, worded so nobody has to guess which one signs
@@ -139,13 +206,10 @@ struct HistoryPanel: View {
                 Line("History", historyDetail) {
                     let scopes = browser.historyScopes
                     if !scopes.isEmpty {
-                        Picker("", selection: $clearsIn) {
+                        PopUp("Clear history in", shows: scopes.first { $0.space == clearsIn }?.name ?? "All Spaces", selection: $clearsIn) {
                             Text("All Spaces").tag(UUID?.none)
                             ForEach(scopes, id: \.space) { Text($0.name).tag(UUID?.some($0.space)) }
                         }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .fixedSize()
                     }
                     Pill("Clear") {
                         browser.clearHistory(in: scopes.contains { $0.space == clearsIn } ? clearsIn : nil)
@@ -163,10 +227,6 @@ struct HistoryPanel: View {
                     Pill("Clear") { browser.clearCache() }
                 }
             }
-            HStack {
-                Spacer()
-                Pill("Back") { withAnimation(Motion.settle) { browser.recallMode = .history } }
-            }
         }
         .transition(.opacity)
     }
@@ -179,13 +239,21 @@ struct HistoryPanel: View {
     }
 
     private func refresh() {
-        traces = browser.history.everything(matching: browser.recallHunt)
+        let all = browser.history.everything(matching: browser.recallHunt)
+        counts = Dictionary(uniqueKeysWithValues: Span.allCases.map { span in (span, all.lazy.filter { span.holds($0.last) }.count) })
+        var visits: [String: Int] = [:]
+        for trace in all { if let host = trace.url.host() { visits[host, default: 0] += trace.count } }
+        most = visits.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.prefix(6).map { ($0.key, $0.value) }
+        traces = all.filter { span.holds($0.last) && (site == nil || $0.url.host() == site) }
         let calendar = Calendar.current
         let grouped = Dictionary(grouping: traces) { calendar.startOfDay(for: $0.last) }
         var made: [Listed] = []
         for day in grouped.keys.sorted(by: >) {
             let rows = grouped[day]!.sorted { $0.last > $1.last }
-            made.append(Listed(id: "day " + day.description, kind: .day(When.day(day))))
+            let named = calendar.isDateInToday(day) || calendar.isDateInYesterday(day)
+            // In English, as the words around it are.
+            let long = day.formatted(Date.FormatStyle(locale: Locale(identifier: "en_GB")).weekday(.wide).day().month(.wide))
+            made.append(Listed(id: "day " + day.description, kind: .day(named ? When.day(day) : long, named ? long : "")))
             for (index, trace) in rows.enumerated() {
                 made.append(Listed(id: trace.id, kind: .trace(trace, first: index == 0, last: index == rows.count - 1)))
             }
@@ -196,7 +264,7 @@ struct HistoryPanel: View {
     /// One line of the list: a day's name, or a page under it.
     struct Listed: Identifiable {
         enum Kind {
-            case day(String)
+            case day(String, String)
             case trace(History.Trace, first: Bool, last: Bool)
         }
         let id: String
@@ -211,7 +279,7 @@ struct HistoryPanel: View {
         var inset: CGFloat = 0
 
         func path(in rect: CGRect) -> Path {
-            let radius: CGFloat = 11 - inset
+            let radius: CGFloat = 10 - inset
             let top = first ? radius : 0, bottom = last ? radius : 0
             return UnevenRoundedRectangle(topLeadingRadius: top, bottomLeadingRadius: bottom, bottomTrailingRadius: bottom, topTrailingRadius: top, style: .continuous)
                 .path(in: rect.insetBy(dx: inset, dy: inset))
@@ -234,37 +302,49 @@ struct HistoryPanel: View {
         @State private var hovering = false
 
         var body: some View {
-            HStack(spacing: 12) {
-                Mark(icon: Favicons.shared.cached(for: trace.url),
-                     letter: trace.address.first.map { String($0).uppercased() } ?? "•", size: 16)
-                VStack(alignment: .leading, spacing: 2) {
+            // The row is the button that opens the visit; forgetting it is
+            // a cross at its end, beside the count and the time and not in
+            // their place: a red Remove stood where they had been as soon
+            // as the pointer came.
+            RowButton(hovering: $hovering, action: go) {
+                HStack(spacing: 10) {
+                    Mark(icon: Favicons.shared.cached(for: trace.url), letter: "", size: 16, globe: true)
                     Text(trace.title.isEmpty ? Address.withoutWWW(trace.address) : trace.title)
                         .font(.system(size: 13))
                         .foregroundStyle(Palette.ink)
                         .lineLimit(1)
+                        .layoutPriority(1)
                     Text(Address.withoutWWW(trace.address))
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                }
-                Spacer(minLength: 8)
-                if hovering {
-                    Quick("Remove", tint: .red.opacity(0.75), act: forget)
-                } else {
+                    Spacer(minLength: 8)
+                    if trace.count > 1 {
+                        Text("\(trace.count) visits")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Palette.muted)
+                            .padding(.horizontal, 8)
+                            .frame(height: 18)
+                            .background(Palette.fill, in: Capsule())
+                            .fixedSize()
+                    }
                     Text(When.clock(trace.last))
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .monospacedDigit()
+                        .fixedSize()
                 }
+                .padding(.leading, 14)
+                .frame(height: 36)
+            } trailing: {
+                // Its room is kept while it is out of sight, so the time
+                // doesn't step aside for it.
+                IconButton("xmark", label: "Remove from History", glyph: 9, weight: .semibold, size: 22, action: forget)
+                    .opacity(hovering ? 1 : 0)
+                    .padding(.leading, 4)
+                    .padding(.trailing, 8)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(hovering ? Palette.hover : .clear)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: go)
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
         }
     }
 }
@@ -298,6 +378,12 @@ struct DownloadsPanel: View {
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(Palette.ink)
                 Spacer(minLength: 0)
+                // The whole list, sorted by kind, in a tab: the card is
+                // where Downloads opens, so this is the way to the rest.
+                Door(icon: "arrow.up.forward.square", help: "Show All in a Tab") {
+                    close?()
+                    browser.hoarding = true
+                }
                 Door(icon: "folder", help: "Open the Downloads Folder") {
                     NSWorkspace.shared.open(browser.downloadsFolder)
                 }
@@ -322,9 +408,142 @@ struct DownloadsPanel: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
+    /// What kind of file the page is of.
+    private enum Sort: String, CaseIterable, Identifiable {
+        case all = "All", documents = "Documents", images = "Images", apps = "Apps"
+        var id: Self { self }
+
+        func holds(_ keep: Keep) -> Bool {
+            guard self != .all else { return true }
+            guard let type = UTType(filenameExtension: (keep.name as NSString).pathExtension) else { return false }
+            switch self {
+            case .all: return true
+            case .images: return type.conforms(to: .image)
+            case .apps: return type.conforms(to: .diskImage) || type.conforms(to: .application) || type.conforms(to: .package)
+                || ["pkg", "dmg"].contains(type.preferredFilenameExtension ?? "")
+            case .documents: return !Sort.images.holds(keep) && !Sort.apps.holds(keep)
+            }
+        }
+    }
+    @State private var sort: Sort = .all
+    @State private var hunt = ""
+    @FocusState private var hunting: Bool
+    /// What the files listed come to together, once they are measured
+    /// (off the main thread: a file each to ask about).
+    @State private var weight: Int64?
+
+    /// Whether a file came in this week: the pictures shown large are this
+    /// week's, as the board has them; older ones are in the list.
+    static func thisWeek(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear)
+    }
+
+    /// Over the list: how many files it holds and, once known, their size
+    /// together.
+    static func tally(files: Int, bytes: Int64?) -> String {
+        let count = files == 1 ? "1 file" : "\(files.formatted()) files"
+        guard let bytes, bytes > 0 else { return count }
+        return "\(count), \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))"
+    }
+
+    /// What the files at these paths come to. One that has gone counts for
+    /// nothing.
+    nonisolated static func bytes(of paths: [String]) -> Int64 {
+        paths.reduce(0) { sum, path in
+            sum + Int64((try? URL(fileURLWithPath: path).resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+        }
+    }
+
+    private var shown: [Keep] {
+        let words = hunt.trimmingCharacters(in: .whitespaces).lowercased()
+        return loot.kept.filter { keep in
+            sort.holds(keep) && (words.isEmpty || keep.name.lowercased().contains(words) || keep.from.lowercased().contains(words))
+        }
+    }
+
     private var plate: some View {
-        Plate("Downloads", width: 560, close: close ?? { browser.hoarding = false }) {
-            list
+        let shown = self.shown
+        let pictures = Array(shown.filter { Sort.images.holds($0) && DownloadsPanel.thisWeek($0.date) && $0.stillThere }.prefix(8))
+        return Plate("Downloads", width: 560, tools: AnyView(HStack(spacing: 8) {
+            Segmented(options: Sort.allCases.map { ($0, $0.rawValue) }, selection: $sort)
+            Hunt(text: $hunt, prompt: "Search", focus: $hunting).frame(width: 200)
+        }), close: close ?? { browser.hoarding = false }) {
+            if fetches.entries.isEmpty && loot.kept.isEmpty {
+                Card { Nothing("Nothing downloaded yet.") }
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 24) {
+                        if !fetches.entries.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                heading("Coming in")
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 12, alignment: .top)], alignment: .leading, spacing: 12) {
+                                    ForEach(fetches.entries) { entry in
+                                        Card {
+                                            FetchRow(
+                                                entry: entry,
+                                                pause: { browser.pauseDownload(entry) },
+                                                resume: { browser.resumeDownload(entry) },
+                                                retry: { browser.retryDownload(entry) },
+                                                cancel: { browser.cancelDownload(entry) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if !pictures.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                heading("Pictures this week")
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(alignment: .top, spacing: 12) {
+                                        ForEach(pictures) { keep in Picture(keep: keep) { loot.open(keep) } }
+                                    }
+                                }
+                            }
+                        }
+                        if shown.isEmpty {
+                            Card { Nothing("Nothing matches.") }
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    heading("Completed")
+                                    Spacer()
+                                    Text(DownloadsPanel.tally(files: shown.count, bytes: weight))
+                                        .font(.system(size: 12)).foregroundStyle(Palette.muted).padding(.trailing, 4)
+                                        .task(id: shown.map(\.path)) {
+                                            let paths = shown.map(\.path)
+                                            weight = await Task.detached(priority: .utility) { DownloadsPanel.bytes(of: paths) }.value
+                                        }
+                                }
+                                Card {
+                                    HStack(spacing: 12) {
+                                        Text("Name").padding(.leading, 44)
+                                        Spacer(minLength: 8)
+                                        Text("From").frame(width: KeptRow.from, alignment: .leading)
+                                        Text("Size").frame(width: KeptRow.size, alignment: .trailing)
+                                        Text("Added").frame(width: KeptRow.added, alignment: .trailing)
+                                    }
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Palette.muted)
+                                    .padding(.horizontal, 14)
+                                    .frame(height: 34)
+                                    ForEach(shown) { keep in
+                                        KeptRow(
+                                            keep: keep,
+                                            wide: true,
+                                            open: { loot.open(keep) },
+                                            reveal: { loot.reveal(keep) },
+                                            forget: { loot.forget(keep) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.bottom, 2)
+                }
+                .listHeight(420)
+            }
         } foot: {
             HStack {
                 Text(loot.kept.isEmpty ? "Files land in \(browser.downloadsFolder.lastPathComponent)"
@@ -333,8 +552,68 @@ struct DownloadsPanel: View {
                     .foregroundStyle(Palette.muted)
                 Spacer()
                 if !loot.kept.isEmpty {
-                    Pill("Clear list") { loot.forgetAll() }
+                    Pill("Clear List") { loot.forgetAll() }
                 }
+            }
+        }
+    }
+
+    private func heading(_ words: String) -> some View {
+        Text(words).font(.system(size: 12)).foregroundStyle(Palette.muted).padding(.leading, 4)
+    }
+
+    /// A downloaded picture, small: read off the main thread at the size it
+    /// is drawn.
+    private struct Picture: View {
+        let keep: Keep
+        let open: () -> Void
+        @State private var image: NSImage?
+        /// The file's size, read with its picture.
+        @State private var size: String?
+        @State private var hovering = false
+
+        var body: some View {
+            Button(action: open) {
+                VStack(alignment: .leading, spacing: 4) {
+                    ZStack {
+                        Palette.fill
+                        if let image {
+                            Image(nsImage: image).resizable().scaledToFill()
+                        } else {
+                            Image(systemName: "photo").font(.system(size: 18)).foregroundStyle(Palette.muted)
+                        }
+                    }
+                    .frame(width: 150, height: 96)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    // Under the pointer the picture gets an edge: nothing
+                    // said it was a button.
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(hovering ? Palette.ring : .clear, lineWidth: 1)
+                    )
+                    FadingLine(text: keep.name).font(.system(size: 12)).foregroundStyle(Palette.ink)
+                    Text([size, When.day(keep.date)].compactMap { $0 }.joined(separator: " · "))
+                        .font(.system(size: 12)).foregroundStyle(Palette.muted).lineLimit(1)
+                }
+                .frame(width: 150, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(Gives())
+            .hovers($hovering)
+            .modifier(DragOut(keep: keep))
+            .task(id: keep.path) {
+                let url = keep.url
+                let made: CGImage? = await Task.detached(priority: .utility) {
+                    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+                    return CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceCreateThumbnailWithTransform: true,
+                        kCGImageSourceThumbnailMaxPixelSize: 400,
+                    ] as CFDictionary)
+                }.value
+                image = made.map { NSImage(cgImage: $0, size: .zero) }
+                let bytes = await Task.detached(priority: .utility) { DownloadsPanel.bytes(of: [url.path]) }.value
+                size = bytes > 0 ? ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) : nil
             }
         }
     }
@@ -472,7 +751,7 @@ struct DownloadsPanel: View {
 
         private func status(_ text: String) -> some View {
             Text(text)
-                .font(.system(size: 11.5))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.muted)
                 .monospacedDigit()
                 .lineLimit(1)
@@ -521,7 +800,7 @@ struct DownloadsPanel: View {
                     }
                     if case .failed = entry.state {
                         Text(entry.errorDescription ?? "The download failed.")
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
                             .textSelection(.enabled)
@@ -583,45 +862,84 @@ struct DownloadsPanel: View {
     }
 
     private struct KeptRow: View {
+        static let from: CGFloat = 170
+        static let size: CGFloat = 70
+        static let added: CGFloat = 90
+
         let keep: Keep
+        /// On the page, in columns, rather than in a panel's few words.
+        var wide = false
         let open: () -> Void
         let reveal: () -> Void
         let forget: () -> Void
 
         @State private var hovering = false
 
+        private var bytes: String {
+            guard let size = try? keep.url.resourceValues(forKeys: [.fileSizeKey]).fileSize else { return "" }
+            return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+        }
+
         var body: some View {
-            HStack(spacing: 12) {
-                Image(systemName: keep.stillThere ? "doc" : "doc.badge.ellipsis")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(keep.stillThere ? Palette.muted : Palette.faint)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(keep.name)
-                        .font(.system(size: 13))
-                        .foregroundStyle(keep.stillThere ? Palette.ink : Palette.faint)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Text(keep.from.isEmpty ? When.said(keep.date) : "\(keep.from) · \(When.said(keep.date))")
-                        .font(.system(size: 11.5))
+            // The row is the button that opens the file, where there still
+            // is one; Show in Finder and Remove stand beside it. One whose
+            // file has gone can only be removed, and doesn't light as if it
+            // opened.
+            RowButton(hovering: $hovering, works: keep.stillThere, action: open) {
+                HStack(spacing: 12) {
+                    Text((keep.name as NSString).pathExtension.prefix(4).uppercased())
+                        .font(.system(size: 8, weight: .semibold))
                         .foregroundStyle(Palette.muted)
-                        .lineLimit(1)
+                        .frame(width: 26, height: 32)
+                        .elevated(.lift, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                        .opacity(keep.stillThere ? 1 : 0.5)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(keep.name)
+                            .font(.system(size: 13))
+                            .foregroundStyle(keep.stillThere ? Palette.ink : Palette.muted)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        if !keep.stillThere {
+                            Text("Moved or deleted").font(.system(size: 12)).foregroundStyle(Palette.muted)
+                        } else if !wide {
+                            Text(keep.from.isEmpty ? When.said(keep.date) : "\(keep.from) · \(When.said(keep.date))")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Palette.muted)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    if wide && !hovering {
+                        HStack(spacing: 8) {
+                            if !keep.from.isEmpty { SiteMark(host: keep.from, size: 14) }
+                            Text(keep.from).lineLimit(1).truncationMode(.middle)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(width: Self.from)
+                        Text(bytes).monospacedDigit().frame(width: Self.size, alignment: .trailing)
+                        Text(Calendar.current.isDateInToday(keep.date) ? When.clock(keep.date) : When.day(keep.date))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .frame(width: Self.added, alignment: .trailing)
+                    }
                 }
-                Spacer(minLength: 8)
+                .padding(.leading, 14)
+                .padding(.trailing, hovering ? 0 : 14)
+                .frame(minHeight: 46)
+            } trailing: {
                 if hovering {
-                    if keep.stillThere { Quick("Show in Finder", act: reveal) }
-                    Quick("Remove", tint: .red.opacity(0.75), act: forget)
+                    HStack(spacing: 12) {
+                        if keep.stillThere { Quick("Show in Finder", act: reveal) }
+                        Quick("Remove", tint: Palette.danger, act: forget)
+                    }
+                    .padding(.leading, 12)
+                    .padding(.trailing, 14)
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(hovering ? Palette.hover : .clear)
-            .contentShape(Rectangle())
+            .font(.system(size: 12))
+            .foregroundStyle(Palette.muted)
             .contextMenu { if let address = keep.address { CopyAddress(address: address) } }
             .modifier(DragOut(keep: keep))
-            .onTapGesture { if keep.stillThere { open() } }
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
         }
     }
 

@@ -237,8 +237,8 @@ final class DevToolsPackages: ObservableObject {
             case .missing: "The package's files are missing."
             case .hash: "The package isn't the one the feed lists."
             case .signature: "The package's signature doesn't hold up."
-            case .searchTooOld: "This package needs a newer Search. Update Search."
-            case .packageTooOld: "This package is too old for this Search. Update the package."
+            case .searchTooOld: "This package needs a newer Lun. Update Lun."
+            case .packageTooOld: "This package is too old for this Lun. Update the package."
             case .notAPackage: "This isn't a developer tools package."
             case .layout: "The download isn't laid out as a package should be."
             }
@@ -685,6 +685,11 @@ final class DevToolsHostBridge: NSObject, SearchDevToolsHost {
 
     func invalidate() { DevToolsPackages.shared.invalidate() }
 
+    /// The two switches of Motion, so the panels hold still when the rest
+    /// of the window does.
+    var reducesMotion: Bool { Motion.reduced }
+    var stillsMotion: Bool { Motion.instant }
+
     private func tab(_ web: WKWebView) -> Tab? { DevToolsPackages.shared.tab(for: web) }
 }
 
@@ -832,12 +837,10 @@ struct DevToolsPackageList: View {
         if installed.count > 1 {
             Rule()
             Line("View › Developer uses", "Its menu and keys") {
-                Picker("", selection: Binding(get: { packages.primary?.offer.id ?? "" }, set: { packages.primaryID = $0 })) {
+                PopUp("View › Developer uses", shows: packages.primary?.offer.name ?? "None",
+                        selection: Binding(get: { packages.primary?.offer.id ?? "" }, set: { packages.primaryID = $0 })) {
                     ForEach(installed.values.map(\.offer).sorted { $0.id < $1.id }) { Text($0.name).tag($0.id) }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
             }
         }
     }
@@ -859,9 +862,9 @@ struct DevToolsPackageList: View {
                 }
             }
         case .removedLoaded:
-            Line(offer.name, "Removed. Restart Search to unload it.") { Pill("Restart") { Updater.shared.relaunch() } }
+            Line(offer.name, "Removed. Restart Lun to unload it.") { Pill("Restart") { Updater.shared.relaunch() } }
         case .updatedLoaded:
-            Line(offer.name, "Updated. Restart Search to use the new version.") { Pill("Restart") { Updater.shared.relaunch() } }
+            Line(offer.name, "Updated. Restart Lun to use the new version.") { Pill("Restart") { Updater.shared.relaunch() } }
         case .idle:
             Line(offer.name + (installed.map { " \($0.offer.display)" } ?? ""), "\(offer.summary)\(adds)\n\(version)") {
                 HStack(spacing: 6) {

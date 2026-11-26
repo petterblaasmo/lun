@@ -13,7 +13,7 @@ import AppKit
 enum Palette {
     static let ground = Color(nsColor: NS.ground)
     static let ink = Color(nsColor: NS.ink)             // neutral-900 · neutral-100
-    static let muted = Color(nsColor: NS.muted)         // neutral-500
+    static let muted = Color(nsColor: NS.muted)         // #5A5A5A · #A3A3A3
     static let faint = Color(nsColor: NS.faint)         // neutral-300 · neutral-700
     static let hairline = Color(nsColor: NS.hairline)   // neutral-200 · neutral-800
     static let wash = Color(nsColor: NS.wash)           // the live tab
@@ -22,22 +22,92 @@ enum Palette {
     /// bookmarks bar and the gaps share it, a touch off the page's white, so
     /// the card reads as one (see CardEdge).
     static let frame = Color(nsColor: NS.frame)
+    /// What floats over the page: a card, a list, the address field. The
+    /// ground's white in a light window, a step off it in a dark one.
+    static let raised = Color(nsColor: NS.raised)
+    /// What a group of rows lies on, and a button or a field in one: the ink
+    /// itself, a little of it, so a button on a group is a step darker.
+    static let fill = Color(nsColor: NS.fill)
+    static let fillHover = Color(nsColor: NS.fillHover)
+    static let rule = Color(nsColor: NS.rule)
+    /// What a chosen part of a picker lies on.
+    static let knob = Color(nsColor: NS.knob)
     /// The only two that aren't grey: a connection nobody can read on the
     /// way, and one anybody can (see SiteCard.swift).
     static let safe = Color(nsColor: NS.safe)           // green-700 · green-400
     static let unsafe = Color(nsColor: NS.unsafe)       // amber-700 · amber-400
+
+    // MARK: said once here, where each was written out by hand
+    //
+    // Each of these was a colour typed at several places, a shade apart
+    // from one to the next.
+
+    /// What takes something away for good, in its own words (Remove,
+    /// Delete…), and the words of a refusal: the Mac's red, eased to sit
+    /// with the greys.
+    static let danger = Color.red.opacity(0.8)
+    /// Round a field that refused what was typed: the address field, the
+    /// launcher, Find with nothing found.
+    static let dangerRing = Color.red.opacity(0.35)
+    /// Ink a step back, between ink and muted: a title at rest that goes
+    /// to ink under the pointer or once it is picked (the update's and the
+    /// agent's pill, a live folder's item, a page a long swipe offers), and
+    /// a small sign drawn in a row's ink (a page of Lun's own by its
+    /// symbol, a download's ring).
+    static let soft = ink.opacity(0.75)
+    /// Round a tab or a pin chosen along with others.
+    static let ring = ink.opacity(0.35)
+    /// The outline of where what is being dragged would land.
+    static let drop = ink.opacity(0.16)
+    /// What dims the window under a panel, and under a peek, which is a
+    /// page over the page and wants the one behind further back.
+    static let scrim = Color.black.opacity(0.10)
+    static let scrimDeep = Color.black.opacity(0.22)
+    /// What sets the page back under the raised address field in a light
+    /// window. The cover there is the ground let through (Omnibox), which
+    /// in a light window is white over what is most often a white page:
+    /// nothing said the field was a layer over it. A panel's scrim over
+    /// the cover makes the page a step darker than the card. In a dark
+    /// window the cover is darker than the card already, and this is
+    /// nothing.
+    static let fieldDim = Color(nsColor: NS.fieldDim)
+    /// A hint over a page in full screen, most often over a video: black
+    /// let through and white on it, whatever the window's appearance.
+    static let overPage = Color.black.opacity(0.72)
+    static let overPageEdge = Color.white.opacity(0.6)
+    /// A count that wants looking at: the unread badge on a pin.
+    static let badge = Color(red: 0.93, green: 0.24, blue: 0.21)
+    /// Something is recording: the Mac's own red, as its menu bar's dot.
+    static let recording = Color(nsColor: .systemRed)
 
     /// The same colours for the AppKit corners of the app — a text field's
     /// ink, a window's background — which want an NSColor and keep it.
     enum NS {
         static let ground = pair(1.0, 0.11)
         static let ink = pair(0.09, 0.93)
-        static let muted = pair(0.55, 0.58)
+        static let muted = pair(0.353, 0.64)
         static let faint = pair(0.83, 0.32)
         static let hairline = pair(0.91, 0.20)
         static let wash = pair(0.937, 0.175)
         static let hover = pair(0.965, 0.15)
         static let frame = pair(0.955, 0.075)
+        static let raised = pair(1.0, 0.13)
+        static let fill = shade(0.07, 0.08)
+        static let fillHover = shade(0.11, 0.13)
+        static let rule = shade(0.10, 0.10)
+        static let fieldDim = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .clear : NSColor(white: 0, alpha: 0.10)
+        }
+        static let knob = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? NSColor(white: 1, alpha: 0.16) : .white
+        }
+
+        private static func shade(_ light: CGFloat, _ dark: CGFloat) -> NSColor {
+            NSColor(name: nil) { appearance in
+                appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                    ? NSColor(white: 0.93, alpha: dark) : NSColor(white: 0.09, alpha: light)
+            }
+        }
         /// The resting traffic lights, drawn by hand when the app is behind.
         static let resting = pair(0.80, 0.30)
         static let safe = tint(light: (0.08, 0.50, 0.24), dark: (0.29, 0.87, 0.50))
@@ -73,6 +143,11 @@ struct Greys {
     /// tab's panes), so the two together land where the plain ones do.
     let washOnTile: Color
     let hoverOnTile: Color
+    /// What the tab you're on lies on: beside the page's card a card of its
+    /// own, lifted off the column (see Elevated); on the white, the wash, as
+    /// white on white would be a shadow alone.
+    let raised: Color
+    let lifts: Bool
     /// The quiet ink of a tab's title that isn't live, the same way: on
     /// the plain ground Palette.muted exactly, on a space's Rich or Vivid
     /// colour as far from it as Palette.muted is from the plain ground,
@@ -87,14 +162,22 @@ struct Greys {
     // white, or the frame beside the card). On that ground nothing changes;
     // on a space's colour or gradient they take its tint, where an opaque
     // grey sat on it as a grey patch (Drice, 18 Nov 2026).
-    static let white = Greys(wash: shade(0.063, 0.073), hover: shade(0.035, 0.045),
-                             tile: shade(0.063, 0.073).opacity(0.55), pinLive: shade(0.10, 0.112),
-                             washOnTile: shade(0.0294, 0.0342), hoverOnTile: shade(0.004, 0.005),
-                             muted: shade(0.45, 0.5281), faint: shade(0.17, 0.236))
-    static let frame = Greys(wash: shade(0.0628, 0.0865), hover: shade(0.0419, 0.0595),
-                             tile: shade(0.0314, 0.0432), pinLive: shade(0.0995, 0.1243),
-                             washOnTile: shade(0.0324, 0.0452), hoverOnTile: shade(0.0108, 0.0169),
-                             muted: shade(0.4241, 0.5459), faint: shade(0.1309, 0.2649))
+    static let white = Greys(wash: shade(0.07, 0.08), hover: shade(0.04, 0.05),
+                             tile: shade(0.055, 0.06), pinLive: shade(0.11, 0.14),
+                             washOnTile: shade(0.0294, 0.0342), hoverOnTile: shade(0.02, 0.025),
+                             raised: shade(0.07, 0.08), lifts: false,
+                             muted: shade(0.647, 0.5955), faint: shade(0.17, 0.236))
+    static let frame = Greys(wash: shade(0.07, 0.08), hover: shade(0.04, 0.05),
+                             tile: shade(0.065, 0.08), pinLive: shade(0.11, 0.14),
+                             washOnTile: shade(0.0324, 0.0452), hoverOnTile: shade(0.02, 0.025),
+                             raised: paper, lifts: true,
+                             muted: shade(0.631, 0.611), faint: shade(0.1309, 0.2649))
+
+    /// White in a light window, in a dark one what 14% of white does to the
+    /// column under it.
+    private static let paper = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? NSColor(white: 1, alpha: 0.14) : .white
+    })
 
     private static func shade(_ light: CGFloat, _ dark: CGFloat) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
@@ -164,8 +247,14 @@ enum Metrics {
     /// to a few points above and below the 28-point tabs: a strip, not a
     /// toolbar. The column keeps the full band, as its first row shares it.
     @MainActor static var strip: CGFloat {
-        Shared.prefs.compactStrip && !Shared.prefs.sidebar ? 36 : 52
+        Shared.prefs.sidebar ? 48 : Shared.prefs.compactStrip ? 36 : 44
     }
+    /// The row under the tabs across the top, with back, forward, reload and
+    /// the page's address in it (AddressRow).
+    @MainActor static var addressRow: CGFloat { Shared.prefs.compactStrip ? 36 : 44 }
+    /// A tab across the top as it stands on the page's card: down to the
+    /// strip's foot, and this tall.
+    @MainActor static var standingTab: CGFloat { Shared.prefs.compactStrip ? 30 : 36 }
     /// With the tabs down the side the page is a card: this far from the
     /// window's edges (and from the column, folded away), and its corners
     /// this round.
@@ -237,7 +326,7 @@ enum Metrics {
     static let tabMinWidth: CGFloat = 36
     static let tabGap: CGFloat = 2
     /// A pinned tab is a square the height of the row, holding one letter.
-    static let pinWidth: CGFloat = 30
+    static let pinWidth: CGFloat = 36
     /// The square at the end of the row that opens a new page.
     static let plusWidth: CGFloat = 30
     /// What a full row of tabs still leaves past the plus to take the window
@@ -248,12 +337,175 @@ enum Metrics {
     /// The address field, in both the places it shows up.
     static let fieldWidth: CGFloat = 560
     /// The column of titles down the left, in the way that has one.
-    static let side: CGFloat = 232
+    /// 232 of it rows, and sideInset on either side of them.
+    static let side: CGFloat = 248
+    /// The air between the column's edges and its rows: the page's card
+    /// stands as far from the column as from the window (cardGap).
+    static let sideInset: CGFloat = 8
     static let sideMin: CGFloat = 176
     /// Narrower than this, with Narrow to icons on, the column is the strip
     /// of icons (Preferences.narrowStrip).
     static let narrowLine: CGFloat = 200
     static let sideMax: CGFloat = 440
+}
+
+/// The house's corners, all continuous: a control inside a control (a
+/// track's knob, a step, a chip), a row's wash or a door or a key, a card
+/// of rows or a field, what floats over the page from a field (the
+/// launcher, a list under it), and a panel or a question. A shape inside
+/// another takes the outer's less the gap between them, so their curves run
+/// alongside: a theme's ring is 13 round a 10 picture, 3 away.
+enum Radius {
+    static let control: CGFloat = 6
+    static let row: CGFloat = 8
+    static let card: CGFloat = 10
+    static let float: CGFloat = 14
+    static let panel: CGFloat = 16
+    /// The address field alone in the middle of the window: rounder than a
+    /// panel, as it is the one thing there.
+    static let middle: CGFloat = 20
+}
+
+/// Three heights over the ground, one shadow each: a card lying on the column
+/// (the tab you're on), one floating over the page (the address list, a
+/// question), one over everything (the tab switcher). A hairline round each
+/// keeps its edge where the shadow is too soft to; in the dark it is light.
+enum Elevation {
+    case lift, float, overlay
+}
+
+struct Elevated<S: InsettableShape>: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    let height: Elevation
+    let shape: S
+    let fill: Color
+
+    func body(content: Content) -> some View {
+        let dark = scheme == .dark
+        content
+            .background {
+                switch height {
+                case .lift:
+                    shape.fill(fill).shadow(color: .black.opacity(dark ? 0.3 : 0.07), radius: 1.5, y: 1)
+                case .float:
+                    shape.fill(fill)
+                        .shadow(color: .black.opacity(dark ? 0.3 : 0.04), radius: 3, y: 2)
+                        .shadow(color: .black.opacity(dark ? 0.5 : 0.12), radius: 18, y: 12)
+                case .overlay:
+                    shape.fill(fill)
+                        .shadow(color: .black.opacity(dark ? 0.3 : 0.06), radius: 6, y: 4)
+                        .shadow(color: .black.opacity(dark ? 0.6 : 0.18), radius: 40, y: 28)
+                }
+            }
+            .overlay {
+                shape.strokeBorder(dark ? Color.white.opacity(height == .lift ? 0.08 : 0.10)
+                                        : Color.black.opacity(height == .lift ? 0.05 : 0.08),
+                                   lineWidth: dark ? 1 : 0.5)
+                    .allowsHitTesting(false)
+            }
+    }
+}
+
+extension View {
+    /// On a card at `height` over what it lies on (see Elevated).
+    func elevated<S: InsettableShape>(_ height: Elevation, in shape: S, fill: Color = Palette.raised) -> some View {
+        modifier(Elevated(height: height, shape: shape, fill: fill))
+    }
+}
+
+extension View {
+    /// The shadow under what the hand has lifted out of its row and is
+    /// carrying: a tab across the top, a pin, a tab's picture between
+    /// windows. One lift for the three, which each had their own; deeper
+    /// in a dark window, as the elevations are. Nothing while not `held`.
+    func carriedShadow(_ held: Bool = true) -> some View {
+        modifier(CarriedShadow(held: held))
+    }
+}
+
+private struct CarriedShadow: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    let held: Bool
+
+    func body(content: Content) -> some View {
+        content.shadow(color: .black.opacity(held ? (scheme == .dark ? 0.4 : 0.16) : 0), radius: 12, y: 4)
+    }
+}
+
+/// The ground of the tab you're on: a card lifted off the column, or on the
+/// white the wash (Greys.raised).
+struct LiveGround: View {
+    @Environment(\.greys) private var greys
+    var radius: CGFloat = 10
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        if greys.lifts {
+            Color.clear.elevated(.lift, in: shape, fill: greys.raised)
+        } else {
+            shape.fill(greys.raised)
+        }
+    }
+}
+
+/// A title on one line that fades out at its end where it doesn't fit, rather
+/// than being cut at three dots. One that fits is drawn as it is.
+struct FadingLine: View {
+    let text: String
+    var fade: CGFloat = 16
+    /// In a list whose rows are drawn often, measured once for a text at a
+    /// width; the layout only decides which of the two to show.
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            Text(text).lineLimit(1).fixedSize()
+            Text(text).lineLimit(1).fixedSize()
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                .clipped()
+                .mask {
+                    HStack(spacing: 0) {
+                        Rectangle()
+                        LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: fade)
+                    }
+                }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
+    }
+}
+
+/// A tab standing on the page's card: round at the top, and at the foot two
+/// small curves out to either side, so the two are one piece.
+struct StandingTab: Shape {
+    var radius: CGFloat = 10
+    /// The curves at the foot: the tab you're on; a tab under the pointer
+    /// stops at its own edges.
+    var flares = true
+
+    func path(in rect: CGRect) -> Path {
+        let r = min(radius, rect.height / 2, rect.width / 2)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX - (flares ? r : 0), y: rect.maxY))
+        if flares {
+            path.addArc(center: CGPoint(x: rect.minX - r, y: rect.maxY - r), radius: r,
+                        startAngle: .degrees(90), endAngle: .degrees(0), clockwise: true)
+        }
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
+        path.addArc(center: CGPoint(x: rect.minX + r, y: rect.minY + r), radius: r,
+                    startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
+        path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+        path.addArc(center: CGPoint(x: rect.maxX - r, y: rect.minY + r), radius: r,
+                    startAngle: .degrees(270), endAngle: .degrees(0), clockwise: false)
+        if flares {
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
+            path.addArc(center: CGPoint(x: rect.maxX + r, y: rect.maxY - r), radius: r,
+                        startAngle: .degrees(180), endAngle: .degrees(90), clockwise: true)
+        } else {
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        }
+        path.closeSubpath()
+        return path
+    }
 }
 
 /// The handle on an edge that pulls: the column's, the side panel's and the
@@ -312,17 +564,6 @@ enum Motion {
 
     nonisolated static let instantKey = "motion.instant"
 
-    /// `seconds`, or none with Reduce animations on: for the fades that run
-    /// on a length of their own rather than on the animations below.
-    static func seconds(_ seconds: TimeInterval) -> TimeInterval {
-        instant ? 0 : seconds
-    }
-
-    /// `animation`, or none with Reduce animations on, the same way.
-    static func timed(_ animation: Animation) -> Animation? {
-        instant ? nil : animation
-    }
-
     /// Whether the Mac is short of power: Low Power Mode is on, or it is hot
     /// enough that macOS is holding its processors back. Then the two springs
     /// below become a short ease-out. A spring keeps moving long after it
@@ -365,6 +606,121 @@ enum Motion {
 
     static var quick: Animation? {
         reduced ? nil : .easeOut(duration: 0.14)
+    }
+
+    // MARK: the rest of the vocabulary
+    //
+    // quick, settle and glide move things. These four are for what they
+    // don't cover, so that no view has to write a curve of its own: an
+    // Animation literal belongs in this enum and nowhere else, and a
+    // transition is one of the named ones under it (AnyTransition.card and
+    // the rest). Each is nil when nothing should move.
+
+    /// One thing fading into another with nothing moving: a page's cover,
+    /// the line a tab says at rest, a hint. A fade is what Reduce Motion
+    /// asks for in place of movement, so the Mac's setting leaves it; only
+    /// Reduce animations in Settings takes it away.
+    static var dissolve: Animation? {
+        instant ? nil : .easeOut(duration: 0.2)
+    }
+
+    /// Something meant to be watched arrive, not just to be there: the
+    /// welcome's words under its mark, the column's buttons changing ends.
+    static var slow: Animation? {
+        reduced ? nil : light ? .easeOut(duration: 0.16) : .easeInOut(duration: 0.45)
+    }
+
+    /// The wordmark being written, l then u then n (LogomarkWritten).
+    static var drawn: Animation? {
+        reduced ? nil : .easeInOut(duration: 0.9)
+    }
+
+    /// What a swipe between spaces lets go of, carried the rest of the way:
+    /// the rows, and the space's sign with them. A length of its own, and
+    /// no spring, since something is waiting for it to finish.
+    static var carry: Animation? {
+        reduced ? nil : .easeOut(duration: 0.22)
+    }
+
+    /// The column fading in place where it doesn't slide (fadesColumn).
+    static var columnFade: Animation? {
+        fadesColumn ? .easeInOut(duration: fade) : nil
+    }
+
+    /// A refusal: the field shivers and stops (Shake, whose travel this
+    /// takes from 0 to 1).
+    static var shake: Animation? {
+        reduced ? nil : .easeOut(duration: 0.5)
+    }
+
+    /// The kinds by name, for AppKit and Core Animation, which take a
+    /// length and a curve rather than an Animation.
+    enum Kind {
+        case quick, settle, glide, dissolve, slow
+        /// A page or what covered it fading: shorter than a dissolve, so
+        /// the page is there sooner. Kept under Reduce Motion, as a fade is.
+        case reveal
+    }
+
+    /// How long a kind takes, nought when nothing should move: for an
+    /// NSAnimationContext, a CAAnimation, or whatever has to wait one out.
+    static func duration(_ kind: Kind) -> TimeInterval {
+        switch kind {
+        case .quick: return reduced ? 0 : 0.14
+        case .settle: return reduced ? 0 : light ? 0.16 : 0.30
+        case .glide: return reduced ? 0 : light ? 0.16 : 0.34
+        case .dissolve: return instant ? 0 : 0.2
+        case .slow: return reduced ? 0 : light ? 0.16 : 0.45
+        case .reveal: return instant ? 0 : 0.12
+        }
+    }
+
+    /// The curve AppKit runs a kind on. A spring has no bezier; the one the
+    /// two springs get was fitted by eye to glide for the Split View's
+    /// panes (PaneStage), and reads the same.
+    static func timing(_ kind: Kind) -> CAMediaTimingFunction {
+        switch kind {
+        case .quick, .dissolve, .reveal: return CAMediaTimingFunction(name: .easeOut)
+        case .settle, .glide: return CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
+        case .slow: return CAMediaTimingFunction(name: .easeInEaseOut)
+        }
+    }
+
+    /// AppKit's animator proxies moved in a kind's time, at once when
+    /// nothing should move: `changes` sets `view.animator()` values.
+    @MainActor static func run(_ kind: Kind, _ changes: () -> Void, then done: (@MainActor () -> Void)? = nil) {
+        let length = duration(kind)
+        guard length > 0 else {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                changes()
+            }
+            done?()
+            return
+        }
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = length
+            context.timingFunction = timing(kind)
+            context.allowsImplicitAnimation = true
+            changes()
+        }, completionHandler: done.map { done in { MainActor.assumeIsolated { done() } } })
+    }
+
+    /// A panel of AppKit's coming on, once it is placed and in order: faded
+    /// in, as a card SwiftUI draws arrives, where it was simply there. A
+    /// fade, so the Mac's Reduce Motion keeps it. Not on a test run, which
+    /// reads what a window shows the moment it is up.
+    @MainActor static func arrive(_ window: NSWindow) {
+        guard duration(.reveal) > 0, !Store.testing else { return }
+        window.alphaValue = 0
+        run(.reveal) { window.animator().alphaValue = 1 }
+    }
+
+    /// The same panel going: faded out, then `gone` (which takes it out of
+    /// order). At once where nothing should move.
+    @MainActor static func leave(_ window: NSWindow, then gone: @escaping @MainActor () -> Void) {
+        guard duration(.reveal) > 0, !Store.testing, window.isVisible else { return gone() }
+        run(.reveal, { window.animator().alphaValue = 0 }, then: gone)
     }
 
     /// How far a tab gives while it is pressed (see Give): enough to feel
@@ -423,84 +779,401 @@ enum Motion {
 
     /// That fade's length.
     static let fade: TimeInterval = 0.2
-}
 
-/// Search's mark — Drice's Subtract.svg, a pill with an S cut out of it,
-/// read from its own path data rather than loaded from a file, so it stays a
-/// crisp vector at any size. No plate, no square behind it: the mark draws exactly
-/// what the source file has and nothing it doesn't, the way every other icon
-/// in this app is a bare shape rather than a shape on a background. The one
-/// exception is the macOS app icon (`Icon/icon.swift`), which needs an
-/// opaque square whether the mark wants one or not — that's the Dock's
-/// requirement, not the logo's.
-struct Logomark: Shape {
-    /// The source's own canvas: Subtract.svg, 608 × 276, nothing outside it.
-    static let canvas = CGSize(width: 608, height: 276)
-
-    /// A pill with an S cut out of it. The same path as Icon/icon.swift and
-    /// the website's mark.
-    private static let data = "M469.443 0C545.471 0.00013198 607.103 61.6325 607.104 137.66C607.104 213.688 545.471 275.321 469.443 275.321H137.66C61.6323 275.321 0 213.688 0 137.66C0.00016085 61.6325 61.6325 0.000140192 137.66 0H469.443ZM138.104 51.5977C127.234 51.5977 117.512 53.5115 108.938 57.3389C100.518 61.0132 93.8581 66.2188 88.959 72.9551C84.2132 79.5381 81.8398 87.3464 81.8398 96.3789C81.8399 105.258 83.6773 112.607 87.3516 118.425C91.0258 124.089 95.9251 128.682 102.049 132.203C108.173 135.571 114.833 138.327 122.028 140.471L151.652 149.197C158.389 151.188 163.9 154.249 168.187 158.383C172.473 162.516 174.617 168.028 174.617 174.917C174.617 182.572 171.402 188.849 164.972 193.748C158.695 198.494 150.122 200.867 139.252 200.867C132.21 200.867 125.702 199.413 119.731 196.504C113.914 193.442 109.091 189.308 105.264 184.103C101.436 178.744 99.2169 172.697 98.6045 165.961H97.6855L75.4102 171.013C76.3287 180.658 79.697 189.308 85.5146 196.963C91.3322 204.618 98.9103 210.665 108.249 215.104C117.741 219.544 128.076 221.765 139.252 221.765C151.193 221.765 161.68 219.774 170.713 215.794C179.746 211.813 186.711 206.225 191.61 199.029C196.662 191.834 199.188 183.414 199.188 173.769C199.188 164.124 197.352 156.239 193.678 150.115C190.003 143.838 185.104 138.863 178.98 135.188C172.857 131.514 166.044 128.605 158.542 126.462L128.229 117.735C121.799 115.898 116.516 113.219 112.383 109.698C108.402 106.177 106.412 101.354 106.412 95.2305C106.412 88.188 109.168 82.6758 114.68 78.6953C120.344 74.5619 128.152 72.4951 138.104 72.4951C147.901 72.4952 155.939 74.9448 162.216 79.8438C168.493 84.7428 172.397 91.1729 173.928 99.1338H174.847L196.663 93.8525C195.745 85.5853 192.605 78.3131 187.247 72.0361C181.889 65.6061 174.923 60.6306 166.35 57.1094C157.929 53.4351 148.514 51.5977 138.104 51.5977Z"
-
-    func path(in rect: CGRect) -> Path {
-        // Fit the canvas into whatever frame this is given, centred, at the
-        // larger scale that still keeps it inside — an SVG viewBox's "meet".
-        let scale = min(rect.width / Logomark.canvas.width, rect.height / Logomark.canvas.height)
-        let ox = rect.midX - Logomark.canvas.width * scale / 2
-        let oy = rect.midY - Logomark.canvas.height * scale / 2
-        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: ox + x * scale, y: oy + y * scale) }
-        var path = Path()
-        var last = CGPoint.zero
-        var start = CGPoint.zero
-        for (c, n) in Logomark.commands {
-            switch c {
-            case "M": last = CGPoint(x: n[0], y: n[1]); start = last; path.move(to: pt(n[0], n[1]))
-            case "L": last = CGPoint(x: n[0], y: n[1]); path.addLine(to: pt(n[0], n[1]))
-            case "H": last.x = n[0]; path.addLine(to: pt(last.x, last.y))
-            case "V": last.y = n[0]; path.addLine(to: pt(last.x, last.y))
-            case "C":
-                var k = 0
-                while k + 5 < n.count {
-                    path.addCurve(to: pt(n[k + 4], n[k + 5]), control1: pt(n[k], n[k + 1]), control2: pt(n[k + 2], n[k + 3]))
-                    last = CGPoint(x: n[k + 4], y: n[k + 5])
-                    k += 6
-                }
-            case "Z": path.closeSubpath(); last = start
-            default: break
-            }
+    /// Motion.folding in Core Animation's terms, for the window's buttons,
+    /// which a layer carries along with the column (Fold.slide): the eased
+    /// slide where Settings asks for one, else the same spring.
+    static func folding(out: Bool, keyPath: String) -> CABasicAnimation {
+        if let slide = slide(out: out) {
+            let eased = CABasicAnimation(keyPath: keyPath)
+            eased.timingFunction = CAMediaTimingFunction(name: out ? .easeOut : .easeIn)
+            eased.duration = slide
+            return eased
         }
-        return path
+        let fold = fold(out: out)
+        let spring = CASpringAnimation(keyPath: keyPath)
+        spring.mass = 1
+        spring.stiffness = pow(2 * .pi / fold.response, 2)
+        spring.damping = 4 * .pi * fold.damping / fold.response
+        spring.duration = spring.settlingDuration
+        return spring
     }
 
-    /// Read once. Absolute M, L, H, V, C, Z — what Figma writes for a
-    /// flattened shape, and nothing else is needed.
-    private static let commands: [(Character, [CGFloat])] = {
-        var out: [(Character, [CGFloat])] = []
-        var current: Character?
-        var numbers: [CGFloat] = []
-        var token = ""
-        func flush() {
-            if !token.isEmpty, let v = Double(token) { numbers.append(CGFloat(v)) }
-            token = ""
+    // MARK: lengths that are one surface's own
+    //
+    // Each was tuned where it is used and keeps its number. They are here
+    // so that no file sets a length of its own, and so the two switches
+    // reach them: nought where nothing should move.
+
+    /// A hint over the page that is read and never pressed (the pointer's
+    /// lock, "esc again" in full screen): there a little sooner than it
+    /// is gone.
+    static func hint(shown: Bool) -> TimeInterval {
+        reduced ? 0 : shown ? 0.15 : 0.2
+    }
+
+    /// The line under the address while a page loads, running on to where
+    /// the load has got to.
+    static var lineRuns: TimeInterval {
+        reduced ? 0 : 0.2
+    }
+
+    /// That line fading once the page is in. A fade, so the Mac's Reduce
+    /// Motion keeps it.
+    static var lineFades: TimeInterval {
+        instant ? 0 : 0.3
+    }
+
+    /// One space's page fading into the next while the rows slide
+    /// (PaneStage.show), on timing(.dissolve).
+    static var spaceFade: TimeInterval {
+        reduced ? 0 : 0.15
+    }
+
+    /// The Split View's pages moving to their new places, on timing(.glide):
+    /// the curve was fitted to glide's spring at this length.
+    static var panes: TimeInterval {
+        reduced ? 0 : 0.32
+    }
+
+    /// A window's frame following what it holds (the downloads card as its
+    /// list grows): tuned for a frame, which AppKit moves, not SwiftUI.
+    static var resize: TimeInterval {
+        reduced ? 0 : light ? 0.16 : 0.22
+    }
+
+    /// The floating video tucked down to a corner, and back to its size.
+    static var tuck: TimeInterval {
+        reduced ? 0 : 0.18
+    }
+
+    // MARK: what waits for a move
+    //
+    // A spring is on its place to the eye before it is at rest, and says
+    // neither. What has to follow one waits these out.
+
+    /// A glide as good as there: the page takes the room the column left
+    /// (ContentView).
+    static let glideLanded: TimeInterval = 0.42
+
+    /// A glide at rest, about half a second and a little over: what would
+    /// have cost it frames is done now (Browser.columnTurning).
+    static let glideRested: TimeInterval = 0.6
+
+    /// How long the back and forward swipe's disc is seen going with its
+    /// page before it leaves (PageView.go).
+    static let swipeGone: TimeInterval = 0.32
+
+    // MARK: what goes round, and what bumps once
+
+    /// What repeats for as long as it is there. Core Animation's, since a
+    /// SwiftUI animation that never ends lays the window out every frame.
+    enum Loop {
+        /// The ring in a tab while its page loads.
+        case spin
+        /// The light passing over a peeked page's bones.
+        case sweep
+        /// The glow under the address field.
+        case breathe
+    }
+
+    /// `animation` made to go round as `loop` does (how long, at what pace,
+    /// and for the breath its way back), or nil where it should hold still.
+    /// The ring turns whatever is asked: it says a page is still coming,
+    /// and a ring standing still says the page has stopped. The light and
+    /// the breath are only there to be looked at, and stop with the rest.
+    static func loop<Turn: CAAnimation>(_ loop: Loop, _ animation: Turn) -> Turn? {
+        switch loop {
+        case .spin:
+            animation.duration = 0.85
+        case .sweep:
+            guard !reduced else { return nil }
+            animation.duration = 1.3
+            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        case .breathe:
+            guard !reduced else { return nil }
+            animation.duration = 2.6
+            animation.autoreverses = true
+            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
         }
-        for ch in data {
-            if "MLHVCZ".contains(ch) {
-                flush()
-                if let current { out.append((current, numbers)) }
-                current = ch
-                numbers = []
-            } else if ch == " " || ch == "," {
-                flush()
-            } else if ch == "-" && !token.isEmpty {
-                flush()
-                token = "-"
-            } else {
-                token.append(ch)
-            }
-        }
-        flush()
-        if let current { out.append((current, numbers)) }
-        return out
+        animation.repeatCount = .infinity
+        return animation
+    }
+
+    /// "Something just arrived here": how far a sign swells and how long it
+    /// takes each way (the downloads door as a download starts). Under
+    /// Reduce Motion it goes nowhere, for the same length: a keyframe of no
+    /// length comes out as not a number, and AppKit stops the whole app
+    /// over a transform like that.
+    static func pulse(reduced: Bool = Motion.reduced, light: Bool = Motion.light) -> (peak: CGFloat, up: Double, down: Double) {
+        let seconds = light ? 0.16 : 0.3
+        return (reduced ? 1 : 1.35, seconds * 0.4, seconds * 0.6)
+    }
+
+    // MARK: what follows the fingers
+    //
+    // Three things are moved a frame at a time off the display, not by an
+    // Animation: each sets off at the fingers' own speed or is caught again
+    // halfway, which an Animation can't be. The arithmetic stays with each;
+    // how hard its spring pulls is here with the rest. Under Reduce Motion
+    // each is simply in its place, asked where it would start.
+
+    /// The rows carried into place when a swipe between spaces is let go
+    /// (SwipeGlide): how quickly the spring pulls, a second, critically
+    /// damped. Most of the way in a tenth of a second, within a point of
+    /// its place in a fifth. At 20, a slide took 0.4 s, and at 26 a third
+    /// of a second: it felt slow, and the next stroke often had to wait
+    /// for it.
+    static let spacePull: Double = 34
+
+    /// The Liquid Glass pane going from tab to tab (LensMotion): how hard
+    /// it is pulled, and how much of its speed it loses. Three quarters of
+    /// what would stop it without overshooting, so it overshoots a touch
+    /// and settles at once. Less, and the wobble was the thing to watch
+    /// rather than the tab.
+    static let lens: (pull: Double, damping: Double) = (320, 27)
+
+    /// The floating video flung to a corner: critically damped, quick away
+    /// and into the corner without going past it, there within `within`.
+    static let fling: (pull: CGFloat, within: CGFloat) = (15, 0.6)
+
+    /// The same let back out from a side: underdamped (`damping` is the
+    /// ratio), a little past its place and back to it.
+    static let flingBack: (pull: CGFloat, damping: CGFloat, within: CGFloat) = (16, 0.5, 0.9)
+
+    // MARK: what the system moves
+
+    /// Whether a popover comes and goes on the system's own animation:
+    /// `popover.animates = Motion.popovers` wherever an NSPopover is made.
+    /// A popover is the system's to move, and under the Mac's Reduce Motion
+    /// the system changes it itself; only Reduce animations is Lun's to
+    /// apply. One made by SwiftUI's `.popover` (PopoverSide) can't be told
+    /// either way and keeps the system's: the one exception to `instant`,
+    /// with menus, alerts and standard windows.
+    static var popovers: Bool {
+        !instant
+    }
+}
+
+/// Lun's wordmark: three letters from one round-ended stroke, drawn for Lun
+/// with no typeface inside it, so it is ours to use anywhere. The logo is
+/// always "lun"; in sentences the name stays "Lun". Filled with the non-zero
+/// rule: the u's and the n's bowls cross their stems, and even-odd would cut
+/// holes where they do. The same stroke is in Icon/icon.swift.
+struct Logomark: Shape {
+    /// The ink's own size, nothing outside it.
+    static let canvas = CGSize(width: 143, height: 77)
+    static let pen: CGFloat = 13
+
+    /// Where the pen goes, in the canvas's own points: l, u, n, in the
+    /// order a hand writes them.
+    static let line: Path = {
+        let half = Logomark.pen / 2
+        var line = Path()
+        // l
+        line.move(to: CGPoint(x: half, y: half))
+        line.addLine(to: CGPoint(x: half, y: 64 + half))
+        // u
+        line.move(to: CGPoint(x: 26 + half, y: 24 + half))
+        line.addLine(to: CGPoint(x: 26 + half, y: 44 + half))
+        line.addArc(center: CGPoint(x: 46 + half, y: 44 + half), radius: 20,
+                    startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
+        line.addLine(to: CGPoint(x: 66 + half, y: 24 + half))
+        line.move(to: CGPoint(x: 66 + half, y: 24 + half))
+        line.addLine(to: CGPoint(x: 66 + half, y: 64 + half))
+        // n
+        line.move(to: CGPoint(x: 90 + half, y: 24 + half))
+        line.addLine(to: CGPoint(x: 90 + half, y: 64 + half))
+        line.move(to: CGPoint(x: 90 + half, y: 44 + half))
+        line.addArc(center: CGPoint(x: 110 + half, y: 44 + half), radius: 20,
+                    startAngle: .degrees(180), endAngle: .degrees(0), clockwise: false)
+        line.addLine(to: CGPoint(x: 130 + half, y: 64 + half))
+        return line
     }()
+
+    /// How much larger than its canvas it is drawn in `rect`.
+    static func scale(in rect: CGRect) -> CGFloat {
+        min(rect.width / Logomark.canvas.width, rect.height / Logomark.canvas.height)
+    }
+
+    /// Into whatever frame this is given, centred, at the larger scale that
+    /// still keeps it inside: an SVG viewBox's "meet".
+    static func fit(_ rect: CGRect) -> CGAffineTransform {
+        let scale = scale(in: rect)
+        let x = rect.midX - Logomark.canvas.width * scale / 2
+        let y = rect.midY - Logomark.canvas.height * scale / 2
+        return CGAffineTransform(translationX: x, y: y).scaledBy(x: scale, y: scale)
+    }
+
+    func path(in rect: CGRect) -> Path {
+        Logomark.line
+            .strokedPath(StrokeStyle(lineWidth: Logomark.pen, lineCap: .round, lineJoin: .round))
+            .applying(Logomark.fit(rect))
+    }
+}
+
+/// The wordmark as the pen writes it, from nothing (`drawn` 0) to all three
+/// letters (1): the welcome's first page. Drawn whole, it is Logomark.
+struct LogomarkWritten: View {
+    var drawn: CGFloat
+
+    var body: some View {
+        GeometryReader { box in
+            let rect = CGRect(origin: .zero, size: box.size)
+            Logomark.line.applying(Logomark.fit(rect))
+                .trim(from: 0, to: drawn)
+                .stroke(Palette.ink, style: StrokeStyle(lineWidth: Logomark.pen * Logomark.scale(in: rect), lineCap: .round, lineJoin: .round))
+        }
+        .aspectRatio(Logomark.canvas.width / Logomark.canvas.height, contentMode: .fit)
+    }
+}
+
+// MARK: - how things arrive and leave
+//
+// Every surface comes and goes one of these ways, so a card is a card
+// wherever it is. The animation that carries one goes on the container
+// outside the `if`, `.animation(Motion.settle, value:)`: on the thing
+// inserted it never runs.
+
+extension AnyTransition {
+    /// A card, a sheet, a question, a panel, a list under a field: up from
+    /// a little smaller, from `anchor`, and back.
+    static func card(from anchor: UnitPoint = .center) -> AnyTransition {
+        .scale(scale: 0.97, anchor: anchor).combined(with: .opacity)
+    }
+
+    /// The same from its middle.
+    static var card: AnyTransition { card() }
+
+    /// What comes in along an edge and leaves by it: a toast at the foot,
+    /// the find bar at the top.
+    static func bar(_ edge: Edge) -> AnyTransition {
+        .move(edge: edge).combined(with: .opacity)
+    }
+
+    /// One page of several replacing another: in from where it is going,
+    /// out the other way.
+    static func page(forward: Bool) -> AnyTransition {
+        .asymmetric(insertion: .offset(x: forward ? 40 : -40).combined(with: .opacity),
+                    removal: .offset(x: forward ? -40 : 40).combined(with: .opacity))
+    }
+
+    /// A row joining a list or leaving it, a sub-list opening under its
+    /// heading.
+    static func row(from anchor: UnitPoint = .top) -> AnyTransition {
+        .scale(scale: 0.94, anchor: anchor).combined(with: .opacity)
+    }
+
+    /// A card's other face: the one a step in comes from the trailing side
+    /// and goes back to it, the one it came from waits on the leading side.
+    /// A short way, and faded: the card stays where it is.
+    static func face(_ edge: HorizontalEdge) -> AnyTransition {
+        .offset(x: edge == .leading ? -24 : 24).combined(with: .opacity)
+    }
+
+    /// The pages a long swipe back or forward offers, in the disc's place:
+    /// grown from the edge the swipe came from, and less far going than
+    /// coming, since the page is already on its way.
+    static func swiped(from anchor: UnitPoint) -> AnyTransition {
+        .asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.92, anchor: anchor)),
+                    removal: .opacity.combined(with: .scale(scale: 0.96, anchor: anchor)))
+    }
+
+    /// A small sign: a badge, a tick, a count.
+    static var pop: AnyTransition {
+        .scale(scale: 0.6).combined(with: .opacity)
+    }
+}
+
+// MARK: - how things answer
+
+/// Gives a little under a press and comes back when it is let go, as a tab
+/// does (Give): a press is answered before what it does is seen. Dimmed
+/// when it can't be pressed.
+struct Gives: ButtonStyle {
+    /// How far it gives; a large thing less, or it looks to jump.
+    var to: CGFloat = Motion.give
+    /// Whether it dims itself where it can't be pressed; not for one that
+    /// already says so its own way.
+    var dims = true
+
+    func makeBody(configuration: Configuration) -> some View {
+        Pressed(configuration: configuration, to: to, dims: dims)
+    }
+
+    private struct Pressed: View {
+        let configuration: Configuration
+        let to: CGFloat
+        let dims: Bool
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            configuration.label
+                .opacity(enabled || !dims ? 1 : 0.4)
+                .modifier(Give(pressed: configuration.isPressed, to: to))
+        }
+    }
+}
+
+extension View {
+    /// Tracks the pointer over it into `hovering`, the change eased as
+    /// every hover is.
+    func hovers(_ hovering: Binding<Bool>) -> some View {
+        onHover { hovering.wrappedValue = $0 }
+            .animation(Motion.quick, value: hovering.wrappedValue)
+    }
+
+    /// A symbol bumped once when `value` changes, "something just arrived
+    /// here", as the downloads door pulses (Motion.pulse). The bounce is
+    /// the system's; where nothing should move the value it watches never
+    /// changes, and the symbol holds still.
+    func bumps<Value: Equatable>(on value: Value) -> some View {
+        symbolEffect(.bounce, value: Motion.reduced ? nil : value)
+    }
+}
+
+extension View {
+    /// A row pressed as a whole that can't be a Button, since it holds
+    /// buttons of its own or lies under other clicks: it gives under the
+    /// press as a button does (Gives, by a tab's means: Pressing and Give)
+    /// and does `act` on the click. A tap on a stack did the thing with
+    /// nothing to say it had been pressed. After the row's contentShape.
+    func pressed(to: CGFloat = 0.98, _ act: @escaping () -> Void) -> some View {
+        modifier(PressedRow(to: to, act: act))
+    }
+}
+
+private struct PressedRow: ViewModifier {
+    let to: CGFloat
+    let act: () -> Void
+    @State private var down = false
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(Give(pressed: down, to: to))
+            .modifier(Pressing(down: $down))
+            .onTapGesture(perform: act)
+    }
+}
+
+/// Hands what it draws whether the pointer is over it, eased as every
+/// hover is: for one of many built in a loop (a swatch, a tile, a cell of
+/// a grid), which has nowhere of its own to keep that.
+struct Hovered<Label: View>: View {
+    @ViewBuilder let label: (Bool) -> Label
+    @State private var hovering = false
+
+    var body: some View {
+        label(hovering).hovers($hovering)
+    }
+}
+
+/// A change made at once, from inside a control that slides a knob of its
+/// own (Segmented, Switch): the knob still moves, on its own animation, and
+/// what it sets in the window doesn't ride along on it. For what was set by
+/// one of the Mac's controls, which carried no animation with it.
+func atOnce(_ change: () -> Void) {
+    withTransaction(Transaction(animation: nil), change)
 }
 
 /// Wrong address, said without a dialog: the field shivers and stops.
@@ -661,6 +1334,11 @@ struct CardClip: ViewModifier, Animatable {
     var corner: CGFloat
     let scale: CGFloat
     let on: Bool
+    /// Round at the foot alone: the address row is the card's own top.
+    var squareTop = false
+    /// The card in the page's middle across (⌘S), or from its leading edge
+    /// (the column's edge held): where the page is carried decides.
+    var centred = true
 
     var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, AnimatablePair<AnimatablePair<CGFloat, CGFloat>, CGFloat>> {
         get { .init(.init(card.top, card.leading), .init(.init(card.bottom, card.trailing), corner)) }
@@ -674,7 +1352,8 @@ struct CardClip: ViewModifier, Animatable {
     func body(content: Content) -> some View {
         func pixel(_ x: CGFloat) -> CGFloat { scale > 0 ? (x * scale).rounded() / scale : x }
         let across = CGSize(width: pixel(card.leading + card.trailing), height: pixel(card.top + card.bottom))
-        return content.background(Rider(across: on ? across : nil, corner: on ? max(0, corner) : 0))
+        return content.background(Rider(across: on ? across : nil, corner: on ? max(0, corner) : 0, squareTop: squareTop,
+                                        centred: centred))
     }
 
     /// The card, measured in the window: the room it leaves across and
@@ -684,6 +1363,8 @@ struct CardClip: ViewModifier, Animatable {
     private struct Rider: NSViewRepresentable {
         let across: CGSize?
         let corner: CGFloat
+        let squareTop: Bool
+        let centred: Bool
 
         func makeNSView(context: Context) -> NSView { Unseen() }
 
@@ -700,8 +1381,8 @@ struct CardClip: ViewModifier, Animatable {
                 }
             }
             switch unseen.stage {
-            case let panes as PaneStage: panes.clip(card: card, corner: corner)
-            case let one as StageView: one.clip(card: card, corner: corner)
+            case let panes as PaneStage: panes.clip(card: card, corner: corner, squareTop: squareTop, centred: centred)
+            case let one as StageView: one.clip(card: card, corner: corner, squareTop: squareTop, centred: centred)
             default: break
             }
         }

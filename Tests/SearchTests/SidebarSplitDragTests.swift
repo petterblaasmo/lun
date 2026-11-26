@@ -131,6 +131,8 @@ final class SidebarSplitDragTests: XCTestCase {
         let browser = Browser(record: WindowRecord())
         browsers.append(browser)
         browser.prefs.sidebar = true
+        // The address bar above the rows would move every row this presses.
+        browser.prefs.addressLine = false
         browser.prefs.usesTabGroups = false
         browser.prefs.splitView = true
         browser.prefs.listsPins = false

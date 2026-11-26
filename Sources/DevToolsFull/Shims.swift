@@ -73,10 +73,44 @@ enum Palette {
     }
 }
 
-/// Search's quick spring, and the Mac's Reduce Motion.
+/// The app's motion (Motion in its Design.swift), as far as the panels use
+/// it. The two switches are the app's own, asked of it each time something
+/// moves: with Reduce animations on in its Settings, or the Mac's Reduce
+/// Motion, nothing here travels either. An app from before it could say
+/// leaves the Mac's setting alone to go by. Every curve the panels move on
+/// is written here and nowhere else, as the app's are in its own (a test
+/// holds both); each is nil when nothing should move.
 enum Motion {
-    static var reduced: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    static var reduced: Bool {
+        MainActor.assumeIsolated { DevHost.host?.reducesMotion }
+            ?? NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
+
+    /// Not even a fade: Reduce animations in the app's Settings.
+    static var instant: Bool {
+        MainActor.assumeIsolated { DevHost.host?.stillsMotion } ?? false
+    }
+
+    /// Hover, and small things appearing: the app's quick.
     static var quick: Animation? { reduced ? nil : .easeOut(duration: 0.14) }
+
+    /// A sheet over the panels arriving and leaving.
+    static var sheet: Animation? { reduced ? nil : .spring(response: 0.32, dampingFraction: 0.86) }
+
+    /// The white moving down the settings rail, with a little give at the
+    /// end, so the eye follows it.
+    static var rail: Animation? { reduced ? nil : .spring(response: 0.45, dampingFraction: 0.72) }
+
+    /// A strip of tabs brought to the one picked, and tabs changing places
+    /// under a drag.
+    static var shift: Animation? { reduced ? nil : .easeOut(duration: 0.15) }
+
+    /// A list brought to the rule a link points at.
+    static var seek: Animation? { reduced ? nil : .easeOut(duration: 0.2) }
+
+    /// A changed declaration's yellow fading. A fade, so the Mac's Reduce
+    /// Motion keeps it.
+    static var flash: Animation? { instant ? nil : .easeOut(duration: 0.4) }
 }
 
 /// The arrow over a sheet's dimmed ground (Search's CursorGround).
@@ -182,5 +216,6 @@ struct Door: View {
         .buttonStyle(.plain)
         .help(help)
         .onHover { hovering = $0 }
+        .animation(Motion.quick, value: hovering)
     }
 }

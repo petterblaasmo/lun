@@ -105,7 +105,7 @@ final class SpaceRoutesTests: XCTestCase {
         for words in ["send links", "air traffic control", "open in space", "routing", "default space", "everything else"] {
             XCTAssertTrue(SettingsIndex.find(words).contains { $0.id == "spaces.links" }, words)
         }
-        XCTAssertEqual(SettingsIndex.item("spaces.links")?.page, .spaces)
+        XCTAssertEqual(SettingsIndex.item("spaces.links")?.page, .tabs)
         XCTAssertEqual(SettingsIndex.item("spaces.links")?.parent, "spaces")
     }
 }

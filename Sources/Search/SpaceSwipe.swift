@@ -160,11 +160,11 @@ final class SpaceSwipe {
     }
 
     /// The furthest page a stroke or a notch can bring: the card for a new
-    /// space past the last one, but not while there is only one space. Spaces
-    /// just turned on, a stroke over the tabs brought a nameless card that
-    /// looked like a second space nobody made; New Space… still opens it.
-    private func furthest(_ browser: Browser) -> Int {
-        browser.spaces.count > 1 || browser.makingSpace ? browser.spaces.count : browser.spaces.count - 1
+    /// space, past the last one. With only one space too: a swipe is how a
+    /// second one is made, and it did nothing at all there, which read as
+    /// the gesture being broken.
+    func furthest(_ browser: Browser) -> Int {
+        browser.spaces.count
     }
 
     /// With profiles in one window, past this window's first space or its
@@ -358,7 +358,7 @@ final class SpaceSwipe {
     /// snaps back without moving (Motion.settle).
     private func carry(_ browser: Browser, to offset: CGFloat, then arrived: @escaping () -> Void) {
         guard !Motion.reduced else { return arrived() }
-        withAnimation(.easeOut(duration: 0.22), completionCriteria: .removed) {
+        withAnimation(Motion.carry, completionCriteria: .removed) {
             browser.spaceSwipe = offset
         } completion: {
             arrived()
@@ -654,6 +654,8 @@ struct NewSpaceCard: View {
     @State private var name = ""
     @State private var icon = "briefcase"
     @State private var choosing = false
+    /// Its colour, by its place in Spaces.colours; 0 for none.
+    @State private var colour = 0
     /// Signed in where the other spaces are, or starting afresh.
     @State private var shared = true
     @State private var hovering = false
@@ -679,35 +681,44 @@ struct NewSpaceCard: View {
                 }
                 .frame(height: Metrics.strip)
             } else {
-                VStack(spacing: 12) {
-                    pick(size: 20, box: CGSize(width: 44, height: 40))
-                    VStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 6) {
                         Text("New space")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Palette.ink)
-                        Text("Its own tabs.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Palette.muted)
-                            .multilineTextAlignment(.center)
+                        Spacer(minLength: 0)
+                        pick(size: 13, box: CGSize(width: 26, height: 26))
                     }
-                    field
+                    VStack(alignment: .leading, spacing: 6) {
+                        label("Name")
+                        field
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        label("Colour")
+                        HStack(spacing: 8) {
+                            ForEach(Spaces.colours.indices, id: \.self) { index in swatch(index) }
+                        }
+                    }
                     // Most people want Google and the rest to know them here too;
                     // some want a clean slate.
-                    VStack(spacing: 6) {
-                        Segmented(options: [(true, "Signed in"), (false, "Signed out")], selection: $shared, wide: true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        label("Sign-ins")
+                        Segmented(options: [(true, "As now"), (false, "Start fresh")], selection: $shared, wide: true)
                         Text(saying)
-                            .font(.system(size: 11))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
-                            .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    HStack(spacing: 8) {
-                        Pill("Cancel") { cancel() }
-                        Pill("Create", filled: true) { create() }
+                    HStack(spacing: 6) {
+                        Spacer(minLength: 0)
+                        Pill("Cancel", large: true) { cancel() }
+                        Pill("Create", filled: true, large: true) { create() }
                     }
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity)
+                .elevated(.float, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(.bottom, 8)
             }
         }
         .onAppear {
@@ -734,18 +745,56 @@ struct NewSpaceCard: View {
                 .transition(.opacity)
         }
         .buttonStyle(.plain)
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .help(inline ? "New space — choose its icon" : "Choose an icon")
         .popover(isPresented: $choosing, hangingFrom: .bottom) { icons }
+    }
+
+    private func label(_ words: String) -> some View {
+        Text(words).font(.system(size: 12)).foregroundStyle(Palette.muted)
+    }
+
+    private func swatch(_ index: Int) -> some View {
+        let none = index == 0
+        return Hovered { hovering in
+            Button { colour = index } label: {
+                Circle()
+                    .fill(none ? Palette.frame : Spaces.colours[index])
+                    .overlay { if none { Circle().strokeBorder(Palette.faint, lineWidth: 1) } }
+                    .frame(width: 22, height: 22)
+                    .overlay {
+                        // The ring the chosen one wears, fainter, under
+                        // the pointer.
+                        if colour == index {
+                            Circle().strokeBorder(Palette.ink, lineWidth: 1.5).padding(-3.5)
+                        } else if hovering {
+                            Circle().strokeBorder(Palette.ring, lineWidth: 1.5).padding(-3.5)
+                        }
+                    }
+                    .contentShape(Circle())
+            }
+            .buttonStyle(Gives(to: 0.92))
+        }
+        .help(none ? "No colour" : Spaces.colourNames[index])
+        .accessibilityLabel(none ? "No colour" : Spaces.colourNames[index])
+        .accessibilityAddTraits(colour == index ? .isSelected : [])
     }
 
     private var field: some View {
         TextField(inline ? "New space" : "Name", text: $name)
             .textFieldStyle(.plain)
-            .font(.system(size: inline ? 12.5 : 13))
-            .padding(.horizontal, 10)
-            .frame(height: inline ? 26 : 30)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Palette.wash))
+            .font(.system(size: 13))
+            .padding(.horizontal, 12)
+            .frame(height: inline ? 26 : 32)
+            .background(RoundedRectangle(cornerRadius: inline ? 8 : 10, style: .continuous).fill(Palette.fill))
+            .overlay {
+                if typing, !inline {
+                    // Three points out from the field, so three rounder (Radius).
+                    RoundedRectangle(cornerRadius: Radius.card + 3, style: .continuous)
+                        .strokeBorder(Color(nsColor: .controlAccentColor), lineWidth: 2)
+                        .padding(-3)
+                }
+            }
             .focused($typing)
             .onSubmit(create)
     }
@@ -755,21 +804,30 @@ struct NewSpaceCard: View {
     private var icons: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.fixed(28), spacing: 4), count: 6), spacing: 4) {
             ForEach(Array(zip(Spaces.icons, Spaces.iconNames)), id: \.0) { symbol, name in
-                Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(symbol == icon ? Palette.ink : Palette.muted)
-                    .frame(width: 28, height: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .fill(symbol == icon ? Palette.wash : .clear)
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
+                // A button: the keyboard and VoiceOver can press it, it
+                // answers the pointer and gives under the press. It was a
+                // tap on a picture.
+                Hovered { hovering in
+                    Button {
                         withAnimation(Motion.quick) { icon = symbol }
                         choosing = false
                         typing = true
+                    } label: {
+                        Image(systemName: symbol)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(symbol == icon || hovering ? Palette.ink : Palette.muted)
+                            .frame(width: 28, height: 28)
+                            .background(
+                                RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
+                                    .fill(symbol == icon ? Palette.wash : hovering ? Palette.hover : .clear)
+                            )
+                            .contentShape(Rectangle())
                     }
-                    .help(name)
+                    .buttonStyle(Gives(to: 0.9))
+                }
+                .help(name)
+                .accessibilityLabel(name)
+                .accessibilityAddTraits(symbol == icon ? .isSelected : [])
             }
         }
         .padding(10)
@@ -778,7 +836,7 @@ struct NewSpaceCard: View {
     private func create() {
         let named = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !named.isEmpty else { typing = true; return }
-        browser.addSpace(named: named, icon: icon, sharesSignIns: shared)
+        browser.addSpace(named: named, icon: icon, colour: colour, sharesSignIns: shared)
     }
 
     /// Back to the space it was made from, the way it came.
@@ -834,11 +892,9 @@ struct SwipeCard: View {
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
                 NewSpaceCard(browser: browser)
-                Spacer(minLength: 0)
-                Spacer(minLength: 0)
             }
             .frame(maxHeight: .infinity)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, Metrics.sideInset)
             .frame(width: width, alignment: .topLeading)
             .modifier(SwipeShift(offset: browser.spaceSwipeOffset, by: width, across: true))
         }
@@ -876,7 +932,17 @@ struct SwipeShift: ViewModifier {
 
     private var parked: Bool {
         guard let park else { return false }
-        return offset.value == 0 || abs(offset.value + by) >= park
+        return SwipeShift.parks(offset: offset.value, by: by, park: park)
+    }
+
+    /// Whether a page of the map stands out of the way: while nothing
+    /// moves, or while it is more than a page off. Not at exactly a page
+    /// off: that is where the rows end as they are carried to the card for
+    /// a new space, in an animation of SwiftUI's (SpaceSwipe.carry), which
+    /// went from where they were to where they would be parked, far off to
+    /// the right, so they left that way while the card came from it.
+    static func parks(offset: CGFloat, by: CGFloat, park: CGFloat) -> Bool {
+        offset == 0 || abs(offset + by) > park
     }
 
     private var place: CGFloat {
@@ -923,11 +989,8 @@ final class SwipeGlide: NSObject {
     /// Steps it on when no frame comes: a window that isn't drawn — a hidden
     /// one, as the bench's — gets none, and the rows stayed out of place.
     private var watch: Timer?
-    /// How quickly the spring pulls, a second: most of the way in a tenth
-    /// of a second, within a point of its place in a fifth. At 20, a slide
-    /// took 0.4 s, and at 26 a third of a second: it felt slow, and the
-    /// next stroke often had to wait for it.
-    private static let pull: Double = 34
+    /// How quickly the spring pulls, a second (Motion.spacePull).
+    private static let pull = Motion.spacePull
 
     private init(_ browser: Browser, to: CGFloat, speed: CGFloat?, land: (() -> CGFloat)?,
                  halfway: (() -> Void)?, done: @escaping () -> Void) {

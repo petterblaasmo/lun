@@ -100,7 +100,7 @@ struct PlayerRow: View {
                 .font(.system(size: prefs.sideTitle))
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .foregroundStyle(hovering ? Palette.ink.opacity(0.7) : Palette.muted)
+                .foregroundStyle(hovering ? Palette.ink : Palette.muted)
             Spacer(minLength: 0)
             if tab.stilled && hovering {
                 // Paused from here and not wanted again: the row goes until
@@ -117,17 +117,17 @@ struct PlayerRow: View {
         .frame(height: prefs.sideRow)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(hovering ? greys.hover : .clear)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(Palette.hairline, lineWidth: 1)
         )
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         // The buttons take their own clicks; the rest of the row is the way
         // to the tab.
-        .onTapGesture { browser.select(tab) }
+        .pressed { browser.select(tab) }
         .onHover { hovering = $0 }
         .help("Go to the tab")
         .animation(Motion.quick, value: hovering)
@@ -142,20 +142,7 @@ private struct PlayerButton: View {
     let help: String
     let act: () -> Void
 
-    @State private var hovering = false
-
     var body: some View {
-        Button(action: act) {
-            Image(systemName: symbol)
-                .font(.system(size: 8, weight: .semibold))
-                .foregroundStyle(Palette.muted)
-                .frame(width: 15, height: 15)
-                .background(Palette.ink.opacity(hovering ? 0.07 : 0), in: Circle())
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .help(help)
-        .animation(Motion.quick, value: hovering)
+        IconButton(symbol, label: help, glyph: 8, weight: .semibold, size: 15, hit: 22, round: true, wash: Palette.fill, action: act)
     }
 }

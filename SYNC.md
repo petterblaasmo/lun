@@ -1,8 +1,8 @@
 # Sync
 
-How Search on iPhone and Search on the Mac share open tabs, pins, bookmarks
-and a few settings. Both apps follow this page exactly; change it in both
-or not at all.
+How Lun on the Mac keeps open tabs, pins, bookmarks and a few settings in
+iCloud, and what an iPhone app would have to follow to share them. There
+is no iPhone app yet; the format is written down so one can be made.
 
 On by default on the iPhone and for new Mac installs; existing Mac users
 are offered it (the Mac's What's New). Either way it's switched in
@@ -109,7 +109,7 @@ SharedSettings{ engine: String?, custom: String?, suggest: String?, look: String
   JSON differs.
 - **Turning sync off** deletes this device's `device.<uuid>` record, so its
   tabs leave the other devices. Everything else stays.
-- **"Delete Search's data from iCloud"** deletes the zone, for every device.
+- **"Delete Lun's data from iCloud"** deletes the zone, for every device.
   A device that sees the zone gone **turns its sync off** (and says why);
   it doesn't recreate the zone or put its data back. What's on each device
   stays.
@@ -151,7 +151,7 @@ SharedSettings{ engine: String?, custom: String?, suggest: String?, look: String
 
 ```json
 [{"id":"…","title":"Reading","children":[{"id":"…","title":"Example","url":"https://example.com/"}]},
- {"id":"…","title":"Office Commun","url":"https://officecommun.com/"}]
+ {"id":"…","title":"Example","url":"https://example.com/"}]
 ```
 
 `spaces`:

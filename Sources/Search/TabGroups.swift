@@ -108,7 +108,7 @@ struct GroupHeading: View {
     /// High contrast text, as a tab's title is.
     private func titleColour(hovering: Bool) -> Color {
         if browser.prefs.highContrastText { return Palette.ink }
-        return hovering ? Palette.ink.opacity(0.7) : Palette.muted
+        return hovering ? Palette.ink : Palette.muted
     }
 
     /// Its height in the column, a little under a tab's.
@@ -154,9 +154,9 @@ struct GroupHeading: View {
         .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
             .fill(dropping ? greys.wash : (hovering ? greys.hover : greys.tile)))
         .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .onTapGesture { browser.toggleTabGroup(group.id) }
+        .onTapGesture { withAnimation(Motion.settle) { browser.toggleTabGroup(group.id) } }
         .modifier(GroupHeadingShared(browser: browser, group: group, dragSpace: dragSpace, dropping: $dropping))
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .help(group.collapsed ? "\(group.name) — folded" : group.name)
         .accessibilityLabel(group.name)
         // Rename Group: no room for the name here, so it is typed beside.
@@ -189,7 +189,7 @@ struct GroupHeading: View {
                     .onExitCommand { browser.editingGroupID = nil }
             } else {
                 Text(group.name)
-                    .font(.system(size: 12.5, weight: .medium))
+                    .font(.system(size: horizontal ? 12.5 : 12, weight: horizontal ? .medium : .regular))
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
@@ -213,13 +213,13 @@ struct GroupHeading: View {
         .frame(height: horizontal ? 28 : Self.height)
         .frame(maxWidth: horizontal ? nil : .infinity, alignment: .leading)
         .fixedSize(horizontal: horizontal, vertical: false)
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
             .fill(dropping ? greys.wash : (hovering ? greys.hover : .clear)))
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .onTapGesture { if !editing { browser.toggleTabGroup(group.id) } }
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onTapGesture { if !editing { withAnimation(Motion.settle) { browser.toggleTabGroup(group.id) } } }
         .modifier(GroupHeadingShared(browser: browser, group: group, dragSpace: dragSpace, dropping: $dropping,
                                      horizontal: horizontal))
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .onChange(of: editing) { _, now in
             if now {
                 draft = group.name
@@ -282,7 +282,7 @@ private struct GroupHeadingShared: ViewModifier {
                 Button("New Tab in Group") { browser.newTab(inGroup: group.id) }
                 Divider()
                 Button("Rename Group") { browser.editingGroupID = group.id }
-                Button(group.collapsed ? "Expand Group" : "Collapse Group") { browser.toggleTabGroup(group.id) }
+                Button(group.collapsed ? "Expand Group" : "Collapse Group") { withAnimation(Motion.settle) { browser.toggleTabGroup(group.id) } }
                 Button("Colour…") { choosingColour = true }
                 // The whole group into another space, still a group there: Arc's
                 // folders came in wherever Arc had them.

@@ -684,9 +684,9 @@ extension Browser {
 
     /// A new space — signed in where the others are, or starting afresh with
     /// its own cookies and sign-ins. By default it starts empty and on screen.
-    func addSpace(named name: String, icon: String? = nil, sharesSignIns: Bool = true) {
+    func addSpace(named name: String, icon: String? = nil, colour: Int = 0, sharesSignIns: Bool = true) {
         makingSpace = false
-        let made = Space(id: UUID(), name: name, colour: 0, icon: icon ?? freeIcon, sharesSignIns: sharesSignIns,
+        let made = Space(id: UUID(), name: name, colour: colour, icon: icon ?? freeIcon, sharesSignIns: sharesSignIns,
                          profile: profileID == Profile.personalID ? nil : profileID)
         // The profile's first space is its home, not its permanent leftmost
         // position. A newly made space belongs at the right-hand end, even
@@ -907,7 +907,7 @@ struct SpaceDot: View {
                 Image(systemName: shown?.symbol ?? symbol)
                     .font(.system(size: 12, weight: .medium))
                     // Hovered and at rest as the doors beside it are (Door, idea 1034).
-                    .foregroundStyle(tint ?? (hovering ? Palette.ink.opacity(0.7) : greys.muted))
+                    .foregroundStyle(tint ?? (hovering ? Palette.ink : greys.muted))
                     .id(shown?.key ?? key)
                     // The way the tabs go: sideways in the column; in the bar
                     // across the top, up for the next space, down going back.
@@ -926,14 +926,14 @@ struct SpaceDot: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .animation(Motion.quick, value: space.look)
         .help("\(browser.space.name) — \(KeyCombo.spacesOnCommand ? "⌘1–⌘9" : "⌃1–⌃9"), or two fingers \(browser.prefs.sidebar ? "sideways" : "up or down") over the tabs, to switch")
         .onChange(of: key) { _, now in
             let symbol = symbol
             DispatchQueue.main.async {
                 // With Reduce Motion on, the new icon is simply there.
-                withAnimation(Motion.reduced ? nil : .easeOut(duration: 0.22)) { shown = (now, symbol) }
+                withAnimation(Motion.carry) { shown = (now, symbol) }
             }
         }
         // Not where another profile's window brought you: that is a change
@@ -947,18 +947,16 @@ struct SpaceDot: View {
         .overlay(alignment: browser.prefs.sidebar ? .bottomLeading : .leading) {
             if let named {
                 Text(named)
-                    .font(.system(size: 11.5, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Palette.ink)
                     .lineLimit(1)
                     .fixedSize()
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
-                    .background(Palette.ground, in: Capsule())
-                    .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
-                    .shadow(color: .black.opacity(0.10), radius: 10, y: 3)
+                    .elevated(.lift, in: Capsule())
                     .offset(x: browser.prefs.sidebar ? 0 : SpaceDot.width + 4, y: browser.prefs.sidebar ? -30 : 0)
                     .allowsHitTesting(false)
-                    .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: browser.prefs.sidebar ? .bottomLeading : .leading)))
+                    .transition(.row(from: browser.prefs.sidebar ? .bottomLeading : .leading))
             }
         }
         .animation(Motion.quick, value: hovering)
@@ -978,6 +976,40 @@ struct SpaceDot: View {
             guard turn == naming else { return }
             named = nil
         }
+    }
+}
+
+/// The space on screen, by name, before the tabs across the top: a dot of
+/// its colour and what it is called. A click opens the spaces' menu.
+struct SpaceName: View {
+    @Environment(\.greys) private var greys
+    @ObservedObject var browser: Browser
+    @State private var hovering = false
+
+    private var space: Space { browser.washSpace }
+
+    var body: some View {
+        Button { SpaceMenu.show(for: browser) } label: {
+            HStack(spacing: 6) {
+                Circle().fill(space.tint ?? greys.muted).frame(width: 7, height: 7)
+                Text(browser.makingSpace ? "New Space" : space.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                    .frame(maxWidth: 120)
+                    .fixedSize()
+            }
+            .padding(.leading, 8)
+            .padding(.trailing, 10)
+            .frame(height: 24)
+            .background(hovering ? greys.pinLive : greys.tile, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(Motion.quick, value: hovering)
+        .help("\(browser.space.name) — \(KeyCombo.spacesOnCommand ? "⌘1–⌘9" : "⌃1–⌃9"), or two fingers up or down over the tabs, to switch")
+        .accessibilityLabel("Space: \(space.name)")
     }
 }
 
@@ -1029,25 +1061,39 @@ private struct SpaceButton: View {
         Button {
             if current { SpaceMenu.show(for: browser) } else { browser.goToSpace(space.id) }
         } label: {
-            Image(systemName: space.symbol)
-                .font(.system(size: 11, weight: .medium))
-                // Its colour only while it's the one on screen: the others
-                // all grey alike, coloured or not, so a coloured space's
-                // button didn't read as the one you're in.
-                // Hovered and at rest as the doors beside it are (Door, idea 1034).
-                .foregroundStyle(current ? (space.tint ?? Palette.ink) : hovering ? Palette.ink.opacity(0.7) : greys.muted)
-                .opacity(current || hovering ? 1 : 0.75)
+            // A dot of its colour, the one on screen a size up with a ring
+            // round it. Its icon is in the menu and its name in the tooltip.
+            Circle()
+                .fill(space.tint ?? greys.muted)
+                .frame(width: current ? 10 : 8, height: current ? 10 : 8)
+                .overlay {
+                    if current {
+                        Circle()
+                            .strokeBorder(Palette.ink, lineWidth: 1.5)
+                            .frame(width: 17, height: 17)
+                    }
+                }
                 .frame(minWidth: squeezes ? 20 : 26, idealWidth: 26, maxWidth: 26, minHeight: 26, maxHeight: 26)
                 .background(
-                    // The one on screen on a wash, of its colour if it has one.
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(current
-                              ? (space.tint.map { $0.opacity(0.18) } ?? greys.wash)
-                              : (hovering ? greys.hover : .clear))
+                    Circle().fill(hovering ? greys.hover : .clear)
                 )
-                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        // A right-click opens the space's menu, on any of them: a click
+        // did only on the one you're in, and a right-click did nothing.
+        // The menu is about the space on screen, so another one's dot
+        // takes you there first, at once, and the menu is that space's.
+        .overlay {
+            RightClick {
+                if !current {
+                    SpaceSwipe.shared.land(browser)
+                    browser.switchSpace(to: space.id)
+                }
+                SpaceLookPopover.anchor = NSEvent.mouseLocation
+                return SpaceMenu.menu(for: browser)
+            }
+        }
         .onHover { hovering = $0 }
         .animation(Motion.quick, value: hovering)
         .animation(Motion.quick, value: current)
@@ -1055,7 +1101,7 @@ private struct SpaceButton: View {
         // or one of yours. The one you're in says its click opens the menu.
         .shortcutHelp { keys in
             let named = keys.tip(space.name, index < 9 ? "spaces.\(index + 1)" : nil)
-            return current ? named + " — click for the space’s menu" : named
+            return current ? named + " — click for the space’s menu" : named + " — right-click for its menu"
         }
         .accessibilityLabel(space.name)
         .accessibilityAddTraits(current ? .isSelected : [])

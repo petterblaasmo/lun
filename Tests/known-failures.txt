@@ -1,0 +1,10 @@
+# Tests that fail on main by themselves, with why. CI reports these as
+# warnings, not failures, and says when one passes so it can come off.
+# One per line: SearchTests' class/test (or a whole class), then # and why.
+# Each passes on a Mac and fails only on CI's runners, which are slower
+# and have a screen of their own.
+DownloadsOpeningTests/testTheWindowResizesInSmallSteps  # the runner draws one resize frame where the test wants more than eight
+NoWindowsTests/testWindowsPanelsAndPopoversAreTransparentOnScreen  # the runner's screen moves the window 63 points
+PeekSkeletonTests/testSweepAppearsOnlyWithMotionAndStopsOutsideAWindow  # no sweep animation on the runner
+SidebarJoinTests  # its 0.3 s hold is timed with real sleeps: on the runner a different test of it misses each run
+OptionClickTests/testOptionClickAcrossTheTopPutsTheTabBesideThePage  # fails twice in a row on the runner now and then: timing

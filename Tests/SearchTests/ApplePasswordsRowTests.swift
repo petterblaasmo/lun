@@ -18,7 +18,7 @@ final class ApplePasswordsRowTests: XCTestCase {
         let apple = ApplePasswords(makeLink: { KilledHelper() }, entitled: false)
         await apple.connect()
         let first = apple.trouble
-        XCTAssertEqual(first, "Apple's Passwords helper wouldn't run for this copy of Search")
+        XCTAssertEqual(first, "Apple's Passwords helper wouldn't run for this copy of Lun")
         XCTAssertFalse(apple.refused, "a copy without the entitlement may be tried again")
         let (watch, seen) = titles(of: apple)
         for _ in 0..<5 { await apple.connect() }
@@ -33,7 +33,7 @@ final class ApplePasswordsRowTests: XCTestCase {
         await apple.connect()
         XCTAssertTrue(apple.refused)
         XCTAssertEqual(apple.state, .idle)
-        XCTAssertEqual(apple.trouble, "Apple's Passwords helper isn't available to Search on this version of macOS")
+        XCTAssertEqual(apple.trouble, "Apple's Passwords helper isn't available to Lun on this version of macOS")
         await apple.connect()
         XCTAssertEqual(made, 1)
     }
@@ -70,7 +70,7 @@ final class ApplePasswordsRowTests: XCTestCase {
         watch.cancel()
         XCTAssertTrue(apple.refused)
         XCTAssertFalse(seen().contains("Connecting…"), "row titles seen: \(seen())")
-        XCTAssertEqual(apple.trouble, "Apple's Passwords helper isn't available to Search on this version of macOS")
+        XCTAssertEqual(apple.trouble, "Apple's Passwords helper isn't available to Lun on this version of macOS")
     }
 }
 

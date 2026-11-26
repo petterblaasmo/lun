@@ -575,7 +575,7 @@ final class DeveloperNetworkTools: ObservableObject {
         guard let session else { return nil }
         let ids = requests.map(\.id)
         var built: [String: [String: Any]] = [:]
-        var log: [String: Any] = ["version": "1.2", "creator": ["name": "Search", "version": "1.0"], "pages": []]
+        var log: [String: Any] = ["version": "1.2", "creator": ["name": "Lun", "version": "1.0"], "pages": []]
         if let raw = try? await call("return await searchNetwork.har(ids);", ["ids": ids.filter { imported[$0] == nil }])
             as? [String: Any],
            let text = raw["archive"] as? String, let data = text.data(using: .utf8),

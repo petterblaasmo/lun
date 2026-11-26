@@ -169,6 +169,11 @@ extension View {
     /// opens once this view is in its window, so there is something to
     /// measure: a popover asked for with the view, as a group's name is with
     /// the group, would otherwise be placed before the view had a place.
+    ///
+    /// It comes and goes on the system's own animation, which SwiftUI gives
+    /// no way to restyle or switch off: left as the system has it, and so
+    /// not stilled by Reduce animations (see Motion.popovers). The system
+    /// answers the Mac's Reduce Motion itself.
     func popover<Content: View>(isPresented: Binding<Bool>, hangingFrom edge: Edge,
                                 @ViewBuilder content: @escaping () -> Content) -> some View {
         modifier(HangingPopover(isPresented: isPresented, edge: edge, popup: content))

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// "Want Search on your iPhone?" — the iPhone beta's waitlist, offered in a
+// "Want Lun on your iPhone?" — the iPhone beta's waitlist, offered in a
 // few more quiet places, just for now:
 //
 //   · the About window: one line under the version, with an inline field;
@@ -33,12 +33,12 @@ enum IPhoneAsk {
     nonisolated static let newTabSinceKey = "iphoneask.newtab.since"
     static let newTabDays = 3
 
-    static let pitch = "Want Search on your iPhone? Leave your email and we'll send you the beta."
-    static let short = "Want Search on your iPhone?"
+    static let pitch = "Want Lun on your iPhone? Leave your email and we'll send you the beta."
+    static let short = "Want Lun on your iPhone?"
     static let action = "Get the beta"
     static let notNow = "Not now"
-    static let menuTitle = "Search for iPhone…"
-    static let cardTitle = "Search for iPhone"
+    static let menuTitle = "Lun for iPhone…"
+    static let cardTitle = "Lun for iPhone"
 
     /// Where the line is, and the word the site keeps with the address.
     enum Spot: String, CaseIterable {
@@ -110,7 +110,7 @@ struct IPhoneAskLine: View {
                     VStack(alignment: centred ? .center : .leading, spacing: 6) {
                         if !thanked {
                             Text(IPhoneAsk.pitch)
-                                .font(.system(size: 11.5))
+                                .font(.system(size: 12))
                                 .foregroundStyle(Palette.muted)
                                 .multilineTextAlignment(centred ? .center : .leading)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -123,14 +123,14 @@ struct IPhoneAskLine: View {
                     // The About window is narrow: the question, then the two.
                     VStack(spacing: 4) {
                         Text(IPhoneAsk.short)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                         choices
                     }
                 } else {
                     HStack(spacing: 6) {
                         Text(IPhoneAsk.short)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                         choices
                     }
@@ -146,19 +146,9 @@ struct IPhoneAskLine: View {
     /// "Get the beta · Not now".
     private var choices: some View {
         HStack(spacing: 6) {
-                        Button { asking = true } label: {
-                            Text(IPhoneAsk.action).underline()
-                        }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(Palette.ink)
-                        Text(verbatim: "·").font(.system(size: 11.5)).foregroundStyle(Palette.faint)
-                        Button { IPhoneAsk.dismiss() } label: {
-                            Text(IPhoneAsk.notNow)
-                        }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(Palette.faint)
+                        TextLink(IPhoneAsk.action, tint: Palette.ink, underlined: true) { asking = true }
+                        Text(verbatim: "·").font(.system(size: 12)).foregroundStyle(Palette.muted)
+                        TextLink(IPhoneAsk.notNow) { IPhoneAsk.dismiss() }
         }
         .lineLimit(1)
         .fixedSize()
@@ -184,9 +174,9 @@ struct IPhoneAskNewTab: View {
             GeometryReader { page in
                 let grid = HomeGrid.height(browser)
                 IPhoneAskLine(spot: .newTab, centred: true)
-                    .frame(width: min(Metrics.fieldWidth, max(0, page.size.width - 28)))
+                    .frame(width: Omnibox.width(in: page.size))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, page.size.height / 2 - 30 + 25 + 16 + (grid > 0 ? grid + 14 : 0))
+                    .padding(.top, Omnibox.under(in: page.size) + 16 + (grid > 0 ? grid + 14 : 0))
             }
             .onAppear { IPhoneAsk.seenOnNewTab() }
         }

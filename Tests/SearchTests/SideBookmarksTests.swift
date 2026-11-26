@@ -8,7 +8,9 @@ import XCTest
 @MainActor
 final class SideBookmarksTests: XCTestCase {
     override class func setUp() {
-        setenv("SEARCH_PROBE", "side-bookmarks-\(getpid())", 1)
+        // The run's one world: named here, run alone, this class had a world
+        // of its own in the person's Library, left there afterwards.
+        TestWorld.enter()
         super.setUp()
     }
 
@@ -42,11 +44,12 @@ final class SideBookmarksTests: XCTestCase {
         let prefs = Preferences()
         prefs.bookmarksInSidebar = true
         XCTAssertFalse(prefs.sideBookmarks, "the bar hidden is hidden in the column too")
-        let item = try! XCTUnwrap(SettingsIndex.item("bookmarks.side"))
-        XCTAssertFalse(SettingsIndex.applies(item, prefs), "out of its section, dimmed in search, under a hidden bar")
+        // One choice in Lun, on the bar's own row (BookmarksPlace).
+        XCTAssertNil(SettingsIndex.item("bookmarks.side"))
+        XCTAssertEqual(prefs.bookmarksPlace, .off)
         prefs.bookmarksBar = true
         XCTAssertTrue(prefs.sideBookmarks)
-        XCTAssertTrue(SettingsIndex.applies(item, prefs))
+        XCTAssertEqual(prefs.bookmarksPlace, .side)
     }
 
     func testTheBarAboveThePageKeepsItsOwnSwitch() {

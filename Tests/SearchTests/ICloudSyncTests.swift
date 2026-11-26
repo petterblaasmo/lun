@@ -682,7 +682,7 @@ final class ICloudSyncTests: XCTestCase {
         sync.turnOn()
         XCTAssertFalse(sync.on)
         XCTAssertFalse(sync.isScheduled)
-        XCTAssertEqual(sync.summary(folderSyncOn: false, otherwise: "x"), "Needs a build of Search signed for iCloud")
+        XCTAssertEqual(sync.summary(folderSyncOn: false, otherwise: "x"), "Needs a build of Lun signed for iCloud")
     }
 
     func testTurningOffTakesOnlyThisMacsTabsAway() async {

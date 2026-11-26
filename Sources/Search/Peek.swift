@@ -164,15 +164,15 @@ extension Browser {
     /// and once there it is the tab, in place — the zoom seen to its end.
     func openPeekGrown() {
         guard peekTab != nil, !peekFill else { return }
-        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+        if Motion.reduced {
             peekPinch = 0
             return keepPeek(instant: true)
         }
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.92)) {
+        withAnimation(Motion.settle) {
             peekFill = true
             peekPinch = 0
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + Motion.duration(.settle)) { [weak self] in
             guard let self, self.peekFill else { return }
             self.keepPeek(instant: true)
         }
@@ -217,14 +217,14 @@ struct PeekLayer: View {
             // The dimming only fades. Grown and shrunk with the panel, its
             // edges travelled across the window as it came (Drice, 24 Sep 2026).
             if browser.peekInFront {
-                Color.black.opacity(0.22)
+                Palette.scrimDeep
                     .contentShape(Rectangle())
                     .onTapGesture { browser.closePeek() }
                     .transition(.opacity)
             }
             if browser.peekInFront, let tab = browser.peekTab {
                 PeekPanel(browser: browser, tab: tab)
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .transition(.card)
             }
         }
     }
@@ -254,11 +254,7 @@ struct PeekPanel: View {
                             }
                         }
                         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: corner, style: .continuous)
-                                .strokeBorder(Palette.hairline, lineWidth: 1)
-                        )
-                        .shadow(color: .black.opacity(0.25), radius: 30, y: 10)
+                        .elevated(.overlay, in: RoundedRectangle(cornerRadius: corner, style: .continuous), fill: Palette.ground)
                     if !browser.peekFill { VStack(spacing: 8) {
                         Knob("xmark", help: "Close (esc)") { browser.closePeek() }
                         // ⌥ on it keeps the page beside this one, with Split
@@ -299,10 +295,14 @@ struct PeekPanel: View {
                     .frame(width: 28, height: 28)
                     .background(hovering ? Palette.hover : Palette.ground, in: Circle())
                     .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: 1))
+                    .contentShape(Circle())
             }
-            .buttonStyle(.plain)
+            // On the page's own ground with an edge, so drawn here and not
+            // as an IconButton; it gives and has a name as one does.
+            .buttonStyle(Gives(to: 0.88))
+            .accessibilityLabel(help)
             .help(help)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
         }
     }
 }
@@ -317,11 +317,9 @@ struct PeekBadge: View {
     var body: some View {
         Mark(icon: page.icon, letter: page.monogram, size: size * 0.7)
             .frame(width: size, height: size)
-            .background(Palette.ground, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: size * 0.3, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.12), radius: 1.5, y: 0.5)
+            .elevated(.lift, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous), fill: Palette.ground)
             .allowsHitTesting(false)
-            .transition(.scale(scale: 0.6).combined(with: .opacity))
+            .transition(.pop)
     }
 }
 
@@ -366,7 +364,7 @@ struct PeekSkeleton: View {
         .allowsHitTesting(false)
         .task {
             try? await Task.sleep(for: .milliseconds(150))
-            withAnimation(Motion.timed(.easeOut(duration: 0.2))) { shown = true }
+            withAnimation(Motion.dissolve) { shown = true }
         }
     }
 
@@ -464,10 +462,8 @@ struct PeekSweep: NSViewRepresentable {
             let sweep = CABasicAnimation(keyPath: "position.x")
             sweep.fromValue = bounds.width * -0.3
             sweep.toValue = bounds.width * 1.3
-            sweep.duration = 1.3
-            sweep.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            sweep.repeatCount = .infinity
-            gradient.add(sweep, forKey: "sweep")
+            // Not shown at all where nothing should move (PeekSkeleton).
+            if let sweep = Motion.loop(.sweep, sweep) { gradient.add(sweep, forKey: "sweep") }
         }
     }
 }

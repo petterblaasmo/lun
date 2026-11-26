@@ -83,7 +83,7 @@ final class AddressCommandTests: XCTestCase {
         XCTAssertTrue(AddressCommand.listed("zoom", in: browser).starts(with: [.menu("view.zoomIn"), .menu("view.zoomOut")]))
         XCTAssertEqual(AddressCommand.menu("view.hide").title, "Hide Elements…")
         XCTAssertEqual(AddressCommand.menu("view.hide").key, ShortcutStore.shared.key(for: "view.hide")?.display)
-        XCTAssertEqual(AddressCommand.page(.privacy).title, "Privacy Settings")
+        XCTAssertEqual(AddressCommand.page(.privacy).title, "Privacy & Passwords Settings")
 
         // Never an address, nor two letters, nor what a word above already is.
         XCTAssertTrue(AddressCommand.listed("reload.com", in: browser).isEmpty)

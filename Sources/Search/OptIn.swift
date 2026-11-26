@@ -132,7 +132,7 @@ enum OptIn {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         // Fixed words where CFNetwork would put the app's build, the
         // Darwin version and the Mac's languages.
-        request.setValue("Search", forHTTPHeaderField: "User-Agent")
+        request.setValue("Lun", forHTTPHeaderField: "User-Agent")
         request.setValue("en", forHTTPHeaderField: "Accept-Language")
         request.httpBody = try? JSONSerialization.data(withJSONObject: body(email: email, list: list, source: source), options: [.sortedKeys])
         return request
@@ -265,11 +265,11 @@ struct OptInForm: View {
                     hint(suggestion)
                 }
                 if offersBeta && !betaOnly {
-                    Tick(on: $beta, title: "Also send me the iPhone beta")
+                    Ticked("Also send me the iPhone beta", on: $beta)
                 }
                 if case .failed(let failure) = phase {
                     Text(failure.line)
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.unsafe)
                         .transition(.opacity)
                 }
@@ -288,13 +288,10 @@ struct OptInForm: View {
     private func hint(_ better: String) -> some View {
         HStack(spacing: 0) {
             Text("Did you mean ")
-            Button { email = better } label: {
-                Text(verbatim: better).underline().foregroundStyle(Palette.ink)
-            }
-            .buttonStyle(.plain)
+            TextLink(better, tint: Palette.ink, underlined: true) { email = better }
             Text("?")
         }
-        .font(.system(size: 11.5))
+        .font(.system(size: 12))
         .foregroundStyle(Palette.muted)
         .lineLimit(1)
         .truncationMode(.middle)
@@ -306,7 +303,7 @@ struct OptInForm: View {
     private var field: some View {
         ZStack(alignment: .leading) {
             if email.isEmpty {
-                Text(verbatim: "you@example.com").foregroundStyle(Palette.muted.opacity(0.75))
+                Text(verbatim: "you@example.com").foregroundStyle(Palette.muted)
             }
             TextField("", text: $email)
                 .textFieldStyle(.plain)
@@ -366,37 +363,6 @@ struct OptInForm: View {
             }
         }
     }
-
-    /// A checkbox in the app's own ink.
-    private struct Tick: View {
-        @Binding var on: Bool
-        let title: String
-        var body: some View {
-            Button { on.toggle() } label: {
-                HStack(spacing: 7) {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(on ? Palette.ink : Palette.ground)
-                        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .strokeBorder(on ? .clear : Palette.faint, lineWidth: 1))
-                        .overlay {
-                            if on {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 8.5, weight: .bold))
-                                    .foregroundStyle(Palette.ground)
-                            }
-                        }
-                        .frame(width: 14, height: 14)
-                    Text(title)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.ink)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(on ? [.isSelected] : [])
-            .accessibilityLabel(title)
-        }
-    }
 }
 
 /// The quiet line under every form: how to stop, and the privacy page.
@@ -405,13 +371,10 @@ struct OptInFinePrint: View {
     var body: some View {
         HStack(spacing: 4) {
             Text("Unsubscribe anytime. Your email is used for nothing else.")
-            Button { open(OptIn.privacy) } label: {
-                Text("Privacy").underline()
-            }
-            .buttonStyle(.plain)
-            .help(OptIn.privacy.absoluteString)
+            TextLink("Privacy", underlined: true) { open(OptIn.privacy) }
+                .help(OptIn.privacy.absoluteString)
         }
-        .font(.system(size: 11))
+        .font(.system(size: 12))
         .foregroundStyle(Palette.muted)
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -427,7 +390,7 @@ struct OptInBlock: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Get Search for iPhone early")
+                Text("Get Lun for iPhone early")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Palette.ink)
                 Text("Leave your email for the iPhone beta. After that, rare emails: only useful new features and big updates.")
@@ -440,7 +403,7 @@ struct OptInBlock: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.wash.opacity(0.55), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(Palette.wash.opacity(0.55), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 }
 
@@ -457,7 +420,7 @@ struct OptInWelcomePage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Search for iPhone, early.")
+                Text("Lun for iPhone, early.")
                     .font(.system(size: 26, weight: .medium))
                     .foregroundStyle(Palette.ink)
                 Text("Leave your email and get the iPhone beta before everyone else. After that, rare emails: only useful new features and big updates.")
@@ -475,7 +438,7 @@ struct OptInWelcomePage: View {
             } else {
                 Text("You're offline. Settings › About has the same field for later.")
                     .font(.system(size: 13))
-                    .foregroundStyle(Palette.faint)
+                    .foregroundStyle(Palette.muted)
             }
         }
     }

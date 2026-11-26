@@ -44,8 +44,9 @@ struct PinFolderHeading: View {
         .background(RoundedRectangle(cornerRadius: compact ? 6 : 9, style: .continuous)
             .fill(target ? greys.wash : (hovering ? greys.hover : (compact ? greys.tile : .clear))))
         .contentShape(RoundedRectangle(cornerRadius: compact ? 6 : 9, style: .continuous))
-        .onTapGesture { if interactive && !editing { browser.togglePinFolder(folder.id) } }
+        .onTapGesture { if interactive && !editing { withAnimation(Motion.settle) { browser.togglePinFolder(folder.id) } } }
         .onHover { hovering = interactive && $0 }
+        .animation(Motion.quick, value: hovering)
         .contextMenu { if interactive { menu } }
         .accessibilityLabel(folder.name)
         .accessibilityHint(folder.collapsed ? "Folded folder" : "Folder")
@@ -127,7 +128,7 @@ struct PinFolderHeading: View {
     /// High contrast text, as a tab's title is.
     private func titleColour(hovering: Bool) -> Color {
         if prefs.highContrastText { return Palette.ink }
-        return hovering ? Palette.ink.opacity(0.7) : Palette.muted
+        return hovering ? Palette.ink : Palette.muted
     }
 
     /// A live folder's feed, or that its last fetch failed: nothing louder.
@@ -217,10 +218,10 @@ struct FeedItemRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .foregroundStyle(prefs.highContrastText || hovering ? Palette.ink : Palette.ink.opacity(0.75))
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(hovering ? greys.hover : .clear))
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .onTapGesture { if interactive { browser.openFeedItem(item) } }
+        .foregroundStyle(prefs.highContrastText || hovering ? Palette.ink : Palette.soft)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hovering ? greys.hover : .clear))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .pressed { if interactive { browser.openFeedItem(item) } }
         .onHover { hovering = interactive && $0 }
         .help(compact ? item.title : item.link.absoluteString)
         .accessibilityElement(children: .ignore)

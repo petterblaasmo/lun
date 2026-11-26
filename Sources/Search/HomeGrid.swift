@@ -29,28 +29,33 @@ struct HomeGrid: View {
         // The switch first: off, the bookmarks aren't walked at each key.
         if prefs.homeGrid, browser.active?.isBlank == true, typing.typed.isEmpty,
            case let sites = browser.bookmarks.homeSites, !sites.isEmpty {
-            // The field's own width and row height, hung just under it: the
-            // field is centred, lifted 30, and 50 tall.
+            // As wide as the field, hung just under it (Omnibox.under).
             GeometryReader { page in
-                let width = min(Metrics.fieldWidth, max(0, page.size.width - 28))
+                let width = Omnibox.width(in: page.size)
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
                     ForEach(sites) { site in
-                        Button { site.address.map(browser.openBookmark) } label: {
-                            Text(site.label)
-                                .font(.system(size: 12))
-                                .foregroundStyle(Palette.muted)
-                                .lineLimit(1)
-                                .padding(.horizontal, 10)
-                                .frame(maxWidth: .infinity, minHeight: 50, maxHeight: 50)
-                                .background(RoundedRectangle(cornerRadius: 14).strokeBorder(Palette.hairline))
-                                .contentShape(RoundedRectangle(cornerRadius: 14))
+                        // Filled in under the pointer, its name in ink,
+                        // and it gives under the press: it was an outline
+                        // that answered nothing.
+                        Hovered { hovering in
+                            Button { site.address.map(browser.openBookmark) } label: {
+                                Text(site.label)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(hovering ? Palette.ink : Palette.muted)
+                                    .lineLimit(1)
+                                    .padding(.horizontal, 10)
+                                    .frame(maxWidth: .infinity, minHeight: 50, maxHeight: 50)
+                                    .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                                    .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.hairline))
+                                    .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                            }
+                            .buttonStyle(Gives(to: 0.97))
                         }
-                        .buttonStyle(.plain)
                     }
                 }
                 .frame(width: width)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top, page.size.height / 2 - 30 + 25 + 10)
+                .padding(.top, Omnibox.under(in: page.size) + 12)
             }
         }
     }

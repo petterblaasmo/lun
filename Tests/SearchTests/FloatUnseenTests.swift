@@ -79,6 +79,83 @@ final class FloatUnseenTests: XCTestCase {
         }
     }
 
+    /// Lun made the app in front while its window is on another desktop
+    /// than the one in view, as happens on a desktop where the little
+    /// window is all there is of it: the video stays out. It went home, and
+    /// macOS went after it to the window's desktop. It goes home once that
+    /// desktop is the one in view and Lun is in front.
+    func testVideoStaysOutWhileItsWindowIsOnAnotherDesktop() async throws {
+        try await withPlayer(style: .search, audible: true) { browser, owner, tab, floating in
+            let desk = try XCTUnwrap(owner as? Desk)
+            owner.orderOut(nil)
+            browser.appLeft()
+            try await waitFor { floating() }
+            XCTAssertTrue(floating(), "leaving the app floats the video")
+
+            desk.elsewhere = true
+            browser.appBack(in: owner)
+            XCTAssertTrue(floating(), "made active on another desktop, the video stays out")
+            // On to another app there, and then to the window's own desktop.
+            browser.appLeft()
+            desk.elsewhere = false
+            browser.desktopChanged(active: false, front: owner)
+            XCTAssertTrue(floating(), "its desktop in view with another app in front: still out")
+            browser.desktopChanged(active: true, front: owner)
+            XCTAssertFalse(floating(), "back on its window's desktop with Lun in front, it goes home")
+        }
+    }
+
+    /// Lun come back to by another of its windows, a link's small one say:
+    /// the video stays out, across leaving from there and coming back to it
+    /// again. It went home, to a browser window nobody had come back to.
+    /// It goes home once its own window is the one in front.
+    func testVideoStaysOutWhileAnotherWindowIsTheOneInFront() async throws {
+        try await withPlayer(style: .search, audible: true) { browser, owner, tab, floating in
+            owner.orderOut(nil)
+            browser.appLeft()
+            try await waitFor { floating() }
+            XCTAssertTrue(floating(), "leaving the app floats the video")
+
+            let small = NSWindow(contentRect: NSRect(x: -30000, y: -29000, width: 420, height: 320),
+                                 styleMask: [.titled], backing: .buffered, defer: false)
+            small.isReleasedWhenClosed = false
+            defer { small.close() }
+            browser.appBack(in: small)
+            XCTAssertTrue(floating(), "back in a small window, the video stays out")
+            browser.appLeft()
+            browser.appBack(in: small)
+            XCTAssertTrue(floating(), "and across leaving from there and coming back to it")
+            browser.appBack(in: nil)
+            XCTAssertTrue(floating(), "nor home while no window is in front yet")
+            browser.appBack(in: owner)
+            XCTAssertFalse(floating(), "its own window in front: home")
+        }
+    }
+
+    /// The same for one sent to macOS's picture in picture.
+    func testPictureInPictureStaysOutWhileAnotherWindowIsTheOneInFront() async throws {
+        try await withPlayer(style: .system, audible: true) { browser, owner, tab, floating in
+            owner.orderOut(nil)
+            browser.appLeft()
+            try await waitFor { floating() }
+            XCTAssertTrue(floating(), "leaving the app sends the video into picture in picture")
+            let small = NSWindow(contentRect: NSRect(x: -30000, y: -29000, width: 420, height: 320),
+                                 styleMask: [.titled], backing: .buffered, defer: false)
+            small.isReleasedWhenClosed = false
+            defer { small.close() }
+            browser.appBack(in: small)
+            XCTAssertTrue(floating(), "back in a small window, it stays in picture in picture")
+            browser.appBack(in: owner)
+            XCTAssertFalse(floating(), "its own window in front: back in its page")
+        }
+    }
+
+    /// A window that can be said to be on another desktop.
+    private final class Desk: NSWindow {
+        var elsewhere = false
+        override var isOnActiveSpace: Bool { !elsewhere }
+    }
+
     /// A browser whose window shows a page with a video playing, a canvas's
     /// stream, floated as `style` floats one, for `body`; `floating` says
     /// whether it is out. Muted unless `audible`, when the stream carries a
@@ -109,7 +186,7 @@ final class FloatUnseenTests: XCTestCase {
         }
         browser.prefs.floatStyle = style
         browser.prefs.floatsAway = true
-        let owner = NSWindow(contentRect: NSRect(x: -30000, y: -30000, width: 640, height: 360),
+        let owner = Desk(contentRect: NSRect(x: -30000, y: -30000, width: 640, height: 360),
                              styleMask: [.borderless], backing: .buffered, defer: false)
         owner.isReleasedWhenClosed = false
         browser.window = owner

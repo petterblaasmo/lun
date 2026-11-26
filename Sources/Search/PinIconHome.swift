@@ -49,7 +49,7 @@ struct PinIconHome: ViewModifier {
                 .padding(3)
                 .contentShape(Rectangle())
                 .padding(-3)
-                .onHover { hovering = $0 }
+                .hovers($hovering)
                 .help("Back to Pinned Page")
                 // Before the row's own click: a gesture on the icon is asked
                 // first, so the row's click doesn't also open the address.

@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Everything there is to set. Sections down the left, under a field that
 /// finds any setting by its words (⌘F); one section at a time on the right,
-/// in titled groups, each a card of rows. A row says what it is with a small
-/// icon and a line of plain words, the rest behind its (i). Every row of a
+/// in titled groups, each a card of rows. A row says what it is and, on a line
+/// of plain words, what it does, the rest behind its (i). Every row of a
 /// card stands at the same level, hairlines from edge to edge; a row that
 /// only counts while another is on is only there while it counts. Every
 /// row comes from SettingsIndex, so what the find field finds is exactly
@@ -39,25 +39,34 @@ struct SettingsPanel: View {
     @FocusState private var finding: Bool
     /// A row gone to from a result, lit for a moment.
     @State private var lit: String?
+    /// The pages whose More options are open, kept from one visit to the
+    /// next (SettingsIndex.essential).
+    @State private var more = Set(Store.settings.stringArray(forKey: SettingsPanel.moreKey) ?? [])
+    static let moreKey = "settings.more"
     /// What Set Up Like Arc changed, for Undo.
     @ObservedObject private var likeArc = LikeArc.shared
+    /// Privacy › Show Sites…: the list of what each site was answered, let
+    /// down under its row. Shut again each time Settings opens.
+    @State private var showsSites = false
 
+    /// Eight entries in the rail, where there were eleven: Themes is part
+    /// of Appearance, Spaces & Pins of Tabs, Passwords of Privacy, and the
+    /// mouse's rows went to Browsing, which leaves Keyboard & Mouse as the
+    /// list of shortcuts it mostly was. The raw values are the ones kept
+    /// in addresses and in the settings file, so they stay as they were.
     enum Page: String, CaseIterable, Identifiable {
-        case general, appearance, themes, tabs, browsing, spaces, passwords, privacy, ai, extensions, keyboard, about
+        case general, appearance, tabs, browsing, privacy, ai, extensions, keyboard, about
         var id: String { rawValue }
         var title: String {
             switch self {
             case .general: return "General"
             case .appearance: return "Appearance"
-            case .themes: return "Themes"
-            case .tabs: return "Tabs"
+            case .tabs: return "Tabs & Spaces"
             case .browsing: return "Browsing"
-            case .spaces: return "Spaces & Pins"
-            case .passwords: return "Passwords"
-            case .privacy: return "Privacy"
+            case .privacy: return "Privacy & Passwords"
             case .ai: return "AI"
             case .extensions: return "Extensions"
-            case .keyboard: return "Keyboard & Mouse"
+            case .keyboard: return "Shortcuts"
             case .about: return "About"
             }
         }
@@ -65,11 +74,8 @@ struct SettingsPanel: View {
             switch self {
             case .general: return "gearshape"
             case .appearance: return "paintbrush"
-            case .themes: return "photo.artframe"
             case .tabs: return "square.on.square"
             case .browsing: return "globe"
-            case .spaces: return "square.stack"
-            case .passwords: return "key"
             case .privacy: return "hand.raised"
             case .ai: return "sparkles"
             case .extensions: return "puzzlepiece.extension"
@@ -78,33 +84,45 @@ struct SettingsPanel: View {
             }
         }
         /// A section by its name in an address or in the settings file,
-        /// the old names included: Downloads is in General now, Shortcuts
-        /// is Keyboard & Mouse.
+        /// the old names included: each opens the page its rows are on now.
         static func named(_ name: String) -> Page? {
             switch name.lowercased() {
             case "downloads": return .general
-            case "shortcuts", "mouse": return .keyboard
+            case "themes": return .appearance
+            case "spaces", "pins": return .tabs
+            case "passwords": return .privacy
+            case "shortcuts": return .keyboard
+            case "mouse": return .browsing
             default: return Page(rawValue: name.lowercased())
+            }
+        }
+        /// What the pages folded into this one were called, for whoever
+        /// still types them (AddressCommands).
+        var former: [String] {
+            switch self {
+            case .appearance: return ["Themes"]
+            case .tabs: return ["Tabs", "Spaces & Pins"]
+            case .privacy: return ["Privacy", "Passwords"]
+            case .keyboard: return ["Keyboard & Mouse"]
+            default: return []
             }
         }
         /// The rail's three blocks: the browser, your data and tools, About.
         static var blocks: [[Page]] {
-            [[.general, .appearance, .themes, .tabs, .browsing, .spaces],
-             [.passwords, .privacy] + (AI.shipped ? [.ai] : []) + [.extensions, .keyboard],
+            [[.general, .appearance, .tabs, .browsing],
+             [.privacy] + (AI.shipped ? [.ai] : []) + [.extensions, .keyboard],
              [.about]]
         }
     }
 
     private static let rail: CGFloat = 196
+    private static let between: CGFloat = 32
     private static let column: CGFloat = 600
     private static let width: CGFloat = 720
     private static let height: CGFloat = 540
-    /// Where a row's words start, past its icon. What goes under a row's
-    /// words (pictures, lists, fields) starts there too.
-    static let textInset: CGFloat = 52
-    /// A list under a row's words starts this far in, its lines adding
-    /// their own 14 to reach textInset.
-    static let listInset: CGFloat = textInset - 14
+    /// Where a row's words start. What goes under a row's words (lists,
+    /// fields) starts there too.
+    static let textInset: CGFloat = 16
 
     var body: some View {
         Group {
@@ -118,12 +136,17 @@ struct SettingsPanel: View {
     /// left, the window's whole height, and the section down the middle of
     /// the rest.
     private var tabbed: some View {
-        HStack(spacing: 0) {
-            pages
-            Rectangle().fill(Palette.hairline).frame(width: 1)
-            content
-                .padding(.top, 26)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // The two together in the middle of the window, as far as it is wide
+        // enough; the scrolling reaches its far edge all the same.
+        GeometryReader { geometry in
+            let both = SettingsPanel.rail + SettingsPanel.between + SettingsPanel.column
+            HStack(spacing: 0) {
+                pages
+                    .padding(.leading, max(16, (geometry.size.width - both) / 2))
+                content
+                    .padding(.top, 14)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { follow(asked) }
@@ -146,59 +169,46 @@ struct SettingsPanel: View {
             content
         }
         .frame(width: SettingsPanel.width, height: SettingsPanel.height)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(0.16), radius: 34, y: 12)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
+        .elevated(.overlay, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous), fill: Palette.ground)
         .onChange(of: page) { _, page in Store.settings.set(page.rawValue, forKey: "settings.page") }
     }
 
     // MARK: - the rail
 
-    private var hits: [SettingsItem] { SettingsIndex.find(query) }
+    /// The folder sync is only for whoever has it on (SettingsIndex.applies):
+    /// not found by anyone else either.
+    private var hits: [SettingsItem] {
+        SettingsIndex.find(query).filter { $0.id != "sync" || SettingsIndex.applies($0, prefs) }
+    }
     private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
 
     private var pages: some View {
         let counts = Dictionary(grouping: hits, by: \.page).mapValues(\.count)
         return VStack(alignment: .leading, spacing: 2) {
-            Text("Settings")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Palette.ink)
-                .padding(.horizontal, 10)
-                .padding(.top, 14)
-                .padding(.bottom, 10)
             FindField(text: $query, focus: $finding)
                 .padding(.bottom, 10)
-            ForEach(Array(Page.blocks.enumerated()), id: \.offset) { index, block in
-                if index > 0 {
-                    Rectangle().fill(Palette.hairline).frame(height: 1)
-                        .padding(.horizontal, 10).padding(.vertical, 7)
-                }
-                ForEach(block) { item in
-                    PageRow(page: item, on: !searching && page == item,
-                            count: searching ? counts[item] ?? 0 : nil, chosen: chosen) {
-                        query = ""
-                        page = item
-                    }
+            ForEach(Page.blocks.flatMap { $0 }) { item in
+                PageRow(page: item, on: !searching && page == item,
+                        count: searching ? counts[item] ?? 0 : nil, chosen: chosen) {
+                    query = ""
+                    page = item
                 }
             }
             Spacer(minLength: 0)
         }
         .animation(slide, value: page)
-        .padding(8)
-        .frame(width: SettingsPanel.rail, alignment: .leading)
+        .padding(.top, asTab ? 32 : 16)
+        .padding(.leading, asTab ? 0 : 16)
+        .frame(width: SettingsPanel.rail + (asTab ? 0 : 16), alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Palette.wash.opacity(0.45), in: Rectangle())
     }
 
-    /// The white's move: the tab column's glide, a touch longer and with a
-    /// little give at the end, so the eye follows it down the rail. None
-    /// with Reduce Motion, and a plain ease in Low Power Mode, as glide.
+    /// The white's move down the rail: the tab column's glide, as every
+    /// selection that moves. None with Reduce Motion, and a plain ease in
+    /// Low Power Mode.
     private var slide: Animation? {
-        Motion.reduced ? nil : Motion.light ? .easeOut(duration: 0.2) : .spring(response: 0.45, dampingFraction: 0.72)
+        Motion.glide
     }
 
     /// Find a setting: the wash, the glass, ⌘F beside it until something
@@ -208,13 +218,13 @@ struct SettingsPanel: View {
         var focus: FocusState<Bool>.Binding
 
         var body: some View {
-            HStack(spacing: 7) {
+            HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
                 ZStack(alignment: .leading) {
                     if text.isEmpty {
-                        Text("Find a setting").foregroundStyle(Palette.muted.opacity(0.8))
+                        Text("Search").foregroundStyle(Palette.muted)
                     }
                     TextField("", text: $text)
                         .textFieldStyle(.plain)
@@ -223,24 +233,15 @@ struct SettingsPanel: View {
                         .onExitCommand { text = "" }
                         .accessibilityLabel("Find a setting")
                 }
-                .font(.system(size: 12.5))
-                if text.isEmpty {
-                    Text("⌘F")
-                        .font(.system(size: 10.5, design: .rounded))
-                        .foregroundStyle(Palette.muted.opacity(0.8))
-                } else {
-                    Button { text = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Palette.faint)
-                    }
-                    .buttonStyle(.plain)
+                .font(.system(size: 13))
+                if !text.isEmpty {
+                    IconButton("xmark.circle.fill", label: "Clear", glyph: 11, weight: .regular, size: 16, wash: nil) { text = "" }
                 }
             }
-            .padding(.horizontal, 9)
-            .frame(height: 28)
-            .background(Palette.ground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background(Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .help("Find a setting   ⌘F")
         }
     }
 
@@ -256,37 +257,33 @@ struct SettingsPanel: View {
         var body: some View {
             Button(action: act) {
                 HStack(spacing: 9) {
-                    Image(systemName: page.icon)
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 16)
                     Text(page.title)
                         .font(.system(size: 13, weight: on ? .medium : .regular))
                     Spacer(minLength: 0)
                     if let count, count > 0 {
                         Text("\(count)")
-                            .font(.system(size: 10.5, weight: .medium).monospacedDigit())
+                            .font(.system(size: 12, weight: .medium).monospacedDigit())
                             .foregroundStyle(Palette.ink)
                             .padding(.horizontal, 6)
                             .frame(height: 17)
-                            .background(Palette.ground, in: Capsule())
+                            .background(Palette.fill, in: Capsule())
                     }
                 }
-                .foregroundStyle(on ? Palette.ink : (hovering ? Palette.ink.opacity(0.75) : Palette.muted))
+                .foregroundStyle(on ? Palette.ink : (hovering ? Palette.ink : Palette.muted))
                 .opacity(count == 0 ? 0.4 : 1)
                 .padding(.horizontal, 10)
                 .frame(height: 30)
                 .background {
                     if on {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Palette.ground)
-                            .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Palette.fill)
                             .matchedGeometryEffect(id: "chosen", in: chosen)
                     } else if hovering {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .fill(Palette.hover)
                     }
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             }
             .buttonStyle(.plain)
             .onHover { hovering = $0 }
@@ -299,11 +296,6 @@ struct SettingsPanel: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                if !searching {
-                    Image(systemName: page.icon)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(Palette.ink)
-                }
                 Text(searching ? "Settings matching “\(query.trimmingCharacters(in: .whitespaces))”" : page.title)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Palette.ink)
@@ -313,30 +305,40 @@ struct SettingsPanel: View {
                     Door(icon: "xmark", help: "Done   esc") { browser.tuning = false }
                 }
             }
-            .padding(.bottom, 18)
-            .padding(.horizontal, 24)
-            .frame(maxWidth: asTab ? SettingsPanel.column : .infinity)
-            .frame(maxWidth: .infinity)
+            .padding(.bottom, 24)
+            // The mark says it there.
+            .opacity(page == .about && !searching ? 0 : 1)
+            .accessibilityHidden(page == .about && !searching)
+            .padding(.horizontal, 16)
+            .padding(.leading, SettingsPanel.between)
+            .padding(.trailing, 16)
+            .frame(maxWidth: asTab ? SettingsPanel.column + SettingsPanel.between + 16 : .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             ScrollViewReader { reader in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 24) {
                         if searching { results } else { section(page) }
                     }
-                    .environment(\.ruleInset, 0)
                     .padding(.bottom, 24)
                     // Keep the rows narrow, not the scroll view: the empty
                     // space beside them must receive scrolling too.
-                    .padding(.horizontal, 24)
-                    .frame(maxWidth: asTab ? SettingsPanel.column : .infinity)
-                    .frame(maxWidth: .infinity)
+                    .padding(.leading, SettingsPanel.between)
+                    .padding(.trailing, 16)
+                    .frame(maxWidth: asTab ? SettingsPanel.column + SettingsPanel.between + 16 : .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .onAppear { if let lit { reader.scrollTo(lit, anchor: .center) } }
             }
             // A page of its own opens at its top. One scroll view kept for
             // them all opened Tabs as far down as General had been read.
             .id(searching ? "found" : page.rawValue)
+            // One page fades into the next: they changed in a frame, the
+            // only screen that moved nowhere between its parts.
+            .transition(.opacity)
         }
+        .animation(Motion.dissolve, value: page)
+        .animation(Motion.dissolve, value: searching)
         .padding(.top, 18)
         .padding(.bottom, 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -349,15 +351,7 @@ struct SettingsPanel: View {
             aboutHeader
             groups(of: page)
         case .keyboard:
-            groups(of: page)
-            GroupBlock(title: "Shortcuts", icon: "command") {
-                ShortcutsPage(browser: browser, store: .shared, prefs: prefs)
-            }
-        case .privacy:
-            groups(of: page)
-            GroupBlock(title: "Proxy", icon: "network") {
-                ProxySettings()
-            }
+            ShortcutsPage(browser: browser, store: .shared, prefs: prefs)
         case .extensions:
             ExtensionsPage(browser: browser)
         case .ai:
@@ -367,12 +361,132 @@ struct SettingsPanel: View {
         }
     }
 
+    /// A page's rows: the few most people come for (SettingsIndex.essential),
+    /// then one line that opens the rest under it, group by group. The page
+    /// was every row it had, up to thirty-nine of them, and what was looked
+    /// for was somewhere among them. Developer's rows are behind a line of
+    /// their own, so More options never opens them on anyone.
+    @ViewBuilder
     private func groups(of page: Page) -> some View {
         // A group whose every row is left out (SettingsIndex.offered) has
         // no heading either.
-        ForEach(SettingsIndex.groups(of: page).filter { !SettingsIndex.items(in: $0.id).isEmpty }) { group in
-            GroupBlock(title: group.title, icon: group.icon) {
-                Card { rows(SettingsIndex.items(in: group.id).filter(shown), searched: false) }
+        let every = SettingsIndex.groups(of: page).filter { !SettingsIndex.items(in: $0.id).isEmpty }
+        let groups = every.filter { $0.id != SettingsIndex.developer }
+        let all = groups.flatMap { SettingsIndex.items(in: $0.id).filter(shown) }
+        let rest = all.filter { !SettingsIndex.essential.contains($0.id) }
+        // Nothing to open on, or one row at most to open: every row, as
+        // before. A line that hides a single row takes the room it saves.
+        if rest.count < 2 || rest.count == all.count {
+            blocks(groups) { _ in true }
+            trailing(page)
+        } else {
+            let open = more.contains(page.rawValue)
+            blocks(groups) { SettingsIndex.essential.contains($0.id) }
+            MoreOptions(count: rest.count, open: open) { toggle(page.rawValue) }
+            if open {
+                Group {
+                    blocks(groups) { !SettingsIndex.essential.contains($0.id) }
+                    trailing(page)
+                }
+                .transition(.opacity)
+            }
+        }
+        let developer = SettingsIndex.items(in: SettingsIndex.developer).filter(shown)
+        if every.contains(where: { $0.id == SettingsIndex.developer }), !developer.isEmpty {
+            let open = more.contains(SettingsIndex.developer)
+            MoreOptions(count: developer.count, open: open, title: "Developer") { toggle(SettingsIndex.developer) }
+            if open {
+                Card { rows(developer, searched: false) }
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    /// What a page has after its rows, with the rest of them: the proxy,
+    /// which is a form of its own and not a row of the index.
+    @ViewBuilder
+    private func trailing(_ page: Page) -> some View {
+        if page == .privacy {
+            GroupBlock(title: "Proxy", icon: "network") {
+                ProxySettings()
+            }
+        }
+    }
+
+    /// Opens or closes a page's More options, or Developer, and keeps it so.
+    private func toggle(_ name: String) {
+        withAnimation(Motion.settle) {
+            if more.contains(name) { more.remove(name) } else { more.insert(name) }
+        }
+        Store.settings.set(Array(more).sorted(), forKey: SettingsPanel.moreKey)
+    }
+
+    /// The groups, each with those of its rows that `keep` keeps; one left
+    /// with none has no heading either.
+    private func blocks(_ groups: [SettingsGroup], keeping keep: @escaping (SettingsItem) -> Bool) -> some View {
+        ForEach(groups) { group in
+            let items = SettingsIndex.items(in: group.id).filter(shown).filter(keep)
+            if !items.isEmpty {
+                GroupBlock(title: group.title, icon: group.icon) {
+                    Card { rows(items, searched: false) }
+                }
+            }
+        }
+    }
+
+    /// Every site's answer about the camera, the microphone, where you are
+    /// and notifications, forgotten at once: asked first, since it can't be
+    /// undone and one press did it. A site's own answers are reset one by
+    /// one in the list Show Sites… lets down, where this is Forget All….
+    private func forgetChoices() {
+        ask(.choices) { browser.forgetCaptureChoices() }
+    }
+
+    /// What the row's pill says: the board's "Show Sites…" until the list
+    /// is down, then what puts it away.
+    static func sitesPill(shown: Bool) -> String { shown ? "Hide Sites" : "Show Sites…" }
+
+    /// Asks before something that can't be undone, and does it on a yes.
+    /// At once in a test run, which has nobody to answer.
+    private func ask(_ wiping: Wiping, then act: () -> Void) {
+        guard !Store.testing else { return act() }
+        let alert = NSAlert()
+        alert.messageText = wiping.question
+        alert.informativeText = wiping.detail
+        alert.addButton(withTitle: wiping.yes)
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn { act() }
+    }
+
+    /// What Settings › Privacy takes away for good, and how it asks first:
+    /// each row's pill ends in "…" and one press no longer does it.
+    enum Wiping: CaseIterable {
+        case choices, history, cookies, cache
+
+        var question: String {
+            switch self {
+            case .choices: return "Forget every site's answers?"
+            case .history: return "Clear all of your history?"
+            case .cookies: return "Sign out of every site?"
+            case .cache: return "Clear the cache?"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .choices: return "Each site will ask again before it uses the camera, the microphone or your location, or sends notifications."
+            case .history: return "Every address you have been to, in every space, and the tabs Lun put away. This can't be undone."
+            case .cookies: return "Cookies and everything sites keep on this Mac are removed. Your saved passwords stay."
+            case .cache: return "Only what was fetched to draw pages. You stay signed in, and pages take a little longer the first time."
+            }
+        }
+
+        /// The button that does it, named for what it does.
+        var yes: String {
+            switch self {
+            case .choices: return "Forget"
+            case .history, .cache: return "Clear"
+            case .cookies: return "Sign Out"
             }
         }
     }
@@ -423,39 +537,31 @@ struct SettingsPanel: View {
         let byGroup = Dictionary(grouping: found, by: \.group)
         ForEach(SettingsIndex.groups.filter { byGroup[$0.id] != nil }) { group in
             VStack(alignment: .leading, spacing: 8) {
-                Button {
+                // Where the rows under it live: a link, ink and underlined
+                // under the pointer, where it read as a caption.
+                TextLink("\(group.page.title) › \(group.title)", symbol: "arrow.right") {
                     let first = byGroup[group.id]?.first
                     query = ""
                     page = group.page
                     lit = first?.findOnly == false ? first?.id : nil
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { withAnimation(Motion.quick) { lit = nil } }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: group.icon).font(.system(size: 10.5, weight: .medium))
-                        Text("\(group.page.title)  ›  \(group.title)".uppercased())
-                            .font(.system(size: 10.5, weight: .semibold))
-                            .tracking(0.4)
-                        Image(systemName: "arrow.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
+                    // One under More options: opened, or there is no row
+                    // to light.
+                    if let lit, !SettingsIndex.essential.contains(lit) {
+                        more.insert(group.id == SettingsIndex.developer ? group.id : group.page.rawValue)
                     }
-                    .foregroundStyle(Palette.muted)
-                    .padding(.leading, 2)
-                    .contentShape(Rectangle())
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { withAnimation(Motion.quick) { lit = nil } }
                 }
-                .buttonStyle(.plain)
+                .padding(.leading, 16)
                 .help("Open \(group.page.title) at \(group.title)")
                 Card { rows(byGroup[group.id] ?? [], searched: true) }
             }
         }
         if !always.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle").font(.system(size: 10.5, weight: .medium))
-                    Text("Always on, nothing to set".uppercased())
-                        .font(.system(size: 10.5, weight: .semibold))
-                        .tracking(0.4)
-                }
-                .foregroundStyle(Palette.muted)
-                .padding(.leading, 2)
+                Text("Always on, nothing to set")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.muted)
+                    .padding(.leading, 16)
                 Card { rows(always, searched: true) }
             }
         }
@@ -475,7 +581,7 @@ struct SettingsPanel: View {
     private func detail(of item: SettingsItem) -> String {
         switch item.id {
         case "general.default":
-            return isDefault ? "Search is the default browser on this Mac" : item.detail
+            return isDefault ? "Lun is the default browser on this Mac" : item.detail
         case "mail.default":
             if mailDefault { return "Email links from other apps open here" }
             return mailHandler.map { "Email links from other apps go to \($0) now" } ?? item.detail
@@ -501,22 +607,32 @@ struct SettingsPanel: View {
         }
     }
 
+    private var newTabPlaceTitle: String {
+        switch prefs.newTabPlace {
+        case .next: return "After current"
+        case .top: return prefs.sidebar ? "Top" : "Leftmost"
+        case .end: return prefs.sidebar ? "Bottom" : "Rightmost"
+        }
+    }
+
     private var arcHere: Bool { FileManager.default.fileExists(atPath: Arc.file.path) }
 
     // MARK: - controls
 
+    /// Each of these draws the rows it knows and nothing for any other,
+    /// so a row keeps its control whichever page it is moved to.
     @ViewBuilder
     private func control(_ item: SettingsItem) -> some View {
-        switch item.page {
-        case .general: generalControl(item.id)
-        case .appearance: appearanceControl(item.id)
-        case .themes: ThemesPage(prefs: prefs)
-        case .tabs: tabsControl(item.id)
-        case .browsing: browsingControl(item.id)
-        case .spaces: spacesControl(item.id)
-        case .passwords, .privacy: keptControl(item.id)
-        case .keyboard, .about: otherControl(item.id)
-        default: EmptyView()
+        if item.id == "home.theme" {
+            ThemesPage(prefs: prefs)
+        } else {
+            generalControl(item.id)
+            appearanceControl(item.id)
+            tabsControl(item.id)
+            browsingControl(item.id)
+            spacesControl(item.id)
+            keptControl(item.id)
+            otherControl(item.id)
         }
     }
 
@@ -530,7 +646,7 @@ struct SettingsPanel: View {
                     .foregroundStyle(Palette.ink)
                     .frame(width: 24)
             } else {
-                Pill("Make default", filled: true) {
+                Pill("Make Default") {
                     Links.becomeDefault { worked in
                         isDefault = Links.isDefault
                         browser.announce(worked && isDefault ? "Links now open here" : "macOS didn't change it")
@@ -538,15 +654,12 @@ struct SettingsPanel: View {
                 }
             }
         case "mail.webmail":
-            Picker("", selection: $prefs.webmail) {
+            PopUp("Email links open in", shows: prefs.webmail.title, selection: $prefs.webmail) {
                 ForEach(Webmail.allCases) { mail in
                     Text(mail.title).tag(mail)
                     if mail == .none { Divider() }
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "mail.default":
             if mailDefault {
                 Image(systemName: "checkmark")
@@ -555,7 +668,7 @@ struct SettingsPanel: View {
                     .frame(width: 24)
             } else {
                 // Only ever from this click: macOS asks to confirm.
-                Pill("Make default", filled: true) {
+                Pill("Make Default") {
                     Mail.becomeDefault { worked in
                         mailDefault = Mail.isDefault
                         mailHandler = Mail.handlerName
@@ -584,7 +697,7 @@ struct SettingsPanel: View {
         case "icloud.erase":
             Pill("Delete…") {
                 let alert = NSAlert()
-                alert.messageText = "Delete Search's data from iCloud?"
+                alert.messageText = "Delete Lun's data from iCloud?"
                 alert.informativeText = "Open tabs, pins, spaces, bookmarks and settings leave iCloud for every device. What is on each device stays. Sync with iCloud turns off here and on your other devices."
                 alert.addButton(withTitle: "Delete")
                 alert.addButton(withTitle: "Cancel")
@@ -595,12 +708,9 @@ struct SettingsPanel: View {
         case "downloads.ask": Switch(on: $prefs.asksWhereToSave)
         case "downloads.button": Switch(on: $prefs.alwaysShowsDownloads)
         case "downloads.open":
-            Picker("Open Downloads", selection: $prefs.downloadsOpening) {
+            PopUp("Open Downloads", shows: prefs.downloadsOpening.title, selection: $prefs.downloadsOpening) {
                 ForEach(DownloadsOpening.allCases) { Text($0.title).tag($0) }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         default: EmptyView()
         }
     }
@@ -609,36 +719,32 @@ struct SettingsPanel: View {
     private func appearanceControl(_ id: String) -> some View {
         switch id {
         case "look":
-            Pictures(options: Look.allCases.map { look in
-                (look, look == .system ? "Auto" : look.title, AnyView(LookPicture(look: look)))
-            }, selection: $prefs.look)
+            Segmented(options: Look.allCases.map { ($0, $0 == .system ? "Auto" : $0.title) }, selection: $prefs.look)
         case "pages.dusk": Switch(on: $prefs.darkensPages)
         case "inspector.chrome": Switch(on: $prefs.inspectorChrome)
         case "inspector.dark": Switch(on: $prefs.inspectorDark)
         case "tabs.layout":
-            Pictures(options: TabsLayout.allCases.map { ($0, $0.title, AnyView(LayoutPicture(layout: $0))) },
-                     selection: Binding(
+            Segmented(options: TabsLayout.allCases.map { ($0, $0.title) },
+                      selection: Binding(
                         get: { prefs.tabsLayout },
                         set: { layout in withAnimation(Motion.glide) { prefs.tabsLayout = layout } }
-                     ))
+                      ))
         case "sidebar.hides": Switch(on: $prefs.sideHides)
         case "sidebar.slides": Switch(on: $prefs.slidesColumn)
         case "sidebar.foldIcons": Switch(on: $prefs.foldsToIcons)
         case "layout.cards":
-            Pictures(options: [(true, "As a card", AnyView(CardPicture(card: true))),
-                               (false, "Edge to edge", AnyView(CardPicture(card: false)))],
-                     selection: Binding(
-                        get: { prefs.cards },
-                        set: { on in withAnimation(Motion.glide) { prefs.cards = on } }
-                     ))
+            Switch(on: Binding(
+                get: { prefs.cards },
+                set: { on in withAnimation(Motion.glide) { prefs.cards = on } }
+            ))
         case "layout.cardsFullScreen": Switch(on: $prefs.cardsInFullScreen)
         case "address.shown": Switch(on: $prefs.addressLine)
         case "scrollbars.fade": Switch(on: $prefs.scrollbarsFade)
         case "address.width": Segmented(options: AddressWidth.allCases.map { ($0, $0.title) }, selection: $prefs.addressWidth)
         case "window.glass": Switch(on: $prefs.glass)
         case "window.glass.style": Segmented(options: GlassStyle.allCases.map { ($0, $0.title) }, selection: $prefs.glassStyle)
-        case "window.glass.clear": Slider(value: $prefs.glassClear, in: 0...1).controlSize(.small).frame(width: 160)
-        case "window.glass.grain": Slider(value: $prefs.glassGrain, in: 0...1).controlSize(.small).frame(width: 160)
+        case "window.glass.clear": Slide(value: $prefs.glassClear).frame(width: 160).accessibilityLabel("Transparency")
+        case "window.glass.grain": Slide(value: $prefs.glassGrain).frame(width: 160).accessibilityLabel("Grain")
         case "toolbar.left": Switch(on: $prefs.navigationLeft)
         case "tabs.compact":
             Switch(on: Binding(
@@ -679,7 +785,20 @@ struct SettingsPanel: View {
         case "tabs.pinCounts": Switch(on: $prefs.showsPinCounts)
         case "fold.loadingLine": Switch(on: $prefs.showsLoadingLine)
         case "tabs.give": Switch(on: $prefs.tabsGive)
-        case "bookmarks.bar": Switch(on: $prefs.bookmarksBar)
+        case "bookmarks.bar":
+            // Off, above the page, or (with the tabs down a side) in the
+            // sidebar: one choice where there were two switches.
+            Segmented(options: BookmarksPlace.choices(sidebar: prefs.sidebar).map { ($0, $0.title) },
+                      selection: Binding(
+                        get: { prefs.bookmarksPlace },
+                        set: { place in withAnimation(Motion.glide) { prefs.bookmarksPlace = place } }
+                      ))
+        case "space.colour":
+            Pill("Colour…") {
+                // Hung from here, not from where the space's menu last was.
+                SpaceLookPopover.anchor = NSEvent.mouseLocation
+                SpaceLookPopover.show(for: browser)
+            }
         case "bookmarks.iconsOnly": Switch(on: $prefs.bookmarksIconsOnly)
         case "bookmarks.newTabOnly": Switch(on: $prefs.bookmarksNewTabOnly)
         case "bookmarks.side":
@@ -698,14 +817,11 @@ struct SettingsPanel: View {
     private func tabsControl(_ id: String) -> some View {
         switch id {
         case "tabs.newPlace":
-            Picker("New tab position", selection: $prefs.newTabPlace) {
+            PopUp("New tab position", shows: newTabPlaceTitle, selection: $prefs.newTabPlace) {
                 Text("After current").tag(NewTabPlace.next)
                 Text(prefs.sidebar ? "Top" : "Leftmost").tag(NewTabPlace.top)
                 Text(prefs.sidebar ? "Bottom" : "Rightmost").tag(NewTabPlace.end)
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "tabs.newAfterLast": Switch(on: $prefs.newTabAfterLast)
         case "tabs.keepWindow": Switch(on: $prefs.keepWindowAfterLast)
         case "tabs.closeGoesBack": Switch(on: $prefs.closeGoesBack)
@@ -723,19 +839,16 @@ struct SettingsPanel: View {
                 Segmented(options: SleepChoice.allCases.map { ($0, $0.title) }, selection: $prefs.sleepChoice, wide: true)
                     .frame(maxWidth: 340)
                 Text(prefs.sleepChoice.detail)
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
             }
         case "tabs.sleep.dim": Switch(on: $prefs.dimsSleepingTabs)
         case "tabs.close.after":
-            Picker("", selection: $prefs.tabLife) {
+            PopUp("Close tabs you leave alone", shows: prefs.tabLife.title, selection: $prefs.tabLife) {
                 ForEach(TabLife.allCases) { life in
                     Text(life.title).tag(life)
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "tabs.shortcuts": Switch(on: $prefs.showsTabShortcuts)
         case "tabs.address":
             Switch(on: Binding(
@@ -753,25 +866,19 @@ struct SettingsPanel: View {
     private func browsingControl(_ id: String) -> some View {
         switch id {
         case "search.engine":
-            Picker("", selection: $prefs.engine) {
+            PopUp("Search with", shows: prefs.engine.title, selection: $prefs.engine) {
                 ForEach(Engine.allCases) { engine in
                     Text(engine.title).tag(engine)
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "search.shift":
-            Picker("", selection: $prefs.shiftEngine) {
+            PopUp("Shift-Return searches with", shows: prefs.shiftEngine?.title ?? "Off", selection: $prefs.shiftEngine) {
                 Text("Off").tag(Engine?.none)
                 Divider()
                 ForEach(Engine.allCases) { engine in
                     Text(engine.title).tag(Engine?.some(engine))
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "search.suggest": Switch(on: $prefs.engineSuggests)
         case "field.top": Switch(on: $prefs.returnTakesTop)
         case "search.keywords":
@@ -872,7 +979,7 @@ struct SettingsPanel: View {
                 guard on else { prefs.fillsContacts = false; return }
                 Task { @MainActor in
                     guard await MeCard.shared.ask() else {
-                        browser.announce("Search may not read Contacts: System Settings › Privacy & Security › Contacts")
+                        browser.announce("Lun may not read Contacts: System Settings › Privacy & Security › Contacts")
                         return
                     }
                     guard await MeCard.shared.reload() else {
@@ -888,10 +995,16 @@ struct SettingsPanel: View {
         case "privacy.gpc": Switch(on: $prefs.sendsPrivacySignal)
         case "privacy.httpsFirst": Switch(on: $prefs.triesHTTPSFirst)
         case "notifications.ask": Switch(on: $prefs.siteNotifications)
-        case "privacy.forget": Pill("Forget choices") { browser.forgetCaptureChoices() }
-        case "clear.history": Pill("Clear") { browser.clearHistory() }
-        case "clear.cookies": Pill("Sign out of everything") { browser.clearSites() }
-        case "clear.cache": Pill("Clear") { browser.clearCache() }
+        // "Show Sites…", as the board has it: the list is asked for, where
+        // it hung under the row as soon as one site had been answered, and
+        // the pill forgot every answer at once. That is in the list now.
+        case "privacy.forget":
+            Pill(SettingsPanel.sitesPill(shown: showsSites)) { withAnimation(Motion.settle) { showsSites.toggle() } }
+        // "Clear…" on each, as the board has it, and asked first: History
+        // and Cookies went at the press, with no way back.
+        case "clear.history": Pill("Clear…") { ask(.history) { browser.clearHistory() } }
+        case "clear.cookies": Pill("Clear…") { ask(.cookies) { browser.clearSites() } }
+        case "clear.cache": Pill("Clear…") { ask(.cache) { browser.clearCache() } }
         default: EmptyView()
         }
     }
@@ -900,14 +1013,11 @@ struct SettingsPanel: View {
     private func otherControl(_ id: String) -> some View {
         switch id {
         case "links.peek":
-            Picker("Peek at a link", selection: $prefs.peekChoice) {
+            PopUp("Peek at a link", shows: prefs.peekChoice.title, selection: $prefs.peekChoice) {
                 ForEach(PeekChoice.allCases) { choice in
                     Text(choice.title).tag(choice)
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "links.peek.stays": Switch(on: $prefs.peekStays)
         case "links.optionSplit": Switch(on: $prefs.optionClickSplits)
         case "keys.backspaceBack": Switch(on: $prefs.backspaceGoesBack)
@@ -915,14 +1025,20 @@ struct SettingsPanel: View {
         case "wheel.smooth": Switch(on: $prefs.wheelGlides)
         case "pages.bounce": Switch(on: $prefs.bounces)
         case "swipe.history": Switch(on: $prefs.holdsHistory)
-        case "launcher.on": Switch(on: $prefs.launcher)
+        case "launcher.on":
+            // The key beside its switch, while it is on: one row for both.
+            HStack(spacing: 10) {
+                if prefs.launcher { LauncherKeyBox(prefs: prefs) }
+                Switch(on: $prefs.launcher)
+            }
         case "launcher.key": LauncherKeyBox(prefs: prefs)
         case "launcher.little": Switch(on: $prefs.launcherLittle)
         case "note.switcher": Always()
         case "updates.version": versionControl
         case "updates.auto": Switch(on: $prefs.installsUpdates)
         case "updates.notice": Switch(on: $prefs.showsUpdateReady)
-        case "about.feedback": Pill("Send Feedback") { Links.writeFeedback() }
+        case "about.licences": Pill("Show Licences…") { LicencesWindow.show() }
+        case "about.feedback": Pill("Send Feedback…") { Links.writeFeedback() }
         case "about.notes": Pill("What's New…") { browser.lead(to: InternalPage(.notes)) }
         case "bench": Switch(on: $prefs.bench)
         case "agents": Switch(on: $prefs.agents)
@@ -954,20 +1070,23 @@ struct SettingsPanel: View {
         case "shield":
             if let trouble = shield.trouble {
                 Rule()
-                Line(trouble, "Nothing is being blocked until this clears. Try again, or restart Search") {
+                Line(trouble, "Nothing is being blocked until this clears. Try again, or restart Lun") {
                     Pill("Try again") { shield.compile() }
                 }
                 .under()
             }
         case "privacy.forget":
-            if !searched {
-                Group {
-                    PermissionSites(browser: browser, prefs: prefs)
+            // Under a found row too: the pill is there, and has to do
+            // what it says.
+            if showsSites {
+                VStack(spacing: 0) {
+                    PermissionSites(browser: browser, prefs: prefs, forgetAll: forgetChoices)
                     PopupSiteList(prefs: prefs)
                 }
                 .under()
+                .transition(.row(from: .top))
             }
-        case "passkeys":
+        case "passwords.save":
             if !searched, !Vault.never.isEmpty {
                 Rule()
                 SettingRow(icon: "hand.raised.slash", title: "Sites never asked",
@@ -1012,7 +1131,7 @@ struct SettingsPanel: View {
             addressField(text, placeholder: "https://example.com/search?q=%s")
             if let suggest {
                 Text("Suggestions address (optional)")
-                    .font(.system(size: 11.5))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
                     .padding(.leading, 10)
                     .padding(.top, 2)
@@ -1028,7 +1147,7 @@ struct SettingsPanel: View {
         ZStack(alignment: .leading) {
             if text.wrappedValue.isEmpty {
                 Text(placeholder)
-                    .foregroundStyle(Palette.muted.opacity(0.8))
+                    .foregroundStyle(Palette.muted)
             }
             TextField("", text: text)
                 .textFieldStyle(.plain)
@@ -1037,7 +1156,7 @@ struct SettingsPanel: View {
         .font(.system(size: 12.5))
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     @ViewBuilder
@@ -1064,41 +1183,54 @@ struct SettingsPanel: View {
             .foregroundStyle(Palette.ink)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .padding(.leading, SettingsPanel.textInset)
             .padding(.trailing, 14)
             .padding(.bottom, 6)
         }
         // The one being changed is up in the editor, not here as well.
         ForEach(prefs.keywords.filter { $0.id != draft?.id }) { entry in
+            SavedKeyword(entry: entry, change: { draft = entry }) {
+                prefs.keywords.removeAll { $0.id == entry.id }
+            }
+        }
+    }
+
+    /// A saved shortcut: pressed, it opens in the editor to be changed,
+    /// rather than deleted and written again. A button, darker under the
+    /// pointer, where only a tooltip said it could be pressed; its cross has
+    /// a name and more than its own glyph to land on.
+    private struct SavedKeyword: View {
+        let entry: Keyword
+        let change: () -> Void
+        let remove: () -> Void
+        @State private var hovering = false
+
+        var body: some View {
             HStack(spacing: 8) {
-                // Clicked, a saved shortcut opens in the editor to be
-                // changed, rather than deleted and written again.
-                HStack(spacing: 8) {
-                    Text(entry.keyword)
-                        .frame(width: 50, alignment: .leading)
-                    Text("→").foregroundStyle(Palette.muted)
-                    Text(entry.template)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                Button(action: change) {
+                    HStack(spacing: 8) {
+                        Text(entry.keyword)
+                            .frame(width: 50, alignment: .leading)
+                        Text("→").foregroundStyle(Palette.muted)
+                        Text(entry.template)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
-                .onTapGesture { draft = entry }
+                .buttonStyle(Gives(to: 0.99))
                 .help("Click to change")
-                Button {
-                    prefs.keywords.removeAll { $0.id == entry.id }
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(Palette.faint)
-                }
-                .buttonStyle(.plain)
+                .accessibilityLabel("Change \(entry.keyword), \(entry.template)")
+                IconButton("xmark.circle.fill", label: "Remove \(entry.keyword)", glyph: 12.5, weight: .regular, size: 16, wash: nil, action: remove)
             }
             .font(.system(size: 12.5))
             .foregroundStyle(Palette.ink)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .background(hovering ? Palette.fillHover : Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .hovers($hovering)
             .padding(.leading, SettingsPanel.textInset)
             .padding(.trailing, 14)
             .padding(.bottom, 6)
@@ -1126,7 +1258,7 @@ struct SettingsPanel: View {
         let saved = Keyword(
             id: current.id,
             keyword: current.keyword.trimmingCharacters(in: .whitespacesAndNewlines),
-            template: current.template.trimmingCharacters(in: .whitespacesAndNewlines)
+            template: Keyword.address(current.template)
         )
         // One being changed keeps its place in the list.
         if let index = prefs.keywords.firstIndex(where: { $0.id == saved.id }) {
@@ -1172,7 +1304,7 @@ struct SettingsPanel: View {
     /// Says so when a password manager extension has taken the saving over.
     private var savingDetail: String {
         if #available(macOS 15.4, *), let name = Extensions.shared.passwordSavingTakenBy {
-            return "\(name) does the saving; it asked Search not to offer"
+            return "\(name) does the saving; it asked Lun not to offer"
         }
         return "Asked once per site, never again for a site you refuse"
     }
@@ -1185,20 +1317,24 @@ struct SettingsPanel: View {
     // MARK: - about
 
     private var aboutHeader: some View {
-        HStack(spacing: 14) {
+        VStack(spacing: 8) {
             Logomark()
-                .fill(Palette.ink, style: FillStyle(eoFill: true))
+                .fill(Palette.ink)
                 .aspectRatio(Logomark.canvas.width / Logomark.canvas.height, contentMode: .fit)
-                .frame(height: 34)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Search")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
-                Text("by Office Commun · version \(Updater.version)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.muted)
-            }
+                .frame(height: 50)
+                .accessibilityElement()
+                .accessibilityLabel("Lun")
+            Text("Version \(Updater.version)")
+                .font(.system(size: 12))
+                .monospacedDigit()
+                .foregroundStyle(Palette.muted)
+            Text("A small, fast, quiet browser for the Mac.")
+                .font(.system(size: 13))
+                .foregroundStyle(Palette.muted)
+                .padding(.top, 8)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
     }
 
     /// The version line follows the newer build from found to fetched to
@@ -1206,9 +1342,9 @@ struct SettingsPanel: View {
     private var versionTitle: String {
         switch updater.stage {
         case .none: return "Updates"
-        case .fetching(let next): return "Search \(next.version) is downloading…"
-        case .ready(let next): return "Search \(next.version) is ready"
-        case .offered(let next), .waiting(let next): return "Search \(next.version) is out"
+        case .fetching(let next): return "Lun \(next.version) is downloading…"
+        case .ready(let next): return "Lun \(next.version) is ready"
+        case .offered(let next), .waiting(let next): return "Lun \(next.version) is out"
         }
     }
 
@@ -1220,7 +1356,7 @@ struct SettingsPanel: View {
         case .fetching(let next):
             return next.notes ?? "Quietly, in the background. Nothing you have set is touched"
         case .ready(let next):
-            return next.notes ?? "It's there the next time you open Search"
+            return next.notes ?? "It's there the next time you open Lun"
         case .offered(let next):
             return next.notes ?? "Open the disk image, the same as the first time"
         case .waiting(let next):
@@ -1268,15 +1404,63 @@ struct SettingsPanel: View {
 
 private extension View {
     /// A list under a row's words (sites, profiles, languages): its lines
-    /// start where the row's title does, and its hairlines are pulled back
-    /// out to the card's left edge, as every other one in Settings.
-    func under() -> some View {
-        padding(.leading, SettingsPanel.listInset)
-            .environment(\.ruleInset, -SettingsPanel.listInset)
+    /// start where the row's title does.
+    func under() -> some View { self }
+}
+
+/// The line under a page's first rows that opens the rest of them, and
+/// closes them again: it says how many there are, answers the pointer and
+/// gives under a press as a row of the column does.
+struct MoreOptions: View {
+    let count: Int
+    let open: Bool
+    /// A name of its own (Developer), said open and closed alike.
+    var title: String? = nil
+    let act: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: act) {
+            HStack(spacing: 8) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .rotationEffect(.degrees(open ? 90 : 0))
+                Text(label)
+                    .font(.system(size: 13, weight: .medium))
+                if !open {
+                    Text("\(count)")
+                        .font(.system(size: 12))
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.muted)
+                }
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(Palette.ink)
+            .padding(.horizontal, 16)
+            .frame(height: 36)
+            .background(hovering ? Palette.fillHover : Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(Pressed())
+        .onHover { hovering = $0 }
+        .animation(Motion.quick, value: hovering)
+        .animation(Motion.settle, value: open)
+        .accessibilityLabel(open ? label : "\(label), \(count)")
+    }
+
+    private var label: String { title ?? (open ? "Fewer options" : "More options") }
+
+    /// Gives a little under the press, and comes back.
+    private struct Pressed: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? Motion.give : 1)
+                .animation(Motion.quick, value: configuration.isPressed)
+        }
     }
 }
 
-/// A group of a section: its small heading with an icon, then its card.
+/// A group of a section: its small heading, then its card.
 /// No line under the heading: the rows say what they do.
 struct GroupBlock<Content: View>: View {
     let title: String
@@ -1285,21 +1469,17 @@ struct GroupBlock<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 10.5, weight: .semibold))
-                Text(title.uppercased())
-                    .font(.system(size: 10.5, weight: .semibold))
-                    .tracking(0.5)
-            }
-            .foregroundStyle(Palette.ink.opacity(0.62))
-            .padding(.leading, 2)
+            Text(title)
+                .font(.system(size: 12))
+                .foregroundStyle(Palette.muted)
+                .padding(.leading, 16)
+                .accessibilityAddTraits(.isHeader)
             content()
         }
     }
 }
 
-/// One setting: its icon in a soft tile, what it is, one line on what it
+/// One setting: what it is, one line on what it
 /// does (the rest behind the (i)), and its control. A wide control goes
 /// under the words.
 struct SettingRow<Control: View>: View {
@@ -1315,13 +1495,8 @@ struct SettingRow<Control: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Palette.ink.opacity(0.78))
-                    .frame(width: 26, height: 26)
-                    .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 5) {
                         Text(title)
                             .font(.system(size: 13))
@@ -1331,24 +1506,31 @@ struct SettingRow<Control: View>: View {
                             Button { withAnimation(Motion.quick) { open.toggle() } } label: {
                                 Image(systemName: open ? "info.circle.fill" : "info.circle")
                                     .font(.system(size: 10.5))
-                                    .foregroundStyle(Palette.muted.opacity(0.8))
+                                    .foregroundStyle(open ? Palette.ink : Palette.muted)
+                                    // Its own eleven points were all there
+                                    // was to press.
+                                    .padding(7)
                                     .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(Gives(to: 0.85))
                             .help(more ?? "")
                             .accessibilityLabel("More about \(title)")
+                            // Taken back around the button, not inside
+                            // it: inside, the press still stopped at the
+                            // glyph (PressTests).
+                            .padding(-7)
                         }
                     }
                     if !detail.isEmpty {
                         Text(detail)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     if open, let more {
                         Text(more)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.top, 3)
@@ -1360,13 +1542,11 @@ struct SettingRow<Control: View>: View {
             }
             if wide {
                 control()
-                    .padding(.leading, 38)
             }
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 14)
-        .padding(.vertical, 10)
-        .background(lit ? Palette.hover : .clear)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .turnsItsSwitch(title, lit: lit)
     }
 }
 
@@ -1375,199 +1555,11 @@ struct Always: View {
     var text = "Always on"
     var body: some View {
         Text(text)
-            .font(.system(size: 11))
+            .font(.system(size: 12))
             .foregroundStyle(Palette.muted)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(Palette.wash, in: Capsule())
-    }
-}
-
-/// Choices shown as small pictures, as macOS's own Appearance pane has
-/// them: a ring around the one picked, its name under each.
-struct Pictures<Option: Hashable>: View {
-    let options: [(Option, String, AnyView)]
-    @Binding var selection: Option
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            ForEach(options, id: \.0) { option, title, picture in
-                let on = option == selection
-                Button { withAnimation(Motion.settle) { selection = option } } label: {
-                    VStack(spacing: 6) {
-                        picture
-                            .frame(width: 76, height: 50)
-                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                    .strokeBorder(Palette.hairline, lineWidth: 1)
-                            )
-                            .padding(3)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 9.5, style: .continuous)
-                                    .strokeBorder(on ? Palette.ink : .clear, lineWidth: 2)
-                            )
-                        Text(title)
-                            .font(.system(size: 11.5, weight: on ? .medium : .regular))
-                            .foregroundStyle(on ? Palette.ink : Palette.muted)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(title)
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
-        }
-    }
-}
-
-/// A window in miniature with the tabs where a layout puts them.
-private struct LayoutPicture: View {
-    let layout: TabsLayout
-
-    var body: some View {
-        let tab = Palette.ink.opacity(0.22)
-        let lit = Palette.ink.opacity(0.55)
-        ZStack {
-            Palette.wash
-            switch layout {
-            case .top:
-                VStack(spacing: 4) {
-                    HStack(spacing: 3) {
-                        lights
-                        Capsule().fill(lit).frame(width: 14, height: 4)
-                        Capsule().fill(tab).frame(width: 14, height: 4)
-                        Capsule().fill(tab).frame(width: 10, height: 4)
-                        Spacer(minLength: 0)
-                    }
-                    page
-                }
-                .padding(5)
-            case .left, .right:
-                HStack(spacing: 4) {
-                    if layout == .right { page }
-                    VStack(alignment: .leading, spacing: 3) {
-                        if layout == .left { lights } else { Color.clear.frame(height: 3) }
-                        Capsule().fill(lit).frame(width: 16, height: 3.5)
-                        Capsule().fill(tab).frame(width: 16, height: 3.5)
-                        Capsule().fill(tab).frame(width: 12, height: 3.5)
-                        Spacer(minLength: 0)
-                    }
-                    .frame(width: 18)
-                    if layout == .left { page }
-                }
-                .padding(5)
-            case .icons:
-                // A narrow column of squares, one under the other: the
-                // tabs' icons, no titles.
-                HStack(spacing: 4) {
-                    VStack(spacing: 3) {
-                        VStack(spacing: 1.5) {
-                            ForEach(0..<3) { _ in Circle().fill(Palette.ink.opacity(0.25)).frame(width: 3, height: 3) }
-                        }
-                        .padding(.bottom, 1)
-                        RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(lit).frame(width: 6, height: 6)
-                        RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(tab).frame(width: 6, height: 6)
-                        RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(tab).frame(width: 6, height: 6)
-                        Spacer(minLength: 0)
-                    }
-                    .frame(width: 8)
-                    page
-                }
-                .padding(5)
-            }
-        }
-    }
-
-    private var lights: some View {
-        HStack(spacing: 1.5) {
-            ForEach(0..<3) { _ in Circle().fill(Palette.ink.opacity(0.25)).frame(width: 3, height: 3) }
-        }
-    }
-
-    private var page: some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(Palette.ground)
-            .overlay(alignment: .topLeading) {
-                VStack(alignment: .leading, spacing: 2.5) {
-                    Capsule().fill(Palette.ink.opacity(0.18)).frame(width: 22, height: 3)
-                    Capsule().fill(Palette.ink.opacity(0.1)).frame(width: 30, height: 2.5)
-                    Capsule().fill(Palette.ink.opacity(0.1)).frame(width: 26, height: 2.5)
-                }
-                .padding(5)
-            }
-    }
-}
-
-/// The page as a card, or reaching the window's edges.
-private struct CardPicture: View {
-    let card: Bool
-
-    var body: some View {
-        HStack(spacing: card ? 4 : 0) {
-            VStack(alignment: .leading, spacing: 3) {
-                Capsule().fill(Palette.ink.opacity(0.55)).frame(width: 15, height: 3.5)
-                Capsule().fill(Palette.ink.opacity(0.22)).frame(width: 15, height: 3.5)
-                Capsule().fill(Palette.ink.opacity(0.22)).frame(width: 11, height: 3.5)
-                Spacer(minLength: 0)
-            }
-            .padding(.top, 8)
-            .padding(.leading, card ? 0 : 5)
-            .frame(width: card ? 17 : 22, alignment: .leading)
-            if !card { Rectangle().fill(Palette.hairline).frame(width: 1) }
-            RoundedRectangle(cornerRadius: card ? 4 : 0, style: .continuous)
-                .fill(Palette.ground)
-                .shadow(color: .black.opacity(card ? 0.12 : 0), radius: 1.5, y: 0.5)
-        }
-        .padding(card ? 5 : 0)
-        .background(card ? Palette.wash : Palette.ground)
-    }
-}
-
-/// Light, dark, or both halves for Auto: drawn in the look itself, not in
-/// the one Search is in now.
-private struct LookPicture: View {
-    let look: Look
-
-    var body: some View {
-        switch look {
-        case .light: Window(dark: false)
-        case .dark: Window(dark: true)
-        default:
-            ZStack {
-                Window(dark: false)
-                Window(dark: true).mask(HStack(spacing: 0) { Color.clear; Color.black })
-            }
-        }
-    }
-
-    private struct Window: View {
-        let dark: Bool
-        var body: some View {
-            let ground = Color(white: dark ? 0.11 : 1)
-            let wash = Color(white: dark ? 0.17 : 0.93)
-            let ink = Color(white: dark ? 0.93 : 0.09)
-            HStack(spacing: 4) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Capsule().fill(ink.opacity(0.55)).frame(width: 14, height: 3.5)
-                    Capsule().fill(ink.opacity(0.2)).frame(width: 14, height: 3.5)
-                    Spacer(minLength: 0)
-                }
-                .padding(.top, 8)
-                .frame(width: 16)
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(ground)
-                    .overlay(alignment: .topLeading) {
-                        VStack(alignment: .leading, spacing: 2.5) {
-                            Capsule().fill(ink.opacity(0.4)).frame(width: 20, height: 3)
-                            Capsule().fill(ink.opacity(0.18)).frame(width: 28, height: 2.5)
-                        }
-                        .padding(5)
-                    }
-            }
-            .padding(5)
-            .background(wash)
-        }
     }
 }
 
@@ -1579,73 +1571,185 @@ struct Segmented<Option: Hashable>: View {
     /// True when the control has the whole width to itself, so the choices
     /// share it evenly instead of each taking only what its word needs.
     var wide = false
+    /// Symbols where the words would be (a gradient's eight directions):
+    /// each option's string is then a symbol's name, and this says what it
+    /// is called, for its tooltip and VoiceOver.
+    var symbols: ((Option) -> String)? = nil
 
     @Namespace private var slide
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(options, id: \.0) { option, title in
-                Text(title)
-                    .font(.system(size: 11.5, weight: option == selection ? .medium : .regular))
-                    .foregroundStyle(option == selection ? Palette.ink : Palette.muted)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: !wide, vertical: false)
-                    .frame(maxWidth: wide ? .infinity : nil)
-                    .padding(.horizontal, wide ? 4 : 10)
-                    .padding(.vertical, 5)
-                    .background {
-                        if option == selection {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .fill(Palette.ground)
-                                .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
-                                .matchedGeometryEffect(id: "chosen", in: slide)
-                        }
-                    }
-                    .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                    .onTapGesture {
-                        withAnimation(Motion.settle) { selection = option }
-                    }
+                Choice(title: title, named: symbols?(option), chosen: option == selection, wide: wide, slide: slide) {
+                    withAnimation(Motion.settle) { selection = option }
+                }
             }
         }
         .padding(2)
-        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .background(Palette.fill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .animation(Motion.settle, value: selection)
+    }
+
+    /// One of the choices: a button, so the keyboard can press it; its
+    /// words go to ink under the pointer where it isn't the chosen one,
+    /// and it gives under the press.
+    private struct Choice: View {
+        let title: String
+        /// What a symbol is called; nil where the title is words.
+        let named: String?
+        let chosen: Bool
+        let wide: Bool
+        let slide: Namespace.ID
+        let pick: () -> Void
+        @State private var hovering = false
+
+        var body: some View {
+            Button(action: pick) {
+                words
+                    .foregroundStyle(chosen || hovering ? Palette.ink : Palette.muted)
+                    .frame(maxWidth: wide ? .infinity : nil)
+                    .padding(.horizontal, wide ? 4 : 10)
+                    .frame(height: wide ? 26 : 22)
+                    .background {
+                        if chosen {
+                            Color.clear
+                                .elevated(.lift, in: RoundedRectangle(cornerRadius: 6, style: .continuous), fill: Palette.knob)
+                                .matchedGeometryEffect(id: "chosen", in: slide)
+                        }
+                    }
+                    .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            }
+            .buttonStyle(Gives(to: 0.96))
+            .hovers($hovering)
+            .help(named ?? "")
+            .accessibilityLabel(named ?? title)
+            .accessibilityAddTraits(chosen ? .isSelected : [])
+        }
+
+        @ViewBuilder private var words: some View {
+            if named != nil {
+                Image(systemName: title)
+                    .font(.system(size: 10, weight: .semibold))
+            } else {
+                Text(title)
+                    .font(.system(size: 13, weight: chosen ? .medium : .regular))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: !wide, vertical: false)
+            }
+        }
     }
 }
 
-/// On or off, in ink rather than in blue.
 /// A few things each shown or not, side by side: a tick for each
-/// (Back, Forward, Reload…).
+/// (Back, Forward, Reload…), in Lun's own drawing (Tick) where the Mac's
+/// blue checkboxes were.
 struct Ticks: View {
     let items: [(String, Binding<Bool>)]
 
     var body: some View {
         HStack(spacing: 14) {
             ForEach(items.indices, id: \.self) { index in
-                Toggle(items[index].0, isOn: items[index].1)
-                    .toggleStyle(.checkbox)
-                    .font(.system(size: 12.5))
+                Ticked(items[index].0, on: items[index].1)
             }
         }
     }
 }
 
+/// On or off, in ink rather than in blue.
+///
+/// A button, so the keyboard and VoiceOver can press it and it says whether
+/// it is on. It answers the pointer (the track a shade darker), gives under
+/// the press (the knob stretches toward where it is going, as the Mac's own
+/// does), and dims where it can't be changed. Its hit area is larger than
+/// it looks: 32 by 18 was small to land on.
+///
+/// In a row that answers for it (turnsItsSwitch) a click anywhere on the row
+/// turns it, and it is called what the row is.
 struct Switch: View {
     @Binding var on: Bool
+    @State private var hovering = false
+    @State private var id = UUID()
+    @Environment(\.rowSwitch) private var row
+    @Environment(\.rowTitle) private var title
+    @Environment(\.isEnabled) private var enabled
 
     var body: some View {
-        Capsule()
-            .fill(on ? Palette.ink : Palette.faint)
-            .frame(width: 30, height: 18)
-            .overlay(alignment: on ? .trailing : .leading) {
-                Circle()
-                    .fill(Palette.ground)
-                    .shadow(color: .black.opacity(0.18), radius: 1.5, y: 1)
-                    .padding(2)
-            }
-            .contentShape(Capsule())
-            .onTapGesture { withAnimation(Motion.settle) { on.toggle() } }
-            .animation(Motion.settle, value: on)
+        // Left with the row each time this is drawn, so it is always this
+        // binding's turn the row has, and none while it can't be turned.
+        // Not state: nothing is drawn from it but the row's wash, and that
+        // reads it when the pointer comes.
+        row?.turn = enabled ? turn : nil
+        row?.owner = id
+        return Button(action: turn) {
+            Color.clear.frame(width: 32, height: 18)
+        }
+        .buttonStyle(Track(on: on, hovering: hovering))
+        .hovers($hovering)
+        .accessibilityAddTraits(.isToggle)
+        .accessibilityValue(on ? "On" : "Off")
+        .modifier(Named(title: title))
+        // The six points Drawn adds to land on, taken back around the
+        // button so nothing moves for them. Taken back inside it, the
+        // press still stopped at the capsule (PressTests).
+        .padding(-Self.grown)
+        .onDisappear {
+            if row?.owner == id { row?.turn = nil }
+        }
+    }
+
+    private func turn() {
+        withAnimation(Motion.settle) { on.toggle() }
+    }
+
+    /// How much more there is to land on, every side, than is drawn.
+    static var grown: CGFloat { 6 }
+
+    /// The row's name on the switch, where it is in a row that has one.
+    /// One named by its caller keeps that name: theirs is put on after.
+    private struct Named: ViewModifier {
+        let title: String?
+
+        func body(content: Content) -> some View {
+            if let title { content.accessibilityLabel(title) } else { content }
+        }
+    }
+
+    private struct Track: ButtonStyle {
+        let on: Bool
+        let hovering: Bool
+
+        func makeBody(configuration: Configuration) -> some View {
+            Drawn(on: on, hovering: hovering, pressed: configuration.isPressed)
+        }
+    }
+
+    private struct Drawn: View {
+        let on: Bool
+        let hovering: Bool
+        let pressed: Bool
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            Capsule()
+                .fill(on ? Palette.ink.opacity(hovering ? 0.86 : 1) : (hovering ? Palette.muted.opacity(0.55) : Palette.faint))
+                .frame(width: 32, height: 18)
+                .overlay(alignment: on ? .trailing : .leading) {
+                    Capsule()
+                        .fill(Palette.ground)
+                        // Its own, not .lift: an elevation's hairline is a
+                        // pale rim round a knob this small in a dark window.
+                        .shadow(color: .black.opacity(0.18), radius: 1.5, y: 1)
+                        .frame(width: pressed && !Motion.reduced ? 18 : 14, height: 14)
+                        .padding(2)
+                }
+                .opacity(enabled ? 1 : 0.4)
+                // Six points more on every side to land on.
+                .padding(Switch.grown)
+                .contentShape(Rectangle())
+                .animation(Motion.settle, value: on)
+                .animation(Motion.quick, value: pressed)
+        }
     }
 }
 
@@ -1664,18 +1768,9 @@ struct Steps: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Step(icon: "minus", to: below) { value = $0 }
-            Button { value = home } label: {
-                Text(label(value))
-                    .font(.system(size: 11.5))
-                    .monospacedDigit()
-                    .foregroundStyle(Palette.ink)
-                    .frame(minWidth: 36)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Back to \(label(home))")
-            Step(icon: "plus", to: above) { value = $0 }
+            step("minus", "Less", to: below)
+            Home(title: label(value), help: "Back to \(label(home))") { value = home }
+            step("plus", "More", to: above)
         }
         .padding(.horizontal, 2)
         .frame(height: 24)
@@ -1683,25 +1778,37 @@ struct Steps: View {
         .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
     }
 
-    private struct Step: View {
-        let icon: String
-        let to: Double?
-        let act: (Double) -> Void
+    /// One stop down or up: dimmed at the end of the stops, and as tall to
+    /// press as the capsule it is in.
+    private func step(_ icon: String, _ label: String, to: Double?) -> some View {
+        IconButton(icon, label: label, glyph: 9, weight: .semibold, size: 20, round: true, tint: Palette.ink) {
+            if let to { value = to }
+        }
+        .disabled(to == nil)
+    }
+
+    /// The value, which is a button too: a wash under the pointer as the
+    /// steps beside it have, where nothing said it could be pressed.
+    private struct Home: View {
+        let title: String
+        let help: String
+        let act: () -> Void
         @State private var hovering = false
 
         var body: some View {
-            Button { if let to { act(to) } } label: {
-                Image(systemName: icon)
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(to == nil ? Palette.faint : Palette.ink)
-                    .frame(width: 20, height: 20)
-                    .background(hovering && to != nil ? Palette.hover : .clear, in: Circle())
-                    .contentShape(Circle())
+            Button(action: act) {
+                Text(title)
+                    .font(.system(size: 12))
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.ink)
+                    .frame(minWidth: 36)
+                    .frame(height: 20)
+                    .background(hovering ? Palette.fillHover : .clear, in: Capsule())
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .disabled(to == nil)
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
+            .buttonStyle(Gives(to: 0.94))
+            .hovers($hovering)
+            .help(help)
         }
     }
 }
@@ -1712,74 +1819,102 @@ struct Pill: View {
     let title: String
     var filled = false
     var tint: Color = Palette.ink
+    /// On a card of its own, rather than at the end of a row.
+    var large = false
     let action: () -> Void
 
     @State private var hovering = false
+    @Environment(\.isEnabled) private var enabled
 
-    init(_ title: String, filled: Bool = false, tint: Color = Palette.ink, action: @escaping () -> Void) {
+    init(_ title: String, filled: Bool = false, tint: Color = Palette.ink, large: Bool = false, action: @escaping () -> Void) {
         self.title = title
         self.filled = filled
         self.tint = tint
+        self.large = large
         self.action = action
     }
 
     var body: some View {
+        // One that can't be pressed doesn't light under the pointer
+        // either: dimmed and lit, it still looked ready.
+        let lit = hovering && enabled
         Button(action: action) {
             Text(title)
-                .font(.system(size: 11.5))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(filled ? Palette.ground : tint)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(filled ? Palette.ink : (hovering ? Palette.hover : Palette.ground), in: Capsule())
-                .overlay(Capsule().strokeBorder(filled ? .clear : Palette.hairline, lineWidth: 1))
+                .lineLimit(1)
+                .padding(.horizontal, large ? (filled ? 18 : 14) : 12)
+                .frame(height: large ? 28 : 24)
+                .background(filled ? Palette.ink.opacity(lit ? 0.86 : 1) : (lit ? Palette.fillHover : Palette.fill), in: Capsule())
                 .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .animation(Motion.quick, value: hovering)
+        // Gives under the press, and dims where it can't be pressed: one
+        // that was disabled looked the same as one that wasn't.
+        .buttonStyle(Gives(to: 0.96))
+        .hovers($hovering)
     }
 }
 
-/// Settings › Privacy: saved choices, reset one permission at a time.
-private struct PermissionSites: View {
+/// Settings › Privacy › Show Sites…: what each site was answered, reset one
+/// permission at a time, or all of them at once with Forget All…. Read from
+/// the answers themselves (CaptureChoices.saved); nothing else is kept.
+struct PermissionSites: View {
     let browser: Browser
     @ObservedObject var prefs: Preferences
+    /// Forget All…: every site's answers, asked first (SettingsPanel.Wiping).
+    let forgetAll: () -> Void
     @ObservedObject private var notifications = SiteNotifications.shared
     @State private var query = ""
     @FocusState private var searching: Bool
     @State private var kind: CaptureChoices.Kind?
 
-    var body: some View {
-        let saved = CaptureChoices.saved()
+    /// The sites to list, by name, each with its answers: those of one
+    /// permission where one is picked, and those whose address holds what
+    /// was typed.
+    static func listed(_ saved: [CaptureChoices.Saved], kind: CaptureChoices.Kind?, matching query: String)
+        -> [(origin: String, entries: [CaptureChoices.Saved])] {
         let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let sites = Dictionary(grouping: saved.filter {
             (kind == nil || $0.kind == kind) &&
             (search.isEmpty || $0.origin.localizedCaseInsensitiveContains(search))
         }, by: \.origin)
-        if !saved.isEmpty {
+        return sites.keys.sorted().map { ($0, sites[$0, default: []]) }
+    }
+
+    var body: some View {
+        let saved = CaptureChoices.saved()
+        if saved.isEmpty {
+            // Asked for and empty says so: nothing let down read as a pill
+            // that did nothing. The sites allowed pop-ups follow, if any.
+            if prefs.popupSites.isEmpty {
+                Rule()
+                Nothing("No site has been allowed or refused anything yet.")
+            }
+        } else {
+            let sites = PermissionSites.listed(saved, kind: kind, matching: query)
             Rule()
             VStack(alignment: .leading, spacing: 10) {
                 Text("Reset asks again next time. Devices already in use keep running.")
-                    .font(.system(size: 11.5)).foregroundStyle(Palette.muted)
+                    .font(.system(size: 12)).foregroundStyle(Palette.muted)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack {
                     Hunt(text: $query, prompt: "Find a site", focus: $searching)
                         .accessibilityLabel("Find a site")
-                    Picker("Filter by permission", selection: $kind) {
+                    PopUp("Filter by permission", shows: kind?.title ?? "All permissions", selection: $kind) {
                         Text("All permissions").tag(Optional<CaptureChoices.Kind>.none)
                         ForEach(CaptureChoices.listedKinds) { permission in
                             Text(permission.title).tag(Optional(permission))
                         }
                     }
-                    .labelsHidden().fixedSize()
-                    .accessibilityLabel("Filter by permission")
+                    Pill("Forget All…", action: forgetAll)
+                        .help("Every site asks again")
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
             if sites.isEmpty { Nothing("No matching sites") }
-            ForEach(sites.keys.sorted(), id: \.self) { origin in
+            ForEach(sites, id: \.origin) { site in
                 Rule()
-                PermissionSiteRow(origin: origin, entries: sites[origin, default: []],
+                PermissionSiteRow(origin: site.origin, entries: site.entries,
                                   notificationsEnabled: prefs.siteNotifications) { entry in
                     browser.setSitePermission(nil, kind: entry.kind, origin: entry.origin)
                 }
@@ -1798,22 +1933,27 @@ private struct PermissionSiteRow: View {
 
     var body: some View {
         let count = entries.count == 1 ? "1 permission" : "\(entries.count) permissions"
-        Button { expanded.toggle() } label: {
+        // The row opens what the site was answered: it turns its arrow,
+        // gives under the press and lets the answers down, where it swapped
+        // one arrow for another and the rows were there in a frame.
+        Button { withAnimation(Motion.settle) { expanded.toggle() } } label: {
             HStack(spacing: 8) {
                 Text(origin).font(.system(size: 13)).foregroundStyle(Palette.ink)
                 Spacer(minLength: 8)
-                Text(count).font(.system(size: 11.5)).foregroundStyle(Palette.muted)
-                Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                Text(count).font(.system(size: 12)).foregroundStyle(Palette.muted)
+                Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .semibold)).foregroundStyle(Palette.muted)
+                    .rotationEffect(.degrees(expanded ? 90 : 0))
             }
-            .padding(.leading, 14 + SettingsPanel.listInset)
+            .padding(.leading, 16)
             .padding(.trailing, 14).frame(minHeight: 44)
             .contentShape(Rectangle())
-            .background(hovering ? Palette.hover : .clear)
+            // Darker under the pointer on the card's grey; Palette.hover
+            // was lighter than the card in the light and read as a hole.
+            .background(hovering ? Palette.fillHover : .clear)
         }
-        .buttonStyle(.plain)
-        .padding(.leading, -SettingsPanel.listInset)
-        .onHover { hovering = $0 }
+        .buttonStyle(Gives(to: 0.99))
+        .hovers($hovering)
         .accessibilityLabel("\(origin), \(count)")
         .accessibilityValue(expanded ? "Expanded" : "Collapsed")
 
@@ -1824,6 +1964,7 @@ private struct PermissionSiteRow: View {
                     Pill(action) { reset(entry) }
                         .accessibilityLabel("\(action): \(entry.kind.title) for \(entry.origin)")
                 }
+                .transition(.row(from: .top))
             }
         }
     }

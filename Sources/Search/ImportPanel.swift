@@ -8,7 +8,7 @@ import SwiftUI
 ///
 /// What each browser holds is counted as the sheet opens, off the main
 /// thread and from its files alone — no key is asked for and nothing is
-/// decrypted, so nothing prompts until Bring them in is pressed. Then macOS
+/// decrypted, so nothing prompts until Bring Over is pressed. Then macOS
 /// asks once for that browser's key, if it keeps one.
 struct ImportPanel: View {
     @ObservedObject var browser: Browser
@@ -64,20 +64,40 @@ struct ImportPanel: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Nothing in the other browser changes. Passwords go into your keychain.")
-                .font(.system(size: 12.5))
-                .foregroundStyle(Palette.muted)
+        // Which browser, and beside it what to bring from it, where there is
+        // room for the two.
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 14) { from }.frame(width: 280)
+                if let source = pick {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Caption("What to bring from \(source.name)")
+                        options(for: source)
+                    }
+                    .frame(minWidth: 420, maxWidth: .infinity, alignment: .topLeading)
+                } else {
+                    Spacer(minLength: 420)
+                }
+            }
+            VStack(alignment: .leading, spacing: 14) {
+                from
+                if let source = pick { options(for: source) }
+            }
+        }
+    }
 
+    @ViewBuilder
+    private var from: some View {
+        Group {
             if looking {
                 HStack(spacing: 8) {
                     Ring(size: 10)
                     Text("Looking on this Mac…").font(.system(size: 12)).foregroundStyle(Palette.muted)
                 }
             } else if sources.isEmpty {
-                Card { Nothing(unreadable.isEmpty ? "No other browser found on this Mac." : "Choose a browser's data folder below to allow Search to read it.") }
+                Card { Nothing(unreadable.isEmpty ? "No other browser found on this Mac." : "Choose a browser's data folder below to allow Lun to read it.") }
             } else {
-                Caption("On this Mac")
+                Caption("From")
                 Card {
                     ForEach(Array(sources.enumerated()), id: \.element.id) { index, source in
                         if index > 0 { Rule() }
@@ -93,15 +113,12 @@ struct ImportPanel: View {
             }
 
             notes
-
-            if let source = pick {
-                options(for: source)
-            }
         }
     }
 
     var body: some View {
-        Plate("Bring things over", width: 580, close: { browser.bringingIn = nil }) {
+        Plate("Bring Things Over", line: "Bookmarks, history, passwords and extensions from another browser. Nothing there changes. Passwords go into your Mac’s keychain.",
+              width: 580, close: { browser.bringingIn = nil }) {
             // As tall as it needs to be, and scrolling past what the window
             // can hold: many browsers, or a small window.
             ViewThatFits(in: .vertical) {
@@ -146,7 +163,7 @@ struct ImportPanel: View {
                         }
                         Pill("Show passwords") { browser.lead(to: InternalPage(.passwords)) }
                     } else if let source = pick {
-                        Pill(bringing ? "Bringing…" : "Bring them in", filled: true) { bring(from: source) }
+                        Pill(bringing ? "Bringing…" : "Bring Over", filled: true) { bring(from: source) }
                             .disabled(bringing || !(wantsPasswords || wantsBookmarks || wantsHistory || (wantsExtensions && !fresh(source).isEmpty)
                                                      || (wantsArc && arcCounts[key(source, profile(of: source))] != nil)
                                                      || (wantsTabs && bringsTabs(source))))
@@ -254,14 +271,14 @@ struct ImportPanel: View {
                 }
                 if let folderError {
                     Text(folderError)
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                 }
             }
-            .font(.system(size: 11.5))
-            .foregroundStyle(Palette.faint)
+            .font(.system(size: 12))
+            .foregroundStyle(Palette.muted)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.leading, 2)
+            .padding(.leading, 16)
         }
     }
 
@@ -317,7 +334,9 @@ struct ImportPanel: View {
             }
             if let choices = profiles[source.id], choices.count > 1 {
                 Line("Profile") {
-                    Picker("", selection: Binding(
+                    let picked = chosen[source.id] ?? usual[source.id] ?? ""
+                    PopUp("Profile", shows: choices.first { $0.id == picked }.map { $0.id == usual[source.id] ? "Most recent: \($0.name)" : $0.name } ?? "All profiles",
+                            selection: Binding(
                         get: { chosen[source.id] ?? usual[source.id] ?? "" },
                         set: { value in
                             chosen[source.id] = value
@@ -331,53 +350,18 @@ struct ImportPanel: View {
                         Divider()
                         Text("All profiles").tag("")
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .fixedSize()
                 }
                 Rule()
             }
-            // A kind the browser has none of is said so, and can't be picked.
-            Line("Passwords", !source.importsPasswords ? (!source.passwordsInPasswordsApp ? "Not supported for \(source.name)"
-                                                          : "\(source.name) keeps them in the Passwords app: export them from there and bring in the CSV file") : preview?.passwords == 0 ? "None in \(source.name)" : source.asksForKey
-                 ? "macOS asks once for \(source.name)'s keychain key"
-                 : "Read from \(source.name)'s own files, unless it has a primary password") {
-                option($wantsPasswords, none: !source.importsPasswords || preview?.passwords == 0)
-            }
-            Rule()
-            Line("Bookmarks", preview?.bookmarks == 0 ? "None in \(source.name)" : "In a “\(source.name)” folder, or at the top if you have none yet") {
-                option($wantsBookmarks, none: preview?.bookmarks == 0)
-            }
-            // Brought before: only what is new comes, unless what came from
-            // it last time is to go first. An import from before this was
-            // kept has nothing recorded, and nothing is guessed at.
-            if wantsBookmarks, preview?.bookmarks != 0, let record = ImportRecords.of(source.name) {
-                Rule()
-                let recorded = !record.bookmarkIDs.isEmpty
-                Line("Replace what came from \(source.name) before",
-                     recorded ? "Its bookmarks from \(record.date.formatted(.dateTime.day().month())) go, and these come fresh; passwords only ever add"
-                              : "Nothing recorded from \(source.name) yet — only what is new comes") {
-                    option($replaceBookmarks, none: !recorded)
-                }
-            }
-            Rule()
-            Line("History", preview?.places == 0 ? "None in \(source.name)" : "The last \((preview.map { $0.places } ?? 3000).formatted()) places") {
-                option($wantsHistory, none: preview?.places == 0)
-            }
-            // Its open tabs and tab groups, asleep at the end of this space.
-            if source.readsOpenTabs {
-                Rule()
-                Line("Open tabs & tab groups", tabsDetail(preview, source)) {
-                    option($wantsTabs, none: !bringsTabs(source))
-                }
-            }
+            // A checklist, in the order things matter to someone moving in:
+            // each row its tick, what happens to it, and how many there are.
+            // A kind the browser has none of is said so, and can't be ticked.
             // Arc's own, or Zen's: its spaces, what is pinned in them, its
             // favourites or Essentials.
             if let arc = arcCounts[key(source, profile(of: source))], arc.spaces + arc.pinned > 0 {
-                Rule()
-                Line("Spaces and pinned tabs", arcDetail(arc, source)) {
-                    Switch(on: $wantsArc)
-                }
+                Checked("Spaces and pinned tabs", arcDetail(arc, source),
+                        count: "\(arc.spaces == 1 ? "1 space" : "\(arc.spaces) spaces"), \(arc.pinned == 1 ? "1 pin" : "\(arc.pinned) pins")",
+                        on: $wantsArc)
                 // Pinned pages only keep their shape as pinned rows, and
                 // those are off until asked for. This is the moment someone
                 // would ask, so the sheet offers the switch here, once, rather
@@ -386,7 +370,7 @@ struct ImportPanel: View {
                 if wantsArc, arc.pinned > 0, !browser.prefs.listsPins {
                     Rule()
                     Line("Keep them as pinned rows",
-                         "As in \(source.name): each pinned page a row with its name, under your pins. Turned on, it stays in Settings › Spaces & Pins › Pinned rows"
+                         "As in \(source.name): each pinned page a row with its name, under your pins. Turned on, it stays in Settings › Tabs & Spaces › Pinned rows"
                          + (browser.prefs.sidebar ? "" : "; rows show with the tabs down the side")) {
                         Pill("Turn on pinned rows") {
                             withAnimation(Motion.glide) { browser.prefs.listsPins = true }
@@ -398,18 +382,48 @@ struct ImportPanel: View {
                 if wantsArc, arc.pinned > 0, browser.prefs.listsPins, !browser.prefs.pinFolders {
                     Rule()
                     Line("Keep its folders as folders",
-                         "As in \(source.name): each folder of pinned pages a folder of rows, nested as it was, rather than a tab group. Turned on, it stays in Settings › Spaces & Pins › Folders in pinned rows") {
+                         "As in \(source.name): each folder of pinned pages a folder of rows, nested as it was, rather than a tab group. Turned on, it stays in Settings › Tabs & Spaces › Folders in pinned rows") {
                         Pill("Turn on folders") {
                             withAnimation(Motion.glide) { browser.prefs.pinFolders = true }
                         }
                     }
                 }
+                Rule()
             }
+            // Its open tabs and tab groups, asleep at the end of this space.
+            if source.readsOpenTabs {
+                Checked("Open tabs & tab groups", tabsDetail(preview, source),
+                        count: bringsTabs(source) ? preview?.session.tabs.formatted() : nil,
+                        on: $wantsTabs, none: !bringsTabs(source))
+                Rule()
+            }
+            Checked("Bookmarks", preview?.bookmarks == 0 ? "None in \(source.name)" : "In a “\(source.name)” folder, or at the top if you have none yet",
+                    count: counted(preview?.bookmarks), on: $wantsBookmarks, none: preview?.bookmarks == 0)
+            // Brought before: only what is new comes, unless what came from
+            // it last time is to go first. An import from before this was
+            // kept has nothing recorded, and nothing is guessed at.
+            if wantsBookmarks, preview?.bookmarks != 0, let record = ImportRecords.of(source.name) {
+                Rule()
+                let recorded = !record.bookmarkIDs.isEmpty
+                Checked("Replace what came from \(source.name) before",
+                        recorded ? "Its bookmarks from \(record.date.formatted(.dateTime.day().month())) go, and these come fresh; passwords only ever add"
+                                 : "Nothing recorded from \(source.name) yet — only what is new comes",
+                        on: $replaceBookmarks, none: !recorded)
+            }
+            Rule()
+            Checked("History", preview?.places == 0 ? "None in \(source.name)" : "The last \((preview.map { $0.places } ?? 3000).formatted()) places",
+                    count: counted(preview?.places), on: $wantsHistory, none: preview?.places == 0)
+            Rule()
+            Checked("Passwords", !source.importsPasswords ? (!source.passwordsInPasswordsApp ? "Not supported for \(source.name)"
+                                                          : "\(source.name) keeps them in the Passwords app: export them from there and bring in the CSV file") : preview?.passwords == 0 ? "None in \(source.name)" : source.asksForKey
+                 ? "macOS asks once for \(source.name)'s keychain key"
+                 : "Read from \(source.name)'s own files, unless it has a primary password",
+                    count: source.importsPasswords ? counted(preview?.passwords) : nil,
+                    on: $wantsPasswords, none: !source.importsPasswords || preview?.passwords == 0)
             if !extensions.isEmpty {
                 Rule()
-                Line("Extensions", "\(extensions.count) found — installed fresh from the Chrome Web Store, you say yes to each one") {
-                    Switch(on: $wantsExtensions)
-                }
+                Checked("Extensions", "Installed fresh from the Chrome Web Store, you say yes to each one",
+                        count: extensions.count.formatted(), on: $wantsExtensions)
             }
         }
     }
@@ -453,18 +467,16 @@ struct ImportPanel: View {
         let parts = [(record.bookmarks, "bookmark"), (record.places, "place"), (record.passwords, "password"),
                      (record.spaces ?? 0, "space"), (record.pinned ?? 0, "pinned tab")]
             .filter { $0.0 > 0 }.map { count($0.0, $0.1) }
-        let what = parts.isEmpty ? "Nothing new" : ListFormatter.localizedString(byJoining: parts)
+        let what = parts.isEmpty ? "Nothing new" : ImportSource.listed(parts)
         return "\(what), \(record.date.formatted(.dateTime.day().month()))"
     }
 
-    /// A kind's switch; off and out of reach when there is none of it.
-    @ViewBuilder
-    private func option(_ on: Binding<Bool>, none: Bool) -> some View {
-        if none {
-            Switch(on: .constant(false)).disabled(true).opacity(0.4)
-        } else {
-            Switch(on: on)
-        }
+
+    /// How many of a kind there are, for the end of its row: nothing while
+    /// it is still being counted, or when there are none.
+    private func counted(_ number: Int?) -> String? {
+        guard let number, number > 0 else { return nil }
+        return number.formatted()
     }
 
     /// The store extensions it has that aren't here already.
@@ -633,27 +645,23 @@ struct ImportPanel: View {
         let can: String
         let chosen: Bool
         let pick: () -> Void
-        @State private var hovering = false
 
         var body: some View {
-            HStack(spacing: 12) {
-                Circle()
-                    .strokeBorder(chosen ? Palette.ink : Palette.faint, lineWidth: chosen ? 4.5 : 1.2)
-                    .frame(width: 14, height: 14)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name).font(.system(size: 13)).foregroundStyle(Palette.ink)
-                    Text(detail).font(.system(size: 11.5)).foregroundStyle(Palette.muted).monospacedDigit()
-                    Text(can).font(.system(size: 11)).foregroundStyle(Palette.faint)
+            RowButton(selected: chosen, action: pick) {
+                HStack(spacing: 12) {
+                    Circle()
+                        .strokeBorder(chosen ? Palette.ink : Palette.faint, lineWidth: chosen ? 4.5 : 1.2)
+                        .frame(width: 14, height: 14)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(name).font(.system(size: 13)).foregroundStyle(Palette.ink)
+                        Text(detail).font(.system(size: 12)).foregroundStyle(Palette.muted).monospacedDigit()
+                        Text(can).font(.system(size: 12)).foregroundStyle(Palette.muted)
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(hovering ? Palette.hover : .clear)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: pick)
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
         }
     }
 }

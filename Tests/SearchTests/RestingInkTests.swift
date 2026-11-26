@@ -53,9 +53,9 @@ final class RestingInkTests: XCTestCase {
     }
 
     /// Where the tab titles' grey lands over a ground: Greys.white's muted,
-    /// black at 0.45 in a light window, white at 0.5281 in a dark one.
+    /// black at 0.647 in a light window, white at 0.5955 in a dark one.
     private func titles(over ground: CGFloat, dark: Bool) -> CGFloat {
-        dark ? 0.5281 + (1 - 0.5281) * ground : (1 - 0.45) * ground
+        dark ? 0.5955 + (1 - 0.5955) * ground : (1 - 0.647) * ground
     }
 
     func testDoorsAndLettersStandOffAnyGroundAsTheTitlesDo() throws {
@@ -90,7 +90,7 @@ final class RestingInkTests: XCTestCase {
         for dark in [true, false] {
             let rep = try picture(Door(icon: "bookmark") {}, on: Palette.ground, dark: dark)
             let ground = grey(rep, 0, 0)
-            let muted: CGFloat = dark ? 0.58 : 0.55
+            let muted: CGFloat = dark ? 0.64 : 0.353
             XCTAssertEqual(ink(rep, ground: ground), muted, accuracy: 2 / 255, dark ? "dark" : "light")
         }
     }

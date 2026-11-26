@@ -51,26 +51,21 @@ struct AboutView: View {
         VStack(spacing: 0) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
-                .frame(width: 72, height: 72)
-                .padding(.bottom, 10)
-            Text(verbatim: "Search")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Palette.ink)
-            Text(verbatim: AboutView.versionLine)
-                .font(.system(size: 11))
+                .frame(width: 96, height: 96)
+                .padding(.bottom, 8)
+                .accessibilityHidden(true)
+            Text(verbatim: "Lun, version \(Updater.version)")
+                .font(.system(size: 12))
+                .monospacedDigit()
                 .foregroundStyle(Palette.muted)
                 .textSelection(.enabled)
-                .padding(.top, 3)
+                .help(AboutView.versionLine)
             if WhatsNew.current != nil {
                 Pill("What's New", action: whatsNew)
                     .padding(.top, 12)
             }
             // For now: the iPhone beta's waitlist (IPhoneAsk.swift).
             IPhoneAskLine(spot: .about, centred: true)
-                .padding(.top, 16)
-            Text(verbatim: AboutView.copyright)
-                .font(.system(size: 10.5))
-                .foregroundStyle(Palette.faint)
                 .padding(.top, 16)
         }
         .padding(.top, 34)
@@ -84,9 +79,5 @@ struct AboutView: View {
     static var versionLine: String {
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
         return build.isEmpty ? "Version \(Updater.version)" : "Version \(Updater.version) (\(build))"
-    }
-
-    static var copyright: String {
-        Bundle.main.infoDictionary?["NSHumanReadableCopyright"] as? String ?? "© Office Commun · Search"
     }
 }

@@ -46,15 +46,15 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILT = ROOT / "build" / "Search.app"
+BUILT = ROOT / "build" / "Lun.app"
 HOME = os.path.expanduser("~")
 ID = "com.lunbrowser.lun.autocorrect"
 W = f"ac-{hashlib.sha1(str(ROOT).encode()).hexdigest()[:8]}"
 SUPPORT = f"{HOME}/Library/Application Support/Lun ({W})"
 SUITE = f"com.lunbrowser.lun.test.{W}"
 SOCK = f"{SUPPORT}/bench.sock"
-COPY = Path(tempfile.mkdtemp(prefix="ac-probe-")) / "Search.app"
-EXE = str(COPY / "Contents" / "MacOS" / "Search")
+COPY = Path(tempfile.mkdtemp(prefix="ac-probe-")) / "Lun.app"
+EXE = str(COPY / "Contents" / "MacOS" / "Lun")
 
 PAGE = b"""<!doctype html><title>typing</title>
 <input id=i autocomplete=off><textarea id=t></textarea><div id=e contenteditable></div>"""

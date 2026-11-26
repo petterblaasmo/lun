@@ -117,7 +117,8 @@ enum DownloadsFloat {
                 panel.ignoresMouseEvents = true
                 leaving = panel
                 withAnimation(out) { presence.shown = false }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+                // As long as the fade it waits for, whatever that is set to.
+                DispatchQueue.main.asyncAfter(deadline: .now() + Motion.duration(.quick)) {
                     guard leaving === panel else { return }
                     take(panel)
                     leaving = nil
@@ -199,8 +200,9 @@ enum DownloadsFloat {
             panel.setFrame(frame, display: true)
             return
         }
+        // Its own group and time, tuned for a window's frame (idea 897).
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = Motion.light ? 0.16 : 0.22
+            context.duration = Motion.resize
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             panel.animator().setFrame(frame, display: true)
         }
@@ -285,6 +287,8 @@ enum DownloadsFloat {
 
         var body: some View {
             card()
+                // Its own, not an elevation: the window is 24 points larger
+                // than the card (margin), less than .float's shadow needs.
                 .shadow(color: .black.opacity(0.12), radius: 9, y: 3)
                 .scaleEffect(presence.shown ? 1 : 0.9, anchor: DownloadsFloat.corner(edge))
                 .opacity(presence.shown ? 1 : 0)

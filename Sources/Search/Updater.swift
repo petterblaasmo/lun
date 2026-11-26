@@ -23,24 +23,35 @@ import Security
 // `.old` bundle it set aside.
 //
 // build.sh writes the file (build/appcast.json) at the same time as the DMG
-// and the ZIP; publish.sh puts all three where `feed` points.
+// and the ZIP; release.sh puts them in a release on GitHub, where `feed` points.
 
 @MainActor
 final class Updater: ObservableObject {
     static let shared = Updater()
 
-    /// Where the file lives. None yet: Lun has no site to serve updates from,
-    /// and must never read Search's. Nothing is fetched and no update row or
-    /// menu item is shown until there is one.
+    /// Where the file lives: with the newest release on GitHub, whose
+    /// "latest" address always names it (release.sh puts it there, signed).
+    /// The ZIP and the disk image it points at are that release's own files,
+    /// on the same host, as `link` asks.
+    /// Apple silicon only: there is one build for now, and an Intel Mac
+    /// must not be handed it, so a build for Intel has no feed.
     /// SEARCH_FEED points a test run at a feed of its own, and is the only
     /// way plain http is accepted. Only a test run: the browser people use
-    /// ignores it.
+    /// ignores it. A test run with none set has no feed: it asks nobody.
     nonisolated static let feed: URL? = {
         if overridden, let set = ProcessInfo.processInfo.environment["SEARCH_FEED"], let url = URL(string: set) {
             return url
         }
+        guard !Store.testing else { return nil }
+        #if arch(arm64)
+        return URL(string: "https://github.com/\(repository)/releases/latest/download/appcast.json")
+        #else
         return nil
+        #endif
     }()
+
+    /// The repository whose releases are Lun's.
+    nonisolated static let repository = "petterblaasmo/lun"
 
     nonisolated static var available: Bool { feed != nil }
 
@@ -88,7 +99,7 @@ final class Updater: ObservableObject {
         /// instead — the same as the first time.
         case offered(Release)
         /// Found, and waiting to be asked for: installing on its own is
-        /// switched off in Settings; Install Update is in the Search menu.
+        /// switched off in Settings; Install Update is in the Lun menu.
         case waiting(Release)
     }
 
@@ -155,10 +166,10 @@ final class Updater: ObservableObject {
     func checkByHand() {
         switch stage {
         case .ready(let next):
-            say?("Search \(next.version) is ready — relaunch to use it")
+            say?("Lun \(next.version) is ready — relaunch to use it")
             return
         case .fetching(let next):
-            say?("Search \(next.version) is downloading…")
+            say?("Lun \(next.version) is downloading…")
             return
         default: break
         }
@@ -166,7 +177,7 @@ final class Updater: ObservableObject {
         say?("Checking for updates…")
         check { [weak self] found in
             guard let self else { return }
-            if found == nil { self.say?("Search is up to date"); return }
+            if found == nil { self.say?("Lun is up to date"); return }
             // The waiting branch or `take` announces the next state afterward.
         }
     }
@@ -196,7 +207,7 @@ final class Updater: ObservableObject {
             case .waiting(let known) where known == found: break
             case .none, .offered, .waiting:
                 stage = .waiting(found)
-                say?("Search \(found.version) is out — choose Install Update in the Search menu")
+                say?("Lun \(found.version) is out — choose Install Update in the Lun menu")
             }
         }
     }
@@ -224,7 +235,7 @@ final class Updater: ObservableObject {
     func openDisk() {
         guard case .offered(let release) = stage, !fetchingDisk else { return }
         fetchingDisk = true
-        say?("Downloading Search \(release.version)…")
+        say?("Downloading Lun \(release.version)…")
         Task.detached(priority: .utility) {
             let result: Result<URL, Error>
             do { result = .success(try await Swap.disk(release)) } catch { result = .failure(error) }
@@ -259,7 +270,7 @@ final class Updater: ObservableObject {
         case .none, .offered, .waiting: break
         }
         stage = .fetching(release)
-        say?("Search \(release.version) is downloading…")
+        say?("Lun \(release.version) is downloading…")
         Task.detached(priority: .utility) {
             let worked: Bool
             do {
@@ -276,8 +287,8 @@ final class Updater: ObservableObject {
         guard case .fetching(let fetching) = stage, fetching == release else { return }
         stage = worked ? .ready(release) : .offered(release)
         say?(worked
-            ? "Search \(release.version) is ready — it's there the next time you open it"
-            : "Search \(release.version) is out — choose Download Update in the Search menu")
+            ? "Lun \(release.version) is ready — it's there the next time you open it"
+            : "Lun \(release.version) is out — choose Download Update in the Lun menu")
     }
 
     /// A test run's stage, set as told (the bench's `update stage`, and the
@@ -316,7 +327,7 @@ final class Updater: ObservableObject {
     }
 
     private static func fetch() async -> Release? {
-        // The feed as Office Commun signed it: appcast.json.zip, next to the
+        // The feed as it was signed: appcast.json.zip, next to the
         // plain one older builds read, holding the same file with its code
         // signature (build.sh). Only what comes out of it, checked, is read:
         // a feed a server or a hijacked answer made up is no feed at all.
@@ -550,7 +561,7 @@ private enum Swap {
         guard let expected = release.dmgSha256 else { throw Refused.hash }
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("search-disk-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let dmg = folder.appendingPathComponent("Search \(release.version).dmg")
+        let dmg = folder.appendingPathComponent("Lun \(release.version).dmg")
         try await download(release.dmg, to: dmg)
         guard try digest(of: dmg) == expected else { throw Refused.hash }
         var code: SecStaticCode?

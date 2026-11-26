@@ -50,9 +50,9 @@ final class UpdateNoticeTests: XCTestCase {
     }
 
     func testOnByDefaultAndInSettings() throws {
-        let item = try XCTUnwrap(SettingsIndex.items.first { $0.id == "updates.notice" })
-        XCTAssertEqual(item.keys, [UpdateNotice.key])
-        XCTAssertEqual(item.page, .about)
+        // Always on in Lun: no row for it, and its key is put aside.
+        XCTAssertNil(SettingsIndex.items.first { $0.id == "updates.notice" })
+        XCTAssertTrue(RetiredSettings.keys.contains(UpdateNotice.key))
         let fresh = UserDefaults(suiteName: "update-notice-\(getpid())")!
         XCTAssertNil(fresh.object(forKey: UpdateNotice.key))
         XCTAssertTrue(fresh.object(forKey: UpdateNotice.key) as? Bool ?? true, "on unless switched off")

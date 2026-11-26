@@ -5,11 +5,11 @@
 #
 #   ./build.sh                 debug-free release build, ad-hoc signed: runs here
 #   SEARCH_DEV=1 ./build.sh    the same as a dev build: yellow icon, named for
-#                              the branch (Search-split-view from
+#                              the branch (Lun-split-view from
 #                              claude/split-view-4a6927)
 #   SEARCH_DEV=1 SEARCH_FEATURE=name ./build.sh
-#                              the same, named Search-name
-#   ./build.sh release dmg     + build/Search.dmg, build/Search.zip and
+#                              the same, named Lun-name
+#   ./build.sh release dmg     + build/Lun.dmg, build/Lun.zip and
 #                                build/appcast.json, signed with Developer ID
 #                                if there is one in the keychain
 #   ./build.sh release ship    + both notarised, the DMG stapled
@@ -20,9 +20,9 @@
 # Same shape as the one next door: SwiftPM builds the executable, and a macOS
 # app bundle is just a folder with a plist and the binary in the right place.
 #
-# The three files keep the same names from release to release, so the site
-# links to them once and the updater reads one address forever. ./publish.sh
-# copies them into the site.
+# The three files keep the same names from release to release, so the
+# updater reads one address forever. ./release.sh puts them in a release on
+# GitHub, as a draft.
 #
 # Two builds from 1.0.5, each for one kind of Mac: Apple Silicon, in build/,
 # and Intel, in build/intel/, served from the site's search/intel/ folder
@@ -40,8 +40,8 @@
 #   - a notarytool profile: xcrun notarytool store-credentials "search"
 #     (SEARCH_NOTARY_PROFILE names it; default "search")
 #   - SEARCH_DOWNLOAD_URL, the https folder the three files are served from,
-#     for the appcast. No default: Updater.feed in Updater.swift has none
-#     until Lun has a site.
+#     for the appcast. No default: release.sh sets it to the release's own
+#     folder on GitHub, where Updater.feed looks.
 #
 # NOTES.md, next to this script, is what's new: newest release first, one
 # paragraph each. The first paragraph goes into the appcast, and from there
@@ -57,14 +57,14 @@ case "$ARCH" in
   x86_64) OUT="build/intel"; SUBFOLDER="/intel" ;;
   *) echo "SEARCH_ARCH is arm64 or x86_64, not “$ARCH”" >&2; exit 1 ;;
 esac
-APP="$OUT/Search.app"
-NAME="Search"
+APP="$OUT/Lun.app"
+NAME="Lun"
 # Asked for with SEARCH_DEV=1, a dev build, on a yellow plate and named for
-# the feature it's built from: "Search-split-view" in the menu bar, the Dock
+# the feature it's built from: "Lun-split-view" in the menu bar, the Dock
 # and ⌘Tab, so it's never taken for the installed app beside it, or for the
 # dev build from another worktree. Only the name people see changes. The
 # bundle id stays, so it shares the real app's settings, and so does the
-# folder, build/Search.app, which fresh.sh and the tests open. Not by
+# folder, build/Lun.app, which fresh.sh and the tests open. Not by
 # default: a plain ./build.sh is also the Search people here use every day
 # and the release candidates. What goes in a DMG or a ZIP is never one.
 case "${SEARCH_DEV:-}" in
@@ -212,13 +212,15 @@ mv "$APP/Contents/MacOS/$NAME.sdk" "$APP/Contents/MacOS/$NAME"
 # The AppleScript dictionary (Scripting.swift): read-only, tabs' addresses
 # and titles. The plist below points to it.
 cp Search.sdef "$APP/Contents/Resources/"
+# Settings › About › Licences reads these; they have to come with every copy.
+cp LICENSE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
 
 # Symbols stay out of the app. The linker leaves every function's name and a
 # map back to the source in the binary — 15,000 entries, more than half of
 # what the app weighed (6.5 MB of binary, 2.7 without them), and nothing the
 # app reads while it runs. They are kept beside the build instead, as a dSYM
 # that turns the addresses in a crash report back into names (Console, or
-# atos -o build/Search.app.dSYM/Contents/Resources/DWARF/Search).
+# atos -o build/Lun.app.dSYM/Contents/Resources/DWARF/Search).
 if [ "$CONFIG" = "release" ]; then
   rm -rf "$APP.dSYM"
   dsymutil "$BINARY" -o "$APP.dSYM" 2>/dev/null || echo "no dSYM this time" >&2
@@ -277,7 +279,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   $ICONNAME
   <key>LSMinimumSystemVersion</key><string>$MINIMUM</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
-  <key>NSHumanReadableCopyright</key><string>© Office Commun · Search</string>
+  <key>NSHumanReadableCopyright</key><string>Lun</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSAppleScriptEnabled</key><true/>
   <key>OSAScriptingDefinition</key><string>Search.sdef</string>
@@ -348,33 +350,38 @@ cat > "$APP/Contents/Info.plist" <<PLIST
        not browsed for, and that list is only for browsing. Chrome lists
        one, _googlecast._tcp, for casting; Safari, part of macOS, needs none. -->
   <key>NSLocalNetworkUsageDescription</key>
-  <string>Search uses the local network to open pages on devices and servers in your home or office, such as .local addresses.</string>
+  <string>Lun uses the local network to open pages on devices and servers in your home or office, such as .local addresses.</string>
   <!-- A browser is asked for these by the pages it shows, not by itself. macOS
        still wants a sentence to put in its own prompt, and touching the APIs
        without one is a crash rather than a refusal. -->
   <key>NSCameraUsageDescription</key>
-  <string>Websites you visit can ask to use your camera. Search asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
+  <string>Websites you visit can ask to use your camera. Lun asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Websites you visit can ask to use your microphone. Search asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
+  <string>Websites you visit can ask to use your microphone. Lun asks you the first time each site does and keeps your answer; Settings › Privacy forgets them.</string>
   <!-- Location: the first key is the one macOS has always read; the second
        is the one CoreLocation's requestWhenInUseAuthorization documents.
        Same sentence in both. -->
   <key>NSLocationUsageDescription</key>
-  <string>Websites you visit can ask for your location. Search asks you each time a site does, unless you choose Always allow for it; Settings › Privacy forgets those choices.</string>
+  <string>Websites you visit can ask for your location. Lun asks you each time a site does, unless you choose Always allow for it; Settings › Privacy forgets those choices.</string>
   <key>NSLocationWhenInUseUsageDescription</key>
-  <string>Websites you visit can ask for your location. Search asks you each time a site does, unless you choose Always allow for it; Settings › Privacy forgets those choices.</string>
+  <string>Websites you visit can ask for your location. Lun asks you each time a site does, unless you choose Always allow for it; Settings › Privacy forgets those choices.</string>
   <key>NSDownloadsFolderUsageDescription</key>
   <string>Files you download are saved to your Downloads folder.</string>
+  <!-- Only when you choose Add Image to Photos in a picture's menu
+       (AddToPhotos.swift). To add, and nothing else: there is no sentence
+       here for reading the library, so Lun can't ask to. -->
+  <key>NSPhotoLibraryAddUsageDescription</key>
+  <string>Lun adds a picture to your Photos library when you choose Add Image to Photos. It can't see the pictures that are already there.</string>
   <!-- Only once you turn on Settings › Passwords › Fill in your contact
        details: your own card, never anyone else's (MeCard.swift). -->
   <key>NSContactsUsageDescription</key>
-  <string>Search fills in forms with the details on your own card in Contacts, once you pick them under a box. It reads no one else's card and saves no copy of yours.</string>
+  <string>Lun fills in forms with the details on your own card in Contacts, once you pick them under a box. It reads no one else's card and saves no copy of yours.</string>
 </dict>
 </plist>
 PLIST
 # A dev build's name, as a localised one: under the icon in the Dock, in
 # ⌘Tab and in Finder, macOS shows the bundle's folder name otherwise. The
-# plain names above stay "Search", matching the folder, since a folder named
+# plain names above stay "Lun", matching the folder, since a folder named
 # otherwise reads to macOS as renamed by hand, and then the folder wins.
 if [ "$DEV" = 1 ]; then
   mkdir -p "$APP/Contents/Resources/en.lproj"
@@ -403,30 +410,35 @@ if [ "$STEP" = "ship" ] && [ ! -f "Search.provisionprofile" ] && [ -z "${SEARCH_
 fi
 if [ -f "Search.provisionprofile" ]; then
   cp "Search.provisionprofile" "$APP/Contents/embedded.provisionprofile"
-  ENTITLEMENTS="Search.passkeys.entitlements"
-  echo "passkeys: profile embedded"
-  # Sync with iCloud (ICloudSync.swift) needs the iCloud entitlements, and
-  # those only open with a profile that carries the container: signed with
-  # them and a profile from before, the app would not start. So they go in
-  # only when the profile names iCloud.com.lunbrowser.lun; otherwise
-  # the build is as before and Settings says it needs a new one. Of the
-  # two keys a profile may or may not carry (the container's environment,
-  # the pushes), only what it does carry is kept.
+  # Signed only with what the profile carries: an entitlement the profile
+  # doesn't grant is an app that won't open. Passkeys need Apple's approval
+  # of the browser entitlement, which may come after the profile does, and
+  # Sync with iCloud needs the profile to name the container
+  # (ICloudSync.swift; Settings says when a new build is needed). Of the
+  # two iCloud keys a profile may or may not carry (the container's
+  # environment, the pushes), only what it does carry is kept.
   PROFILE_PLIST="$(mktemp -t search-profile)"
   security cms -D -i "Search.provisionprofile" > "$PROFILE_PLIST" 2>/dev/null || true
   profile_has() { /usr/libexec/PlistBuddy -c "Print :Entitlements:$1" "$PROFILE_PLIST" >/dev/null 2>&1; }
+  mkdir -p build
   if /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.icloud-container-identifiers" "$PROFILE_PLIST" 2>/dev/null \
       | grep -q "iCloud.com.lunbrowser.lun"; then
-    ENTITLEMENTS="build/Search.icloud.entitlements"
-    mkdir -p build
-    cp "Search.icloud.entitlements" "$ENTITLEMENTS"
+    cp "Search.icloud.entitlements" build/Search.signing.entitlements
     for key in com.apple.developer.icloud-container-environment com.apple.developer.aps-environment; do
-      profile_has "$key" || /usr/libexec/PlistBuddy -c "Delete :$key" "$ENTITLEMENTS" >/dev/null
+      profile_has "$key" || /usr/libexec/PlistBuddy -c "Delete :$key" build/Search.signing.entitlements >/dev/null
     done
     echo "iCloud: the profile carries iCloud.com.lunbrowser.lun, Sync with iCloud is in"
   else
+    cp "Search.passkeys.entitlements" build/Search.signing.entitlements
     echo "iCloud: the profile has no iCloud container, built without Sync with iCloud (Settings says it needs a new build)"
   fi
+  if profile_has com.apple.developer.web-browser.public-key-credential; then
+    echo "passkeys: the profile carries the browser passkey entitlement, passkeys are in"
+  else
+    /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.web-browser.public-key-credential" build/Search.signing.entitlements >/dev/null
+    echo "passkeys: the profile has no browser passkey entitlement yet (Apple approves it on request), built without passkeys"
+  fi
+  ENTITLEMENTS="build/Search.signing.entitlements"
   rm -f "$PROFILE_PLIST"
 fi
 if [ -n "$IDENTITY" ]; then
@@ -491,7 +503,7 @@ echo "packed: $ZIP"
 # characters JSON minds escaped, is the line under the version in Settings.
 # Written last — after notarisation has stapled its ticket to the DMG, which
 # changes it — so the DMG's hash is the one people download.
-BASE="${SEARCH_DOWNLOAD_URL:?the https folder the files are served from; Lun has no site yet}"
+BASE="${SEARCH_DOWNLOAD_URL:?the https folder the files are served from; ./release.sh sets it}"
 BASE="${BASE%/}$SUBFOLDER"
 NOTES=""
 if [ -f NOTES.md ]; then
@@ -531,7 +543,10 @@ write_devtools() {
     case "$BUILT_DEVTOOLS" in *" $PACKAGE "*) ;; *) build_devtools "$PACKAGE" ;; esac
     ENTRY="$OUT/devtools/$PACKAGE.entry.json.feed"
     cp "$OUT/devtools/$PACKAGE.entry.json" "$ENTRY"
-    plutil -insert url -string "$BASE/devtools/$(plutil -extract file raw -o - "$ENTRY")" "$ENTRY"
+    # In devtools/ beside the other files, or wherever SEARCH_DEVTOOLS_URL
+    # says: a release on GitHub has no folders, so release.sh puts them
+    # beside the rest.
+    plutil -insert url -string "${SEARCH_DEVTOOLS_URL:-$BASE/devtools}/$(plutil -extract file raw -o - "$ENTRY")" "$ENTRY"
     plutil -remove file "$ENTRY"
     plutil -convert json -r "$ENTRY"
     ENTRIES="$ENTRIES${ENTRIES:+,}
@@ -587,4 +602,4 @@ for FILE in "$DMG" "$ZIP" "$OUT"/devtools/*.zip; do
 done
 xcrun stapler staple "$DMG"
 write_appcast
-echo "shipped: $DMG, $ZIP, $OUT/appcast.json and its signed ZIP — ./publish.sh <folder> puts them on the site"
+echo "shipped: $DMG, $ZIP, $OUT/appcast.json and its signed ZIP — ./release.sh drafts the release on GitHub"

@@ -39,6 +39,7 @@ final class CardFullScreenTests: XCTestCase {
     func testOffByDefault() {
         let store = UserDefaults(suiteName: "card-fullscreen-\(UUID().uuidString)")!
         XCTAssertFalse(store.bool(forKey: "layout.cardsFullScreen"))
-        XCTAssertNotNil(SettingsIndex.items.first { $0.id == "layout.cardsFullScreen" })
+        // Fixed at off in Lun: no row for it (RetiredSettings).
+        XCTAssertNil(SettingsIndex.items.first { $0.id == "layout.cardsFullScreen" })
     }
 }

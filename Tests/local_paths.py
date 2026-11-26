@@ -18,9 +18,7 @@ def main():
     try:
         sv.setup(**{"tabs.groups": True}); sv.launch()
         tab = sv.page("before-file")
-        # Under the home folder, so the ~/ spelling is tried too, and out of
-        # the checkout: a page in a folder of /private/tmp, where a worktree
-        # often is, never finishes loading, which isn't what is tested here.
+        # Under the home folder, so the ~/ spelling is tried too.
         with tempfile.TemporaryDirectory(dir=Path.home() / "Library" / "Caches") as directory:
             folder = Path(directory)
             file = folder / "résumé #1? 100%.html"

@@ -98,7 +98,7 @@ struct AgentLauncher: Equatable {
         guard signed else { return "\(called), which started it, isn't signed" }
         guard !adhoc, !team.isEmpty else { return "\(called), which started it, isn't signed by a named developer" }
         guard let expected = allowed[identifier], expected == team else {
-            return "it was started by \(called), which isn't an agent's own program Search knows"
+            return "it was started by \(called), which isn't an agent's own program Lun knows"
         }
         return nil
     }
@@ -382,7 +382,7 @@ final class AgentTrust: ObservableObject {
         guard next != remembered else { return }
         if !save(next) {
             remembered = next
-            AgentIdentity.log.error("a stopped agent's suspension couldn't be kept in the keychain; it holds until Search quits")
+            AgentIdentity.log.error("a stopped agent's suspension couldn't be kept in the keychain; it holds until Lun quits")
         }
     }
 

@@ -101,7 +101,8 @@ struct Page: View {
             }
 
             if let failure = tab.failure {
-                Trouble(message: failure) { tab.reload() }
+                Trouble(message: failure, tab: tab, browser: browser) { tab.reload() }
+                    .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
                     .transition(.opacity)
             }
 
@@ -111,7 +112,7 @@ struct Page: View {
         .animation(Motion.quick, value: tab.failure)
         .animation(Motion.quick, value: tab.floating)
         .animation(Motion.quick, value: tab.reader)
-        .animation(Motion.timed(.easeOut(duration: 0.2)), value: tab.cover == nil)
+        .animation(Motion.dissolve, value: tab.cover == nil)
     }
 }
 
@@ -129,10 +130,7 @@ struct Swiping: View {
                 // middle it would slide in from the middle.
                 HistoryList(pull: pull)
                     .id(pull.back)
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.92, anchor: pull.back ? .leading : .trailing)),
-                        removal: .opacity.combined(with: .scale(scale: 0.96, anchor: pull.back ? .leading : .trailing))
-                    ))
+                    .transition(.swiped(from: pull.back ? .leading : .trailing))
             } else if let pull {
                 Disc(pull: pull)
                     // A disc for each edge, never one that changes edges: a
@@ -142,10 +140,10 @@ struct Swiping: View {
                     // A short fade and a little growth, both ways. Anything
                     // longer is still arriving when a quick flick has already
                     // let go.
-                    .transition(.opacity.combined(with: .scale(scale: 0.85)))
+                    .transition(.pop)
             }
         }
-        .animation(Motion.timed(.easeOut(duration: 0.16)), value: pull == nil)
+        .animation(Motion.dissolve, value: pull == nil)
     }
 }
 
@@ -168,10 +166,6 @@ private struct Disc: View {
         let scale: CGFloat = pull.going ? 1.08 : 0.86 + 0.14 * grown
 
         ZStack {
-            Circle()
-                .fill(Palette.ground)
-            Circle()
-                .strokeBorder(Palette.hairline, lineWidth: 1)
             // How far there is to go, wound round the edge, closed when it
             // is armed.
             Circle()
@@ -185,7 +179,7 @@ private struct Disc: View {
                 .foregroundStyle(Palette.ink.opacity(0.4 + 0.6 * grown))
         }
         .frame(width: 52, height: 52)
-        .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+        .elevated(.float, in: Circle())
         .scaleEffect(scale)
         .opacity(pull.going ? 0 : 1)
         // Whole from the first point, a little way in from the edge, drawn
@@ -194,7 +188,7 @@ private struct Disc: View {
         .offset(x: (pull.back ? 1 : -1) * (10 + reach * 0.2 + (pull.going ? 12 : 0)))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: pull.back ? .leading : .trailing)
         .allowsHitTesting(false)
-        .animation(Motion.timed(.easeOut(duration: 0.22)), value: pull.going)
+        .animation(Motion.dissolve, value: pull.going)
     }
 }
 
@@ -220,7 +214,7 @@ private struct HistoryList: View {
                         .frame(width: 14, height: 14)
                     Text(stop.title.isEmpty ? (stop.url.host() ?? stop.url.absoluteString) : stop.title)
                         .font(.system(size: 12.5))
-                        .foregroundStyle(index == pull.picked ? Palette.ink : Palette.ink.opacity(0.75))
+                        .foregroundStyle(index == pull.picked ? Palette.ink : Palette.soft)
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 0)
@@ -228,23 +222,22 @@ private struct HistoryList: View {
                 .padding(.horizontal, 9)
                 .frame(height: 28)
                 .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    // The card's corner less the gap to it (16 − 5).
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                         .fill(Palette.ink.opacity(index == pull.picked ? 0.10 : 0))
                 )
             }
         }
         .padding(5)
         .frame(width: 240)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.16), radius: 18, y: 6)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
         .scaleEffect(pull.going ? 0.96 : 1)
         .opacity(pull.going ? 0 : 1)
         .offset(x: (pull.back ? 1 : -1) * (10 + reach * 0.2), y: slide)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: pull.back ? .leading : .trailing)
         .allowsHitTesting(false)
-        .animation(Motion.timed(.spring(response: 0.22, dampingFraction: 0.9)), value: pull.picked)
-        .animation(Motion.timed(.easeOut(duration: 0.26)), value: pull.going)
+        .animation(Motion.settle, value: pull.picked)
+        .animation(Motion.dissolve, value: pull.going)
     }
 
     @ViewBuilder
@@ -409,8 +402,10 @@ final class StageView: NSView {
         return mask
     }()
 
-    func clip(card: (() -> CGSize)?, corner: CGFloat) {
+    func clip(card: (() -> CGSize)?, corner: CGFloat, squareTop: Bool = false, centred: Bool = true) {
         cardDriven = true
+        cardCentred = centred
+        squaresTop = squareTop
         cardSize = card
         cardShort = .zero
         cardCorner = corner
@@ -429,6 +424,16 @@ final class StageView: NSView {
         applyCard()
     }
 
+    /// Round at the foot alone, under the address row (CardClip.squareTop).
+    var squaresTop = false
+    /// The card in this view's middle across, or from its leading edge
+    /// (CardClip.centred).
+    private var cardCentred = true
+    private var roundCorners: CACornerMask {
+        guard squaresTop else { return [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner] }
+        return isFlipped ? [.layerMinXMaxYCorner, .layerMaxXMaxYCorner] : [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+    }
+
     private func applyCard() {
         guard cardDriven else { return }
         if let card = cardSize?() {
@@ -441,6 +446,7 @@ final class StageView: NSView {
         if cardShort.width < 0.25, cardShort.height < 0.25 {
             if layer.mask != nil { layer.mask = nil }
             layer.cornerRadius = cardCorner
+            layer.maskedCorners = roundCorners
             layer.cornerCurve = .continuous
             layer.masksToBounds = cardCorner > 0
         } else {
@@ -448,7 +454,12 @@ final class StageView: NSView {
             layer.masksToBounds = false
             let size = CGSize(width: max(0, bounds.width - cardShort.width), height: max(0, bounds.height - cardShort.height))
             cardMask.cornerRadius = cardCorner
-            cardMask.frame = CGRect(x: 0, y: isFlipped ? 0 : bounds.height - size.height, width: size.width, height: size.height)
+            cardMask.maskedCorners = roundCorners
+            // In the page's middle across: that is where the card is, the
+            // page wider than it carried to stay centred in it (ContentView's
+            // offsets). At its top down, as the page's top is the card's.
+            cardMask.frame = CGRect(x: cardCentred ? cardShort.width / 2 : 0, y: isFlipped ? 0 : bounds.height - size.height,
+                                    width: size.width, height: size.height)
             if layer.mask !== cardMask { layer.mask = cardMask }
         }
         CATransaction.commit()
@@ -751,20 +762,171 @@ final class CallWatch: NSObject {
 /// worth offering — another go.
 struct Trouble: View {
     let message: String
+    /// The page it is about and the window it is in: without one, a small
+    /// window's, what went wrong and a way to ask again.
+    var tab: Tab?
+    var browser: Browser?
     let retry: () -> Void
 
-    var body: some View {
-        VStack(spacing: 10) {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(Palette.ink)
-            Button("Try again", action: retry)
-                .buttonStyle(.plain)
-                .font(.system(size: 12))
-                .foregroundStyle(Palette.muted)
+    @State private var detailed = false
+
+    private var host: String? { tab?.shownURL?.host().map(Address.withoutWWW) }
+    private var code: Int { tab?.failureCode ?? 0 }
+    private var offline: Bool { code == NSURLErrorNotConnectedToInternet }
+
+    /// What happened, said of the site where it is the site's.
+    private var title: String {
+        guard let host else { return message }
+        switch code {
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed: return "No site at \(host)"
+        case NSURLErrorNotConnectedToInternet: return "No connection"
+        case NSURLErrorNetworkConnectionLost: return "The connection was lost"
+        case NSURLErrorTimedOut: return "\(host) isn’t answering"
+        case NSURLErrorCannotConnectToHost: return "\(host) refused the connection"
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted: return "The connection to \(host) isn’t secure"
+        default: return message
         }
+    }
+
+    private var detail: String? {
+        switch code {
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed: return "Check the address for a mistake, or look for the site on the web."
+        case NSURLErrorNotConnectedToInternet: return "Your Mac isn’t connected to the internet."
+        case NSURLErrorNetworkConnectionLost: return "It was cut off while the page was on its way."
+        case NSURLErrorTimedOut: return "The site is down or too busy to reply."
+        case NSURLErrorCannotConnectToHost: return "The site’s server is there, and isn’t taking visits."
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted: return "Lun didn’t open it: what you send could be read on the way."
+        default: return nil
+        }
+    }
+
+    /// What the site's end of the way says, where the failure is the site's.
+    private var verdict: String? {
+        switch code {
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed: return "Not found"
+        case NSURLErrorTimedOut: return "No answer"
+        case NSURLErrorCannotConnectToHost: return "Refused"
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted: return "Not secure"
+        case NSURLErrorNotConnectedToInternet: return "Not reached"
+        case NSURLErrorNetworkConnectionLost: return "Cut off"
+        default: return nil
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 28) {
+            if let host {
+                SiteMark(host: host, size: 56)
+                    .opacity(0.6)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: offline ? "wifi.slash" : code == NSURLErrorTimedOut ? "clock" : "exclamationmark")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Palette.muted)
+                            .frame(width: 28, height: 28)
+                            .elevated(.lift, in: Circle())
+                            .offset(x: 8, y: 8)
+                    }
+                    .accessibilityHidden(true)
+            }
+            VStack(spacing: 8) {
+                Text(title)
+                    .font(.system(size: 22, weight: .semibold))
+                    .kerning(-0.3)
+                    .foregroundStyle(Palette.ink)
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.muted)
+                }
+            }
+            .multilineTextAlignment(.center)
+            if let host, let verdict { way(to: host, verdict) }
+            HStack(spacing: 8) {
+                Pill("Try again", filled: true, large: true, action: retry)
+                if let browser, let host, browser.searchURL(for: host) != nil {
+                    Pill("Search the web for it", large: true) {
+                        if let url = browser.searchURL(for: host) { tab?.web.open(url) }
+                    }
+                }
+            }
+            if let tab, let address = tab.shownURL, code != 0 {
+                VStack(spacing: 10) {
+                    Disclosure("Details", open: $detailed)
+                    if detailed {
+                        Text("\(address.absoluteString)\n\(message) (\(code))")
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(Palette.muted)
+                            .textSelection(.enabled)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Palette.hover, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: 460)
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.ground)
+    }
+
+    /// The Mac, the network, the site: how far the page got.
+    private func way(to host: String, _ verdict: String) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            stop(symbol: "laptopcomputer", "Your Mac", offline ? "Offline" : "Online", good: !offline)
+            leg(whole: !offline)
+            stop(symbol: "wifi", "Network", offline ? "Not connected" : "Connected", good: !offline)
+            leg(whole: false)
+            VStack(spacing: 8) {
+                SiteMark(host: host, size: 18)
+                    .opacity(0.6)
+                    .frame(width: 40, height: 40)
+                    .elevated(.lift, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                Text(host).font(.system(size: 12)).foregroundStyle(Palette.ink).lineLimit(1).truncationMode(.middle)
+                Text(verdict).font(.system(size: 12)).foregroundStyle(Palette.unsafe)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .background(Palette.hover, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func stop(symbol: String, _ name: String, _ says: String, good: Bool) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 14))
+                .foregroundStyle(Palette.ink)
+                .frame(width: 40, height: 40)
+                .elevated(.lift, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            Text(name).font(.system(size: 12)).foregroundStyle(Palette.ink)
+            Text(says).font(.system(size: 12)).foregroundStyle(good ? Palette.safe : Palette.unsafe)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func leg(whole: Bool) -> some View {
+        ZStack {
+            if whole {
+                Capsule().fill(Palette.ink).frame(height: 2)
+            } else {
+                Line().stroke(Palette.faint, style: StrokeStyle(lineWidth: 2, dash: [5, 4])).frame(height: 2)
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Palette.unsafe)
+                    .frame(width: 18, height: 18)
+                    .elevated(.lift, in: Circle())
+            }
+        }
+        .frame(width: 56, height: 40)
+    }
+
+    private struct Line: Shape {
+        func path(in rect: CGRect) -> Path {
+            Path { $0.move(to: CGPoint(x: rect.minX, y: rect.midY)); $0.addLine(to: CGPoint(x: rect.maxX, y: rect.midY)) }
+        }
     }
 }
 

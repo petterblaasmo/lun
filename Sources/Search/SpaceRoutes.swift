@@ -239,14 +239,12 @@ struct SpaceRouteList: View {
                 .foregroundStyle(Palette.ink)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .onSubmit(add)
-            Picker("Space", selection: Binding(get: { chosen ?? choices.first?.id }, set: { chosen = $0 })) {
+            PopUp("Space", shows: choices.first { $0.id == (chosen ?? choices.first?.id) }?.name ?? "Space",
+                    selection: Binding(get: { chosen ?? choices.first?.id }, set: { chosen = $0 })) {
                 ForEach(choices, id: \.id) { Text($0.name).tag(Optional($0.id)) }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
             Pill("Add", action: add)
                 .disabled(SpaceRoutes.site(typed) == nil)
                 .opacity(SpaceRoutes.site(typed) == nil ? 0.5 : 1)
@@ -256,16 +254,13 @@ struct SpaceRouteList: View {
         Rule()
         Line("Everything else", "Default space for links that match no site") {
             // A deleted space shows as Current space, which is where links go then.
-            Picker("Everything else", selection: Binding(
+            PopUp("Everything else", shows: choices.first { $0.id == prefs.spaceForOtherLinks }?.name ?? "Current space", selection: Binding(
                 get: { prefs.spaceForOtherLinks.flatMap { id in choices.contains { $0.id == id } ? id : nil } },
                 set: { prefs.spaceForOtherLinks = $0 })) {
                 Text("Current space").tag(UUID?.none)
                 Divider()
                 ForEach(choices, id: \.id) { Text($0.name).tag(Optional($0.id)) }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         }
     }
 
