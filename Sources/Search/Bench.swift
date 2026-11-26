@@ -5673,6 +5673,31 @@ final class Bench {
         case "split":
             splitCommand(request, browser: browser, answer)
 
+        case "edgebar":
+            // Back, forward and the address down from the top edge with the
+            // column folded away (EdgeBar.swift), told where the pointer is
+            // as its own watch tells it: "x" and "y" from the window's top
+            // left ("pressed": with a button down), "gone" from the window,
+            // or "away" to put the card away. Answers whether the card may
+            // come, whether it is down, and where it stands.
+            guard Store.testing else { answer(["error": "edgebar only works on a --test run"]); return }
+            guard let size = (browser.window ?? Links.window)?.contentView?.bounds.size else { answer(["error": "no window"]); return }
+            if request["away"] as? Bool == true { browser.edgeBar.putAway() }
+            // Its watch is there only while it may come: nothing is told
+            // to it otherwise, here either.
+            if browser.edgeBarWanted {
+                if request["gone"] as? Bool == true { browser.edgeBar.pointer(at: nil, in: size, pressed: false) }
+                if let x = request["x"] as? Double, let y = request["y"] as? Double {
+                    browser.edgeBar.pointer(at: CGPoint(x: x, y: y), in: size, pressed: request["pressed"] as? Bool == true)
+                }
+            }
+            let frame = EdgeBar.frame(in: size)
+            DispatchQueue.main.asyncAfter(deadline: .now() + (request["wait"] as? Double ?? 0)) {
+                answer(["wanted": browser.edgeBarWanted, "shown": browser.edgeBar.shown,
+                        "frame": [Double(frame.minX), Double(frame.minY), Double(frame.width), Double(frame.height)],
+                        "window": [Double(size.width), Double(size.height)]])
+            }
+
         case "ui":
             // Open or close the app's own panels, to reproduce what a person
             // did without a person.
@@ -6287,6 +6312,7 @@ final class Bench {
             reply()
         case "swap": browser.swapSplit(); reply()
         case "even": browser.evenSplit(); reply()
+        case "scrollTogether": browser.toggleScrollTogether(); reply()
         case "closeBoth": browser.closeSplit(); reply()
         case "dismiss": browser.dismiss(); reply()
         case "side":
@@ -6379,6 +6405,7 @@ final class Bench {
                     "sizes": pair.sizes,
                     "axis": pair.axis.rawValue,
                     "focused": short(pair.focused),
+                    "together": pair.scrollsTogether,
                 ] as [String: Any]
             },
             "activeID": short(browser.activeID),

@@ -1357,6 +1357,10 @@ struct Carried: ViewModifier {
     /// Told when the tab is picked up and when it is put down, called off
     /// or cancelled: the row it is carried along can show its tabs' shapes.
     var holding: ((Bool) -> Void)? = nil
+    /// The row's tabs in its order, one for each of `steps`, given where a
+    /// tab held lying across another becomes a split with it (see across,
+    /// TabJoin): the loose tabs down the column.
+    var row: [Tab]? = nil
     let move: (Int) -> Void
 
     @State private var held = false
@@ -1377,6 +1381,9 @@ struct Carried: ViewModifier {
     /// Cancelled with Escape: put down until the hand lets go, not picked
     /// up again by its next move.
     @State private var escaped = false
+    /// Held lying across another tab, which shows the split letting go
+    /// would make (JoinHint): faint, so that shows through.
+    @State private var joining = false
 
     func body(content: Content) -> some View {
         // What it has travelled, less the ground its new place has already
@@ -1428,7 +1435,7 @@ struct Carried: ViewModifier {
             .transaction { if held { $0.animation = nil } }
             .zIndex(held ? 1 : 0)
             .carriedShadow(held)
-            .opacity(held && (faded || lifted) ? 0.4 : 1)
+            .opacity(held && (faded || lifted || joining) ? 0.4 : 1)
             .gesture(
                 DragGesture(minimumDistance: 5, coordinateSpace: .named(space))
                     .updating($carrying) { _, carrying, _ in carrying = true }
@@ -1453,6 +1460,15 @@ struct Carried: ViewModifier {
                         // After the update, which works out the half of a
                         // pair that was picked up.
                         lift(at: value.location)
+                        // Told every move, whatever comes of it below: what
+                        // it lay across a moment ago is let go of as soon as
+                        // it is elsewhere.
+                        var onto: Tab?
+                        defer {
+                            if let browser, let tab, row != nil, browser.prefs.splitView {
+                                TabDrag.shared.lies(across: onto, browser: browser, tab: tab)
+                            }
+                        }
                         if splitting || crossed { return }
                         // A tab of a group, or one over a group, lands where
                         // it is let go (see GroupDropFrames.resolve) rather
@@ -1464,6 +1480,9 @@ struct Carried: ViewModifier {
                             reordered = true
                             withAnimation(Motion.settle) { move(target) }
                         }
+                        // After the move, and with no say in it: the rows
+                        // make way when they always did.
+                        if !lifted { onto = neighbour(at: start + travel) }
                     }
                     .onEnded { value in
                         escaped = false
@@ -1482,6 +1501,11 @@ struct Carried: ViewModifier {
                                 switch finished.drop {
                                 case .stage(let target, let onLeft):
                                     browser.pair(source, with: target, onLeft: onLeft)
+                                case .onto(let target):
+                                    // The split stands where the tab it was
+                                    // let go on is, the carried one after it
+                                    // (Browser.pair).
+                                    browser.pair(source, with: target, onLeft: false)
                                 case .strip(let target):
                                     if let destination = groupDestination?(source, value.location) {
                                         // Resolve before detaching: the old pair still owns its frame.
@@ -1512,11 +1536,20 @@ struct Carried: ViewModifier {
             .onChange(of: carrying) { _, now in if !now { callOff() } }
             .onChange(of: held) { _, now in
                 holding?(now)
-                if !now { lifted = false }
+                if !now {
+                    lifted = false
+                    joining = false
+                }
             }
             // Its row gone with the button still down, by closing it or by
             // the drop itself: nothing here will hear the rest of the drag.
             .onDisappear { if lifted { TabLift.shared.put() } }
+            .onReceive(TabJoin.shared.$shown) { shown in
+                guard row != nil, held || joining else { return }
+                let mine = tab.map { TabDrag.shared.source(of: $0) ?? $0 }?.id
+                let now = held && shown != nil && shown?.sourceID == mine
+                if now != joining { joining = now }
+            }
             .onReceive(TabDrag.shared.$cancelledID) { id in
                 guard id == tab?.id, held else { return }
                 CarryGuard.close(ticket)
@@ -1556,6 +1589,55 @@ struct Carried: ViewModifier {
             before -= others[slot]
         }
         return slot
+    }
+
+    /// The neighbour the item at `index`, its leading edge at `edge`, lies
+    /// across: its place among the others (the row without the carried one)
+    /// and whether it is the one after. Nil round each resting place.
+    ///
+    /// A carried item is never over the middle of another: a neighbour makes
+    /// way once the carried one has come half its length (see slot), and is
+    /// then half under it from the other side. So the way from one resting
+    /// place to the next is in three: the first of it and the last move the
+    /// item and nothing else; the middle `share`, where it lies across half
+    /// the neighbour or nearly, on either side of where that one makes way,
+    /// is where letting go can put the two together (TabJoin). `holding`:
+    /// the place already shown, kept for `slack` points more.
+    ///
+    /// It reads where the item is and has no say in `slot`.
+    static func across(at edge: CGFloat, carrying index: Int, in steps: [CGFloat],
+                       share: CGFloat = TabDrag.acrossShare, holding: Int? = nil,
+                       slack: CGFloat = TabDrag.acrossSlack) -> (place: Int, after: Bool)? {
+        guard steps.indices.contains(index) else { return nil }
+        var others = steps
+        others.remove(at: index)
+        let slot = slot(at: edge, carrying: index, in: steps)
+        // How far it is from its resting place, towards the one after.
+        let away = edge - leading(of: slot, in: others)
+        let after = away > 0
+        let place = after ? slot : slot - 1
+        guard others.indices.contains(place) else { return nil }
+        // How far it goes before that neighbour makes way.
+        let reach = others[place] / 2
+        let from = reach * (1 - share) - (holding == place ? slack : 0)
+        return abs(away) >= from ? (place, after) : nil
+    }
+
+    /// The tab the carried one lies across with its edge at `edge` (see
+    /// across): of a split, the page nearest it, which it would go beside.
+    private func neighbour(at edge: CGFloat) -> Tab? {
+        guard vertical, let row, let browser, row.count == steps.count, row.indices.contains(index) else { return nil }
+        var others = row
+        others.remove(at: index)
+        let shown = TabJoin.shared.shown?.targetID
+        let holding = shown.flatMap { id in
+            others.firstIndex { $0.id == id || browser.split(for: $0)?.contains(id) == true }
+        }
+        guard let found = Carried.across(at: edge, carrying: index, in: steps, holding: holding) else { return nil }
+        let tab = others[found.place]
+        guard let pair = browser.split(for: tab) else { return tab }
+        let near = found.after ? pair.left : pair.right
+        return browser.tabs.first { $0.id == near }
     }
 
     /// Off to the side of the row, with some slack for a hand that wanders,
@@ -2081,6 +2163,14 @@ struct TabMenu: View {
                     browser.focusPane(tab)
                     browser.closeSplit()
                 }
+                // The divider's line, here too: the divider is three points
+                // wide, and not everyone thinks to click it.
+                Toggle("Scroll Together", isOn: Binding(
+                    get: { pair.scrollsTogether },
+                    set: { _ in
+                        browser.focusPane(tab)
+                        browser.toggleScrollTogether()
+                    }))
             } else {
                 // Beside the page on screen; on that page itself, an empty
                 // page beside it. On a split with room, one more page in it.

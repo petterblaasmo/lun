@@ -1233,6 +1233,13 @@ struct ContentView: View {
                     Fold(browser: browser, prefs: browser.prefs, onDrag: { [edges] in edges.side = $0 })
                 }
             }
+            // With the column folded away: back, forward and the address,
+            // down from the top edge (see EdgeBar.swift).
+            .overlay(alignment: .top) {
+                if fullscreenTab == nil {
+                    EdgeBar(browser: browser, state: browser.edgeBar, wanted: browser.edgeBarWanted)
+                }
+            }
             .overlay(alignment: .bottom) { bars }
             .overlay { siteQuestions }
             .overlay {
