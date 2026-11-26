@@ -1037,7 +1037,7 @@ struct SettingsPanel: View {
         .font(.system(size: 12.5))
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     @ViewBuilder
@@ -1064,7 +1064,7 @@ struct SettingsPanel: View {
             .foregroundStyle(Palette.ink)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .padding(.leading, SettingsPanel.textInset)
             .padding(.trailing, 14)
             .padding(.bottom, 6)
@@ -1098,7 +1098,7 @@ struct SettingsPanel: View {
             .foregroundStyle(Palette.ink)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .padding(.leading, SettingsPanel.textInset)
             .padding(.trailing, 14)
             .padding(.bottom, 6)
@@ -1612,7 +1612,7 @@ struct Segmented<Option: Hashable>: View {
             }
         }
         .padding(2)
-        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .animation(Motion.settle, value: selection)
     }
 }

@@ -189,7 +189,7 @@ struct GroupHeading: View {
                     .onExitCommand { browser.editingGroupID = nil }
             } else {
                 Text(group.name)
-                    .font(.system(size: 12.5, weight: .medium))
+                    .font(.system(size: horizontal ? 12.5 : 12, weight: horizontal ? .medium : .regular))
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
@@ -213,9 +213,9 @@ struct GroupHeading: View {
         .frame(height: horizontal ? 28 : Self.height)
         .frame(maxWidth: horizontal ? nil : .infinity, alignment: .leading)
         .fixedSize(horizontal: horizontal, vertical: false)
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
             .fill(dropping ? greys.wash : (hovering ? greys.hover : .clear)))
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .onTapGesture { if !editing { browser.toggleTabGroup(group.id) } }
         .modifier(GroupHeadingShared(browser: browser, group: group, dragSpace: dragSpace, dropping: $dropping,
                                      horizontal: horizontal))

@@ -13,7 +13,7 @@ import AppKit
 enum Palette {
     static let ground = Color(nsColor: NS.ground)
     static let ink = Color(nsColor: NS.ink)             // neutral-900 · neutral-100
-    static let muted = Color(nsColor: NS.muted)         // neutral-500
+    static let muted = Color(nsColor: NS.muted)         // #5A5A5A · #A3A3A3
     static let faint = Color(nsColor: NS.faint)         // neutral-300 · neutral-700
     static let hairline = Color(nsColor: NS.hairline)   // neutral-200 · neutral-800
     static let wash = Color(nsColor: NS.wash)           // the live tab
@@ -22,6 +22,9 @@ enum Palette {
     /// bookmarks bar and the gaps share it, a touch off the page's white, so
     /// the card reads as one (see CardEdge).
     static let frame = Color(nsColor: NS.frame)
+    /// What floats over the page: a card, a list, the address field. The
+    /// ground's white in a light window, a step off it in a dark one.
+    static let raised = Color(nsColor: NS.raised)
     /// The only two that aren't grey: a connection nobody can read on the
     /// way, and one anybody can (see SiteCard.swift).
     static let safe = Color(nsColor: NS.safe)           // green-700 · green-400
@@ -32,12 +35,13 @@ enum Palette {
     enum NS {
         static let ground = pair(1.0, 0.11)
         static let ink = pair(0.09, 0.93)
-        static let muted = pair(0.55, 0.58)
+        static let muted = pair(0.353, 0.64)
         static let faint = pair(0.83, 0.32)
         static let hairline = pair(0.91, 0.20)
         static let wash = pair(0.937, 0.175)
         static let hover = pair(0.965, 0.15)
         static let frame = pair(0.955, 0.075)
+        static let raised = pair(1.0, 0.13)
         /// The resting traffic lights, drawn by hand when the app is behind.
         static let resting = pair(0.80, 0.30)
         static let safe = tint(light: (0.08, 0.50, 0.24), dark: (0.29, 0.87, 0.50))
@@ -73,6 +77,11 @@ struct Greys {
     /// tab's panes), so the two together land where the plain ones do.
     let washOnTile: Color
     let hoverOnTile: Color
+    /// What the tab you're on lies on: beside the page's card a card of its
+    /// own, lifted off the column (see Elevated); on the white, the wash, as
+    /// white on white would be a shadow alone.
+    let raised: Color
+    let lifts: Bool
     /// The quiet ink of a tab's title that isn't live, the same way: on
     /// the plain ground Palette.muted exactly, on a space's Rich or Vivid
     /// colour as far from it as Palette.muted is from the plain ground,
@@ -87,14 +96,22 @@ struct Greys {
     // white, or the frame beside the card). On that ground nothing changes;
     // on a space's colour or gradient they take its tint, where an opaque
     // grey sat on it as a grey patch (Drice, 18 Nov 2026).
-    static let white = Greys(wash: shade(0.063, 0.073), hover: shade(0.035, 0.045),
-                             tile: shade(0.063, 0.073).opacity(0.55), pinLive: shade(0.10, 0.112),
-                             washOnTile: shade(0.0294, 0.0342), hoverOnTile: shade(0.004, 0.005),
-                             muted: shade(0.45, 0.5281), faint: shade(0.17, 0.236))
-    static let frame = Greys(wash: shade(0.0628, 0.0865), hover: shade(0.0419, 0.0595),
-                             tile: shade(0.0314, 0.0432), pinLive: shade(0.0995, 0.1243),
-                             washOnTile: shade(0.0324, 0.0452), hoverOnTile: shade(0.0108, 0.0169),
-                             muted: shade(0.4241, 0.5459), faint: shade(0.1309, 0.2649))
+    static let white = Greys(wash: shade(0.07, 0.08), hover: shade(0.04, 0.05),
+                             tile: shade(0.055, 0.06), pinLive: shade(0.11, 0.14),
+                             washOnTile: shade(0.0294, 0.0342), hoverOnTile: shade(0.02, 0.025),
+                             raised: shade(0.07, 0.08), lifts: false,
+                             muted: shade(0.647, 0.5955), faint: shade(0.17, 0.236))
+    static let frame = Greys(wash: shade(0.07, 0.08), hover: shade(0.04, 0.05),
+                             tile: shade(0.065, 0.08), pinLive: shade(0.11, 0.14),
+                             washOnTile: shade(0.0324, 0.0452), hoverOnTile: shade(0.02, 0.025),
+                             raised: paper, lifts: true,
+                             muted: shade(0.631, 0.611), faint: shade(0.1309, 0.2649))
+
+    /// White in a light window, in a dark one what 14% of white does to the
+    /// column under it.
+    private static let paper = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? NSColor(white: 1, alpha: 0.14) : .white
+    })
 
     private static func shade(_ light: CGFloat, _ dark: CGFloat) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
@@ -164,7 +181,7 @@ enum Metrics {
     /// to a few points above and below the 28-point tabs: a strip, not a
     /// toolbar. The column keeps the full band, as its first row shares it.
     @MainActor static var strip: CGFloat {
-        Shared.prefs.compactStrip && !Shared.prefs.sidebar ? 36 : 52
+        Shared.prefs.sidebar ? 48 : Shared.prefs.compactStrip ? 36 : 52
     }
     /// With the tabs down the side the page is a card: this far from the
     /// window's edges (and from the column, folded away), and its corners
@@ -248,12 +265,105 @@ enum Metrics {
     /// The address field, in both the places it shows up.
     static let fieldWidth: CGFloat = 560
     /// The column of titles down the left, in the way that has one.
-    static let side: CGFloat = 232
+    /// 232 of it rows, and sideInset on either side of them.
+    static let side: CGFloat = 248
+    /// The air between the column's edges and its rows: the page's card
+    /// stands as far from the column as from the window (cardGap).
+    static let sideInset: CGFloat = 8
     static let sideMin: CGFloat = 176
     /// Narrower than this, with Narrow to icons on, the column is the strip
     /// of icons (Preferences.narrowStrip).
     static let narrowLine: CGFloat = 200
     static let sideMax: CGFloat = 440
+}
+
+/// Three heights over the ground, one shadow each: a card lying on the column
+/// (the tab you're on), one floating over the page (the address list, a
+/// question), one over everything (the tab switcher). A hairline round each
+/// keeps its edge where the shadow is too soft to; in the dark it is light.
+enum Elevation {
+    case lift, float, overlay
+}
+
+struct Elevated<S: InsettableShape>: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    let height: Elevation
+    let shape: S
+    let fill: Color
+
+    func body(content: Content) -> some View {
+        let dark = scheme == .dark
+        content
+            .background {
+                switch height {
+                case .lift:
+                    shape.fill(fill).shadow(color: .black.opacity(dark ? 0.3 : 0.07), radius: 1.5, y: 1)
+                case .float:
+                    shape.fill(fill)
+                        .shadow(color: .black.opacity(dark ? 0.3 : 0.04), radius: 3, y: 2)
+                        .shadow(color: .black.opacity(dark ? 0.5 : 0.12), radius: 18, y: 12)
+                case .overlay:
+                    shape.fill(fill)
+                        .shadow(color: .black.opacity(dark ? 0.3 : 0.06), radius: 6, y: 4)
+                        .shadow(color: .black.opacity(dark ? 0.6 : 0.18), radius: 40, y: 28)
+                }
+            }
+            .overlay {
+                shape.strokeBorder(dark ? Color.white.opacity(height == .lift ? 0.08 : 0.10)
+                                        : Color.black.opacity(height == .lift ? 0.05 : 0.08),
+                                   lineWidth: dark ? 1 : 0.5)
+                    .allowsHitTesting(false)
+            }
+    }
+}
+
+extension View {
+    /// On a card at `height` over what it lies on (see Elevated).
+    func elevated<S: InsettableShape>(_ height: Elevation, in shape: S, fill: Color = Palette.raised) -> some View {
+        modifier(Elevated(height: height, shape: shape, fill: fill))
+    }
+}
+
+/// The ground of the tab you're on: a card lifted off the column, or on the
+/// white the wash (Greys.raised).
+struct LiveGround: View {
+    @Environment(\.greys) private var greys
+    var radius: CGFloat = 10
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        if greys.lifts {
+            Color.clear.elevated(.lift, in: shape, fill: greys.raised)
+        } else {
+            shape.fill(greys.raised)
+        }
+    }
+}
+
+/// A title on one line that fades out at its end where it doesn't fit, rather
+/// than being cut at three dots. One that fits is drawn as it is.
+struct FadingLine: View {
+    let text: String
+    var fade: CGFloat = 16
+    /// In a list whose rows are drawn often, measured once for a text at a
+    /// width; the layout only decides which of the two to show.
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            Text(text).lineLimit(1).fixedSize()
+            Text(text).lineLimit(1).fixedSize()
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                .clipped()
+                .mask {
+                    HStack(spacing: 0) {
+                        Rectangle()
+                        LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: fade)
+                    }
+                }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
+    }
 }
 
 /// The handle on an edge that pulls: the column's, the side panel's and the

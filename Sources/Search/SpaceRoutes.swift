@@ -239,7 +239,7 @@ struct SpaceRouteList: View {
                 .foregroundStyle(Palette.ink)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(Palette.wash, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .onSubmit(add)
             Picker("Space", selection: Binding(get: { chosen ?? choices.first?.id }, set: { chosen = $0 })) {
                 ForEach(choices, id: \.id) { Text($0.name).tag(Optional($0.id)) }

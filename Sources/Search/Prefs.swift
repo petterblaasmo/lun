@@ -300,8 +300,8 @@ final class Preferences: ObservableObject {
         didSet { store.set(showsPlayer, forKey: "sidebar.player") }
     }
     /// One tab's line in the column, and the size its title is set in.
-    var sideRow: CGFloat { iconColumn ? Metrics.iconTile : roomyTabs ? 36 : 28 }
-    var sideTitle: CGFloat { roomyTabs ? 14 : 12.5 }
+    var sideRow: CGFloat { iconColumn ? Metrics.iconTile : roomyTabs ? 40 : 32 }
+    var sideTitle: CGFloat { roomyTabs ? 14 : 13 }
     /// How wide the column is. Pulled by its edge, and remembered.
     @Published var sideWidth: CGFloat {
         didSet { store.set(Double(sideWidth), forKey: "sidebar.width") }
@@ -1337,7 +1337,7 @@ final class Preferences: ObservableObject {
         slidesColumn = store.bool(forKey: Motion.slidesKey)
         roomyTabs = store.bool(forKey: "sidebar.roomy")
         doorsUp = store.bool(forKey: "sidebar.doorsUp")
-        foldButton = store.bool(forKey: "sidebar.foldButton")
+        foldButton = store.object(forKey: "sidebar.foldButton") as? Bool ?? true
         sideIcons = store.bool(forKey: "sidebar.icons")
         foldsToIcons = store.bool(forKey: "sidebar.foldIcons")
         narrowsToIcons = store.bool(forKey: "sidebar.narrowIcons")
@@ -1357,7 +1357,7 @@ final class Preferences: ObservableObject {
         glassClear = (store.object(forKey: "window.glass.clear") as? Double).map { min(1, max(0, $0)) } ?? 0.5
         glassStyle = store.string(forKey: "window.glass.style").flatMap(GlassStyle.init) ?? .frosted
         liquidTabs = store.bool(forKey: "tabs.liquid")
-        glyph = store.string(forKey: "glyph").flatMap(Glyph.init) ?? .letters
+        glyph = store.string(forKey: "glyph").flatMap(Glyph.init) ?? .icons
         engine = store.string(forKey: "search.engine").flatMap(Engine.init) ?? .standard
         customEngine = store.string(forKey: "search.custom") ?? ""
         customSuggest = store.string(forKey: "search.customSuggest") ?? ""
@@ -1530,7 +1530,7 @@ final class Preferences: ObservableObject {
         linksFindTabs = store.bool(forKey: "links.little.tabs")
         webmail = store.string(forKey: "mail.webmail").flatMap(Webmail.init(rawValue:)) ?? .none
         sendsLinksToSpaces = store.bool(forKey: SpaceRoutes.key)
-        spaceButtons = store.bool(forKey: Preferences.spaceButtonsKey)
+        spaceButtons = store.object(forKey: Preferences.spaceButtonsKey) as? Bool ?? true
         spaceRoutes = (store.array(forKey: SpaceRoutes.rulesKey) ?? []).compactMap(SpaceRoute.init(plist:))
         spaceForOtherLinks = store.string(forKey: SpaceRoutes.otherKey).flatMap(UUID.init)
         asksSpaceForLinks = store.bool(forKey: "links.ask")
@@ -1648,7 +1648,7 @@ final class Preferences: ObservableObject {
         take(\.slidesColumn, store.bool(forKey: Motion.slidesKey))
         take(\.roomyTabs, store.bool(forKey: "sidebar.roomy"))
         take(\.doorsUp, store.bool(forKey: "sidebar.doorsUp"))
-        take(\.foldButton, store.bool(forKey: "sidebar.foldButton"))
+        take(\.foldButton, store.object(forKey: "sidebar.foldButton") as? Bool ?? true)
         take(\.sideIcons, store.bool(forKey: "sidebar.icons"))
         take(\.foldsToIcons, store.bool(forKey: "sidebar.foldIcons"))
         take(\.narrowsToIcons, store.bool(forKey: "sidebar.narrowIcons"))
@@ -1669,7 +1669,7 @@ final class Preferences: ObservableObject {
         take(\.liquidTabs, store.bool(forKey: "tabs.liquid"))
         take(\.bounces, store.bool(forKey: "pages.bounce"))
         Swipe.bounces = bounces
-        take(\.glyph, "glyph", store.string(forKey: "glyph").flatMap(Glyph.init), or: .letters)
+        take(\.glyph, "glyph", store.string(forKey: "glyph").flatMap(Glyph.init), or: .icons)
         take(\.tabsGive, store.bool(forKey: "tabs.give"))
         take(\.tabClickAddressOnly, store.bool(forKey: "tabs.clickAddressOnly"))
         take(\.tabClickKeepsName, store.bool(forKey: "tabs.clickKeepsName"))

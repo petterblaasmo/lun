@@ -759,10 +759,17 @@ struct Mark: View {
     /// text), instead of the soft grey a resting mark usually wears: the
     /// ground's own, as the doors' (see Door), so it still reads on glass.
     var contrast = false
+    /// With no icon, a globe rather than the letter: a tab's, with Icons on.
+    var globe = false
 
     var body: some View {
         Group {
-            if let icon, icon.isTemplate {
+            if icon == nil, globe {
+                Image(systemName: "globe")
+                    .font(.system(size: size * 0.82))
+                    .foregroundStyle(contrast ? Palette.ink : greys.muted)
+                    .frame(width: size, height: size)
+            } else if let icon, icon.isTemplate {
                 // One of Search's own pages (InternalPages.swift): its symbol,
                 // in the row's ink, light or dark.
                 Image(nsImage: icon)

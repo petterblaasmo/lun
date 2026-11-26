@@ -40,13 +40,13 @@ final class FoldedColumnDragTests: XCTestCase {
         try await settle()
         let start = rowPoint(2, in: window)
         try await send(.leftMouseDown, at: start, in: window)
-        for distance in stride(from: CGFloat(4), through: 28, by: 4) {
+        for distance in stride(from: CGFloat(4), through: 36, by: 4) {
             try await send(.leftMouseDragged, at: NSPoint(x: start.x, y: start.y - distance), in: window)
         }
         try await rest()
         XCTAssertNil(TabDrag.shared.preview, "no split shown over the column")
         XCTAssertNil(TabDrag.shared.over, "nor the page's edges")
-        try await send(.leftMouseUp, at: NSPoint(x: start.x, y: start.y - 28), in: window)
+        try await send(.leftMouseUp, at: NSPoint(x: start.x, y: start.y - 36), in: window)
         try await settle()
         XCTAssertTrue(browser.splits.isEmpty, "no pair")
         XCTAssertEqual(browser.tabs.map(\.id), [t[0].id, t[1].id, t[3].id, t[2].id], "moved down the column")
@@ -93,6 +93,7 @@ final class FoldedColumnDragTests: XCTestCase {
         let browser = Browser(record: WindowRecord())
         browsers.append(browser)
         browser.prefs.sidebar = true
+        browser.prefs.addressLine = false
         browser.prefs.sidePosition = .left
         browser.prefs.usesTabGroups = false
         browser.prefs.splitView = true
@@ -126,7 +127,7 @@ final class FoldedColumnDragTests: XCTestCase {
     }
 
     private func rowPoint(_ index: Int, in window: NSWindow) -> NSPoint {
-        NSPoint(x: 70, y: window.frame.height - Metrics.strip - 14 - CGFloat(index) * 28)
+        NSPoint(x: 70, y: window.frame.height - Metrics.strip - 16 - CGFloat(index) * 34)
     }
 
     private func send(_ type: NSEvent.EventType, at point: NSPoint, in window: NSWindow) async throws {

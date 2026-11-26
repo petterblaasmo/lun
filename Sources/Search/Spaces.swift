@@ -1029,23 +1029,23 @@ private struct SpaceButton: View {
         Button {
             if current { SpaceMenu.show(for: browser) } else { browser.goToSpace(space.id) }
         } label: {
-            Image(systemName: space.symbol)
-                .font(.system(size: 11, weight: .medium))
-                // Its colour only while it's the one on screen: the others
-                // all grey alike, coloured or not, so a coloured space's
-                // button didn't read as the one you're in.
-                // Hovered and at rest as the doors beside it are (Door, idea 1034).
-                .foregroundStyle(current ? (space.tint ?? Palette.ink) : hovering ? Palette.ink.opacity(0.7) : greys.muted)
-                .opacity(current || hovering ? 1 : 0.75)
+            // A dot of its colour, the one on screen a size up with a ring
+            // round it. Its icon is in the menu and its name in the tooltip.
+            Circle()
+                .fill(space.tint ?? greys.muted)
+                .frame(width: current ? 10 : 8, height: current ? 10 : 8)
+                .overlay {
+                    if current {
+                        Circle()
+                            .strokeBorder(Palette.ink, lineWidth: 1.5)
+                            .frame(width: 17, height: 17)
+                    }
+                }
                 .frame(minWidth: squeezes ? 20 : 26, idealWidth: 26, maxWidth: 26, minHeight: 26, maxHeight: 26)
                 .background(
-                    // The one on screen on a wash, of its colour if it has one.
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(current
-                              ? (space.tint.map { $0.opacity(0.18) } ?? greys.wash)
-                              : (hovering ? greys.hover : .clear))
+                    Circle().fill(hovering ? greys.hover : .clear)
                 )
-                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }

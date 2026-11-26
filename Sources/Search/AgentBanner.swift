@@ -134,14 +134,14 @@ private struct AgentStatusFace: View {
         .frame(height: AgentStatus.cardHeight(row: prefs.sideRow, auto: session.auto))
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(hovering ? greys.hover : .clear)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(Palette.hairline, lineWidth: 1)
         )
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .onHover { hovering = $0 }
         .help(AgentWords.short(session) + ". Stop disconnects it; its tabs stay.")
         .animation(Motion.quick, value: hovering)

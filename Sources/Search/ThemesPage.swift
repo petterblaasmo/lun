@@ -97,9 +97,9 @@ struct ThemesPage: View {
                 HomeBackground(theme: prefs.homeTheme, tuning: prefs.homeTuning, image: prefs.homeThemeImage,
                                shuffle: prefs.homeShuffle)
             }
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Palette.ground)
-                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
                 .overlay(Text("Search or enter address")
                     .font(.system(size: 11)).foregroundStyle(Palette.muted))
                 .frame(width: 220, height: 30)

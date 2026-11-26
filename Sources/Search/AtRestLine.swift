@@ -91,6 +91,8 @@ struct TitleAtRest: View {
     /// the top a lock says the first and the site alone stands for the host.
     let roomy: Bool
     var dim = false
+    /// The tab you're on, in the heavier weight.
+    var live = false
     /// The tab it is on, for a row drawn for the bench (RecordsTitle).
     var record: UUID? = nil
 
@@ -98,10 +100,8 @@ struct TitleAtRest: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            Text(label)
-                .font(.system(size: size))
-                .lineLimit(1)
-                .truncationMode(.tail)
+            FadingLine(text: label)
+                .font(.system(size: size, weight: live ? .medium : .regular))
                 .foregroundStyle(colour)
                 .modifier(RecordsTitle(key: record.map { "\($0.uuidString.prefix(8).lowercased())/title" },
                                        title: .init(text: label, size: size, shown: !(on && !hovering))))

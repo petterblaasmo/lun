@@ -298,10 +298,10 @@ struct Omnibox: View {
             .padding(.vertical, 9)
             .background {
                 if picked {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Palette.wash)
                 } else if hovering {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Palette.hover)
                 }
             }
@@ -391,7 +391,7 @@ private struct SiteOfferRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         .background {
-            if hovering { RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Palette.hover) }
+            if hovering { RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Palette.hover) }
         }
         .onHover { hovering = $0 }
         .accessibilityElement(children: .ignore)

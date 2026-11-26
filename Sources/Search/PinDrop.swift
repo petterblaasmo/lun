@@ -121,7 +121,7 @@ struct RowGhost: View {
     let size: CGFloat
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         HStack(spacing: 8) {
             Mark(icon: tab.icon, letter: tab.monogram, size: 15)
             Text(tab.label)
