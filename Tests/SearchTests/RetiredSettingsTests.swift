@@ -87,6 +87,30 @@ final class RetiredSettingsTests: XCTestCase {
         XCTAssertEqual(store.string(forKey: RetiredSettings.aside("downloads.open")), "tab")
     }
 
+    /// Roomier tabs is retired at off: no row, nothing found, a stored "on"
+    /// put aside, and a tab's row the one height. The code behind it stays.
+    func testRoomierTabsIsRetiredAtTheOneHeight() throws {
+        XCTAssertNil(SettingsIndex.item("sidebar.roomy"))
+        XCTAssertTrue(SettingsIndex.find("roomier tabs").allSatisfy { $0.id != "sidebar.roomy" })
+        XCTAssertFalse(WhatsNew.toggles.contains { $0.title == "Roomier tabs" })
+        XCTAssertFalse(RetiredSettings.fixed.contains { $0.key == "sidebar.roomy" })
+
+        let name = "roomy-\(UUID().uuidString)"
+        let store = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { store.removePersistentDomain(forName: name) }
+        store.set(true, forKey: "sidebar.roomy")
+        RetiredSettings.settle(store)
+        XCTAssertNil(store.object(forKey: "sidebar.roomy"))
+        XCTAssertEqual(store.object(forKey: RetiredSettings.aside("sidebar.roomy")) as? Bool, true)
+
+        let prefs = Preferences()
+        let was = (prefs.roomyTabs, prefs.sidebar, prefs.sideIcons)
+        defer { (prefs.roomyTabs, prefs.sidebar, prefs.sideIcons) = was }
+        (prefs.roomyTabs, prefs.sidebar, prefs.sideIcons) = (false, true, false)
+        XCTAssertEqual(prefs.sideRow, 32)
+        XCTAssertEqual(prefs.sideTitle, 13)
+    }
+
     func testEveryRetiredKeyBelongedToARetiredRow() {
         // A key of a row that is still drawn must never be put aside.
         let kept = Set(SettingsIndex.items.flatMap(\.keys))
