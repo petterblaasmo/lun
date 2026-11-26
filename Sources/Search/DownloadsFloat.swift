@@ -200,8 +200,7 @@ enum DownloadsFloat {
             panel.setFrame(frame, display: true)
             return
         }
-        // Its own group, not Motion.run: through that the window's frame
-        // never moved (DownloadsOpeningTests.testTheWindowResizesInSmallSteps).
+        // Its own group and time, tuned for a window's frame (idea 897).
         NSAnimationContext.runAnimationGroup { context in
             context.duration = Motion.light ? 0.16 : 0.22
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
