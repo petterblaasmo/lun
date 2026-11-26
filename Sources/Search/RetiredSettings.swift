@@ -6,7 +6,7 @@ import Foundation
 // request and off unless asked for. Lun keeps the ones worth choosing and
 // fixes the rest (26 Nov 2026): no row, nothing in the find field. Most
 // are fixed at what they already did by default, their stored choice put
-// aside so the default is what is read. Twenty-five that were off unless
+// aside so the default is what is read. Twenty-four that were off unless
 // asked for are fixed on instead (`fixed`): each was a better browser than
 // the one without it, and none was worth a switch.
 //
@@ -49,7 +49,7 @@ enum RetiredSettings {
     /// store (Motion), not only by Preferences.
     static let fixed: [(key: String, value: Any)] = [
         ("downloads.open", DownloadsOpening.popover.rawValue),
-        ("sidebar.slides", true), ("fold.loadingLine", true), ("sidebar.narrowIcons", true),
+        ("fold.loadingLine", true), ("sidebar.narrowIcons", true),
         ("sidebar.player", true), ("tabs.pinCounts", true), ("tabs.give", true), ("motion.light", true),
         ("tabs.frontBeside", true), ("tabs.swipeBackCloses", true), ("tabs.undoReopens", true),
         ("tabs.popupWindows", true), ("links.little.tabs", true), ("reader.follows", true),
@@ -77,6 +77,10 @@ enum RetiredSettings {
         "keys.backspaceBack", "swipe.history", "update.notice",
         "scrollbars.fade", "tabs.highContrast", "motion.instant", "pins.linksNewTab", "launcher.little",
         "address.width",
+        // Fixed on for a day, then back to off: ⌘S and the window's edge
+        // move the column on its short springs, which is how it was liked.
+        // Put aside like the rest, so the day it was on is undone too.
+        "sidebar.slides",
     ]
 
     /// What's New's switches for the same things, by the title its card
