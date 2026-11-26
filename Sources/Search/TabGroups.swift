@@ -154,7 +154,7 @@ struct GroupHeading: View {
         .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
             .fill(dropping ? greys.wash : (hovering ? greys.hover : greys.tile)))
         .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .onTapGesture { browser.toggleTabGroup(group.id) }
+        .onTapGesture { withAnimation(Motion.settle) { browser.toggleTabGroup(group.id) } }
         .modifier(GroupHeadingShared(browser: browser, group: group, dragSpace: dragSpace, dropping: $dropping))
         .hovers($hovering)
         .help(group.collapsed ? "\(group.name) — folded" : group.name)
@@ -216,7 +216,7 @@ struct GroupHeading: View {
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
             .fill(dropping ? greys.wash : (hovering ? greys.hover : .clear)))
         .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .onTapGesture { if !editing { browser.toggleTabGroup(group.id) } }
+        .onTapGesture { if !editing { withAnimation(Motion.settle) { browser.toggleTabGroup(group.id) } } }
         .modifier(GroupHeadingShared(browser: browser, group: group, dragSpace: dragSpace, dropping: $dropping,
                                      horizontal: horizontal))
         .hovers($hovering)
@@ -282,7 +282,7 @@ private struct GroupHeadingShared: ViewModifier {
                 Button("New Tab in Group") { browser.newTab(inGroup: group.id) }
                 Divider()
                 Button("Rename Group") { browser.editingGroupID = group.id }
-                Button(group.collapsed ? "Expand Group" : "Collapse Group") { browser.toggleTabGroup(group.id) }
+                Button(group.collapsed ? "Expand Group" : "Collapse Group") { withAnimation(Motion.settle) { browser.toggleTabGroup(group.id) } }
                 Button("Colour…") { choosingColour = true }
                 // The whole group into another space, still a group there: Arc's
                 // folders came in wherever Arc had them.
