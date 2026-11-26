@@ -73,6 +73,23 @@ final class AddressTests: XCTestCase {
         XCTAssertEqual(Address.url(from: "https://LOCALHOST:3000")?.absoluteString, "https://LOCALHOST:3000")
         XCTAssertEqual(Address.url(from: "Example.COM/Status")?.absoluteString, "https://Example.COM/Status")
     }
+
+    /// What the field shows for a tab's address, sent as it is, goes back
+    /// to the same page: the port, the query, the fragment and plain http
+    /// are all still in it.
+    func testAnAddressShownForEditingGoesBackToTheSamePage() throws {
+        for page in ["https://example.com/path?q=two+words#part", "http://127.0.0.1:8767/images.html",
+                     "http://example.com/page", "https://example.com:8443/", "https://example.com/",
+                     "https://www.youtube.com/watch?v=abc123&t=42s", "http://192.168.1.20/admin?tab=2"] {
+            let url = try XCTUnwrap(URL(string: page))
+            let shown = Address.editable(url)
+            let back = try XCTUnwrap(Address.url(from: shown), shown).absoluteString
+            XCTAssertTrue(back == page || back + "/" == page, "\(page) shown as \(shown) went to \(back)")
+        }
+        XCTAssertEqual(Address.editable(try XCTUnwrap(URL(string: "https://example.com/"))), "example.com")
+        XCTAssertTrue(Address.editable(try XCTUnwrap(URL(string: "http://127.0.0.1:8767/images.html"))).contains(":8767"))
+        XCTAssertTrue(Address.editable(try XCTUnwrap(URL(string: "https://example.com/path?q=1#part"))).hasSuffix("/path?q=1#part"))
+    }
 }
 
 @MainActor
@@ -119,22 +136,5 @@ final class FileDestinationTests: XCTestCase {
         XCTAssertNil(Address.otherApp(from: "what is vnc://", opener: anApp))
         XCTAssertNil(Address.otherApp(from: "1abc://x", opener: anApp))
         XCTAssertNil(Address.url(from: "vnc://192.168.1.20"), "the window itself still doesn't load it")
-    }
-
-    /// What the field shows for a tab's address, sent as it is, goes back
-    /// to the same page: the port, the query, the fragment and plain http
-    /// are all still in it.
-    func testAnAddressShownForEditingGoesBackToTheSamePage() throws {
-        for page in ["https://example.com/path?q=two+words#part", "http://127.0.0.1:8767/images.html",
-                     "http://example.com/page", "https://example.com:8443/", "https://example.com/",
-                     "https://www.youtube.com/watch?v=abc123&t=42s", "http://192.168.1.20/admin?tab=2"] {
-            let url = try XCTUnwrap(URL(string: page))
-            let shown = Address.editable(url)
-            let back = try XCTUnwrap(Address.url(from: shown), shown).absoluteString
-            XCTAssertTrue(back == page || back + "/" == page, "\(page) shown as \(shown) went to \(back)")
-        }
-        XCTAssertEqual(Address.editable(try XCTUnwrap(URL(string: "https://example.com/"))), "example.com")
-        XCTAssertTrue(Address.editable(try XCTUnwrap(URL(string: "http://127.0.0.1:8767/images.html"))).contains(":8767"))
-        XCTAssertTrue(Address.editable(try XCTUnwrap(URL(string: "https://example.com/path?q=1#part"))).hasSuffix("/path?q=1#part"))
     }
 }
