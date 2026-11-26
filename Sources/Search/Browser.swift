@@ -4447,6 +4447,10 @@ final class Browser: NSObject, ObservableObject {
         var active = id == nil ? -1 : 0
         var indices: [Tab.ID: Int] = [:]
         let liftedIDs = Set(aside.map(\.id))
+        // Asked once, not for every tab: the pages on screen were worked
+        // out again, and the setting read again, three hundred times a save.
+        let visible = visibleTabIDs
+        let mirrors = prefs.mirrorsTabs
         for tab in tabs + aside {
             guard kept(tab), let url = tab.pending ?? tab.address ?? tab.page?.url else { continue }
             if tab.id == id { active = entries.count }
@@ -4457,7 +4461,7 @@ final class Browser: NSObject, ObservableObject {
                 pinID: tab.pin == nil ? nil : tab.pinID,
                 // A page on screen is being looked at now, not when it was
                 // arrived at: quitting on it is leaving it.
-                touched: visibleTabIDs.contains(tab.id) ? Date() : tab.touched,
+                touched: visible.contains(tab.id) ? Date() : tab.touched,
                 letGo: tab.pin == nil ? tab.letGo : nil,
                 listed: tab.pin != nil && tab.listed ? true : nil,
                 muted: tab.muted,
@@ -4466,7 +4470,7 @@ final class Browser: NSObject, ObservableObject {
                 keepsake: keeping ? tab.keepsake.map(Keepsake.init) : nil,
                 // Only with Same tabs in every window on: off, the file is
                 // what it always was.
-                twinID: prefs.mirrorsTabs && twinnable(tab) ? tab.twinID : nil,
+                twinID: mirrors && twinnable(tab) ? tab.twinID : nil,
                 lifted: liftedIDs.contains(tab.id) ? tab.id : nil
             ))
         }
