@@ -942,7 +942,10 @@ struct ReleaseNotesPanel: View {
         ("New", "The address opens where it stands, as one card with its suggestions."),
         ("New", "A page that doesn’t load says how far it got."),
         ("Changed", "Lun has its own name, icon, bundle ID, signing, data folder and keychain items."),
-        ("Removed", "The update feed, the mailing list and the iPhone waitlist. Updates come back when Lun has somewhere to get them from."),
+        ("New", "Extensions have a page of their own, and a new extension’s button is in the row from the start."),
+        ("Changed", "Settings is half as long: 74 rows on eight pages, each page opening on the few most people come for."),
+        ("Changed", "Updates come from Lun’s own releases, checked every hour and put in place quietly."),
+        ("Removed", "The mailing list and the iPhone waitlist."),
         ("Changed", "Send Feedback opens a draft issue with the version already in it."),
     ]
 
