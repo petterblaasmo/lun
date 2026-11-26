@@ -200,7 +200,13 @@ enum DownloadsFloat {
             panel.setFrame(frame, display: true)
             return
         }
-        Motion.run(.settle) { panel.animator().setFrame(frame, display: true) }
+        // Its own group, not Motion.run: through that the window's frame
+        // never moved (DownloadsOpeningTests.testTheWindowResizesInSmallSteps).
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Motion.light ? 0.16 : 0.22
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            panel.animator().setFrame(frame, display: true)
+        }
     }
 
     /// How tall the card would be to show all it lists, at `width`.
