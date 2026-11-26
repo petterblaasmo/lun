@@ -1963,6 +1963,70 @@ final class Extensions: NSObject, ObservableObject {
         }
     }
 
+    /// How an installed extension stands, for its line in the list behind
+    /// the puzzle.
+    enum Standing: Equatable {
+        /// Running, with a button to press. WebKit gives every extension
+        /// one, whether or not its manifest names an action.
+        case button
+        /// Running, and WebKit has no button for it.
+        case silent
+        /// Switched on and not running: still starting, or it couldn't
+        /// (WebKit's reason, as Settings › Extensions says it).
+        case stopped(String?)
+        case off
+
+        static func of(enabled: Bool, running: Bool, hasButton: Bool, reason: String?) -> Standing {
+            guard enabled else { return .off }
+            guard running else { return .stopped(reason) }
+            return hasButton ? .button : .silent
+        }
+
+        /// What its line says under the pointer, where there is no button's
+        /// own label to say.
+        func says(_ name: String) -> String {
+            switch self {
+            case .button: return name
+            case .silent: return "\(name) is on. It has no button: it works on its own."
+            case .stopped(let reason): return reason.map { "\(name) couldn’t start: \($0)" } ?? "\(name) is starting"
+            case .off: return "\(name) is off"
+            }
+        }
+    }
+
+    /// One line of the list behind the puzzle.
+    struct Listed: Identifiable {
+        /// Its button; for one with none to press, what stands in for it:
+        /// the extension's own icon and name, dimmed.
+        let button: Button
+        let standing: Standing
+        var id: String { button.id }
+    }
+
+    /// Every installed extension, in install order. The list showed only
+    /// `buttons`, the running ones: one switched off, or one that couldn't
+    /// start, was nowhere but Settings, and looked as if it had never been
+    /// installed.
+    var listed: [Listed] {
+        let pressable = Dictionary(buttons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return installed.map { item in
+            if let button = pressable[item.id] { return Listed(button: button, standing: .button) }
+            let context = contexts[item.id]
+            return Listed(
+                button: Button(
+                    id: item.id,
+                    name: item.name,
+                    label: item.name,
+                    icon: context?.webExtension.icon(for: CGSize(width: 16, height: 16)),
+                    badge: "",
+                    enabled: false,
+                    pinned: item.pinned ?? false
+                ),
+                standing: .of(enabled: item.enabled, running: context != nil, hasButton: false, reason: notStarted[item.id])
+            )
+        }
+    }
+
     /// When you last clicked each extension's button or its line in the
     /// menu: a permissions.request made from that click is one you asked
     /// for, even once WebKit no longer sees the click (see
@@ -2775,8 +2839,9 @@ func extensionMenuPicture() -> NSBitmapImageRep? {
     return picture
 }
 
-/// The list behind the puzzle button: every running extension, a pin for
-/// each, and the way to Settings.
+/// The list behind the puzzle button: every installed extension — a pin
+/// for each that is running, a switch for each that is off or couldn't
+/// start — and the way to Settings.
 @available(macOS 15.4, *)
 private struct ExtensionMenu: View {
     var browser: Browser? = nil
@@ -2784,8 +2849,8 @@ private struct ExtensionMenu: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            let buttons = extensions.buttons
-            if extensions.installed.isEmpty {
+            let listed = extensions.listed
+            if listed.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("No extensions yet")
                         .font(.system(size: 13, weight: .medium))
@@ -2797,16 +2862,11 @@ private struct ExtensionMenu: View {
                 }
                 .padding(14)
                 .frame(width: 240, alignment: .leading)
-            } else if buttons.isEmpty {
-                Text("None of your extensions is on")
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(Palette.muted)
-                    .padding(14)
             } else {
                 ScrollView {
                     VStack(spacing: 1) {
-                        ForEach(buttons) { button in
-                            Row(button: button, browser: browser, extensions: extensions)
+                        ForEach(listed) { line in
+                            Row(button: line.button, standing: line.standing, browser: browser, extensions: extensions)
                         }
                     }
                     .padding(6)
@@ -2837,11 +2897,13 @@ private struct ExtensionMenu: View {
 
     private struct Row: View {
         let button: Extensions.Button
+        var standing = Extensions.Standing.button
         var browser: Browser? = nil
         @ObservedObject var extensions: Extensions
         @State private var hovering = false
 
         var body: some View {
+            let pressable = standing == .button
             HStack(spacing: 9) {
                 ExtensionIcon(button: button, size: 16)
                 Text(button.name)
@@ -2852,18 +2914,34 @@ private struct ExtensionMenu: View {
                 if hovering, extensions.installed.first(where: { $0.id == button.id })?.source != nil {
                     Tool(symbol: "arrow.clockwise", help: "Reload from its folder") { extensions.reload(button.id) }
                 }
-                if hovering || button.pinned {
-                    Tool(symbol: button.pinned ? "pin.fill" : "pin", help: button.pinned ? "Unpin" : "Pin to toolbar", on: button.pinned) {
-                        extensions.setPinned(button.id, !button.pinned)
+                if pressable {
+                    if hovering || button.pinned {
+                        Tool(symbol: button.pinned ? "pin.fill" : "pin", help: button.pinned ? "Unpin" : "Pin to toolbar", on: button.pinned) {
+                            extensions.setPinned(button.id, !button.pinned)
+                        }
                     }
+                } else {
+                    // Nothing to press or pin: what it has is whether it is
+                    // on, and that is said and changed here.
+                    if case .stopped(.some) = standing {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Palette.unsafe)
+                            .accessibilityLabel("Couldn’t start")
+                    }
+                    Switch(on: Binding(get: { standing != .off }, set: { extensions.setEnabled(button.id, $0) }))
+                        .accessibilityLabel(button.name)
+                        .padding(.trailing, 5)
                 }
             }
             .padding(.leading, 8)
             .padding(.trailing, 4)
             .frame(height: 30)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
+            // Only a line that can be pressed lights up as one.
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering && pressable ? Palette.wash : .clear))
             .contentShape(Rectangle())
             .onTapGesture {
+                guard pressable else { return }
                 // The list goes first; the popup, if there is one, then
                 // hangs from the puzzle button it came out of.
                 extensions.menuOpen = false
@@ -2871,7 +2949,7 @@ private struct ExtensionMenu: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { extensions.press(id, in: browser) }
             }
             .hovers($hovering)
-            .help(button.label)
+            .help(pressable ? button.label : standing.says(button.name))
             .contextMenu { ExtensionActions(id: button.id, name: button.name, browser: browser, extensions: extensions) }
         }
     }
