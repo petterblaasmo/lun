@@ -566,6 +566,8 @@ final class Preferences: ObservableObject {
     /// The tab you're on says where its page is, at rest, without a click:
     /// its site, from the address on screen (see AtRest.swift). On unless
     /// turned off.
+    /// Whether the tab you're on says it: not while the address bar does.
+    var saysAddressOnTab: Bool { showsAddress && !(addressLine && !iconColumn) }
     @Published var showsAddress: Bool {
         didSet { store.set(showsAddress, forKey: "tabs.address") }
     }
@@ -1347,7 +1349,7 @@ final class Preferences: ObservableObject {
         sideWidth = min(Metrics.sideMax, max(Metrics.sideMin, CGFloat(width)))
         cards = store.object(forKey: "layout.cards") as? Bool ?? true
         cardsInFullScreen = store.bool(forKey: "layout.cardsFullScreen")
-        addressLine = store.bool(forKey: "address.shown")
+        addressLine = store.object(forKey: "address.shown") as? Bool ?? true
         let fades = store.bool(forKey: "scrollbars.fade")
         scrollbarsFade = fades
         Scrollbars.fade = fades
@@ -1659,7 +1661,7 @@ final class Preferences: ObservableObject {
             .flatMap { Preferences.sidePanelWidths.contains($0) ? $0 : nil }, or: 380)
         take(\.cards, "layout.cards", store.object(forKey: "layout.cards") as? Bool, or: true)
         take(\.cardsInFullScreen, store.bool(forKey: "layout.cardsFullScreen"))
-        take(\.addressLine, store.bool(forKey: "address.shown"))
+        take(\.addressLine, store.object(forKey: "address.shown") as? Bool ?? true)
         take(\.scrollbarsFade, store.bool(forKey: "scrollbars.fade"))
         take(\.addressWidth, "address.width", store.string(forKey: "address.width").flatMap(AddressWidth.init), or: .small)
         take(\.glass, store.bool(forKey: "window.glass"))

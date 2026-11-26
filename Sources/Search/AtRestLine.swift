@@ -13,6 +13,9 @@ struct AtRestLine: View {
     /// "Not secure" in the room of one letter (the words are its tooltip),
     /// and the registrable domain alone stands for the host.
     var compact = false
+    /// Whether it says "Not secure" itself, or the line it is on does.
+    var says = true
+    var weight: Font.Weight = .medium
     /// The tab it is on, for a row drawn for the bench (RecordsTitle).
     var record: UUID? = nil
 
@@ -33,7 +36,7 @@ struct AtRestLine: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            if rest.kind == .notSecure {
+            if rest.kind == .notSecure, says {
                 if compact {
                     Image(systemName: "lock.open")
                         .font(.system(size: size - 2, weight: .medium))
@@ -55,7 +58,7 @@ struct AtRestLine: View {
             }
             Text(rest.name)
                 .foregroundStyle(ink)
-                .fontWeight(rest.kind == .file || rest.kind == .other ? .regular : .medium)
+                .fontWeight(rest.kind == .file || rest.kind == .other ? .regular : weight)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .modifier(RecordsTitle(key: record.map { "\($0.uuidString.prefix(8).lowercased())/rest" },

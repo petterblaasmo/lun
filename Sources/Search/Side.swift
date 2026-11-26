@@ -288,9 +288,9 @@ struct SideBar: View {
                         }
                     }
                     // The page's address, when it is to be in sight.
-                    if prefs.addressLine {
-                        AddressLine(browser: browser, height: prefs.sideRow)
-                            .padding(.bottom, 6)
+                    if prefs.addressLine, browser.active?.isBlank == false {
+                        AddressLine(browser: browser, height: prefs.sideRow, inColumn: true)
+                            .padding(.bottom, 12)
                             // Its suggestions hang over the rows below.
                             .zIndex(1)
                     }
@@ -425,6 +425,19 @@ struct SideBar: View {
         // A fixed width with icons only: nothing to pull. The strip keeps
         // its edge, to be pulled back out to titles.
         .overlay(alignment: innerEdge) { if !icons || strip { edge } }
+        // The address bar typed in opens wider than the column, partly out
+        // over the page (AddressCard), so it is drawn here, past the clip and over the
+        // column's edge, where the line is: from its leading edge, or its trailing one on the right.
+        .overlayPreferenceValue(AddressCard.Place.self) { place in
+            GeometryReader { geometry in
+                if let place, browser.editingInline {
+                    let line = geometry[place]
+                    let width = AddressCard.width(for: line.width)
+                    AddressCard(browser: browser, height: prefs.sideRow, width: width, line: line.width)
+                        .offset(x: prefs.sidePosition == .right ? line.maxX - width : line.minX, y: line.minY)
+                }
+            }
+        }
         .onDrop(of: [.url, .text], isTargeted: $landing) { providers in
             browser.take(providers)
         }
@@ -2127,7 +2140,7 @@ private struct SideRow: View, Equatable {
     private var peeking: Bool { !editing && tab.pin != nil && peek != nil }
     /// Where the page is, said on the row you're on (Settings › Tabs › Show
     /// the address on the tab you're on).
-    private var rest: AtRest? { live && !editing ? AtRest.said(tab.restAddress, always: prefs.showsAddress) : nil }
+    private var rest: AtRest? { live && !editing ? AtRest.said(tab.restAddress, always: prefs.saysAddressOnTab) : nil }
     private var atRest: Bool { rest != nil }
     /// A pin already put down has nothing left to put down: no minus (#1050).
     private var closable: Bool { tab.pin == nil || !tab.asleep }

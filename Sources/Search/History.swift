@@ -40,6 +40,8 @@ struct Suggestion: Identifiable, Equatable {
         case command(AddressCommand)
 
         var isCommand: Bool { if case .command = self { return true }; return false }
+        /// Words to search for, typed, suggested or searched before.
+        var isWords: Bool { self == .search || self == .suggested || self == .searched }
         /// A page to go to, rather than words to search for or a command.
         var isPlace: Bool {
             switch self {
