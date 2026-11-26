@@ -7495,9 +7495,18 @@ final class Browser: NSObject, ObservableObject {
     /// home then, to a window on a desktop nobody was looking at, and you
     /// were taken back to that desktop after it. It stays out until its
     /// window's desktop is the one in view (desktopChanged).
-    func appBack() {
+    ///
+    /// Nor while another of Lun's windows is the one come back to. `front`
+    /// is that one, the app's main window: coming back to a link's small
+    /// window, to Settings or to another browser window brings Lun in front
+    /// too, and the video went home to a window nobody had come back to. It
+    /// stays out until this window is the main one, which is asked again as
+    /// it becomes that (ContentView). The main window and not the one with
+    /// the keys: the little window takes the keys when it is clicked or
+    /// moved, and has them still when Lun comes back.
+    func appBack(in front: NSWindow?) {
         stopAwayWatch()
-        guard window?.isOnActiveSpace ?? true else { return }
+        guard window?.isOnActiveSpace ?? true, front === window else { return }
         defer { liftedAway = false }
         if liftedAway, let id = floating, id == activeID { land() }
         if liftedAway, let id = pictured, id == activeID { unpicture() }
@@ -7506,9 +7515,9 @@ final class Browser: NSObject, ObservableObject {
     /// Another desktop has come into view. Back on this window's own, with
     /// Lun in front, a video that left with the app goes home, as appBack
     /// would have sent it had the window been in view then.
-    func desktopChanged(active: Bool = NSApp.isActive) {
+    func desktopChanged(active: Bool = NSApp.isActive, front: NSWindow? = NSApp.mainWindow ?? NSApp.keyWindow) {
         guard liftedAway, active else { return }
-        appBack()
+        appBack(in: front)
     }
 
     /// ⌘⇧P, for lifting one out by hand.

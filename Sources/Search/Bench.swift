@@ -4039,7 +4039,8 @@ final class Bench {
                     }
                 }
                 browser.appLeft()
-            case "back": browser.appBack()
+            // A hidden probe's window is never the one in front: taken as that.
+            case "back": browser.appBack(in: browser.window)
             default: break
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + (request["wait"] as? Double ?? 0.3)) {
@@ -4605,7 +4606,7 @@ final class Bench {
                                     case "app":
                                         let away = browser.prefs.floatsAway
                                         browser.prefs.floatsAway = true
-                                        if out { browser.appLeft() } else { browser.appBack() }
+                                        if out { browser.appLeft() } else { browser.appBack(in: browser.window) }
                                         browser.prefs.floatsAway = away
                                     default: browser.toggleFloat()
                                     }

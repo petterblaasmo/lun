@@ -1329,7 +1329,15 @@ struct ContentView: View {
                 browser.appLeft()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
-                if let window, (note.object as? NSWindow) === window { Browsers.becameKey(browser) }
+                if let window, (note.object as? NSWindow) === window {
+                    Browsers.becameKey(browser)
+                    // Its video, out since the app was left, comes home now
+                    // if another of Lun's windows was in front until here.
+                    browser.appBack(in: window)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeMainNotification)) { note in
+                if let window, (note.object as? NSWindow) === window { browser.appBack(in: window) }
             }
             .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.activeSpaceDidChangeNotification)) { _ in
                 if browser.prefs.keepsWindow, browser.tabs.contains(where: \.immersed) { immersing() }
@@ -1357,7 +1365,7 @@ struct ContentView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                 resting?.isHidden = true
-                browser.appBack()
+                browser.appBack(in: NSApp.mainWindow ?? NSApp.keyWindow)
             }
             .onChange(of: browser.fieldShowing) { _, showing in
                 if showing {
