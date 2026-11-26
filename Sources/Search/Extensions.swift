@@ -2531,8 +2531,10 @@ final class ExtensionWindow: NSObject, WKWebExtensionWindow {
 
 /// The extensions, behind one puzzle button — a list to press them from,
 /// pin them out of, reload or remove them. The pinned ones also sit in the
-/// row beside it, the way Chrome does it. Nothing at all below macOS 15.4
-/// or with nothing installed.
+/// row beside it, the way Chrome does it. Nothing at all below macOS 15.4.
+/// With nothing installed the puzzle is there all the same: it was the only
+/// way in but Settings, and showed only once there was something to find.
+/// Its list then says where extensions come from.
 struct ExtensionSlot: View {
     var browser: Browser? = nil
     /// The side the list opens toward: down from the top row, out to the
@@ -2590,7 +2592,7 @@ private struct ExtensionButtons: View {
     var live = true
 
     var body: some View {
-        if !extensions.installed.isEmpty {
+        do {
             HStack(spacing: 2) {
                 ForEach(extensions.buttons.filter(\.pinned).prefix(room ?? .max)) { button in
                     ActionButton(button: button) { extensions.press(button.id, in: browser) }
@@ -2778,7 +2780,19 @@ private struct ExtensionMenu: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             let buttons = extensions.buttons
-            if buttons.isEmpty {
+            if extensions.installed.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("No extensions yet")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Palette.ink)
+                    Text("Find one in the Chrome Web Store and press Add to Lun on its page.")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(Palette.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(14)
+                .frame(width: 240, alignment: .leading)
+            } else if buttons.isEmpty {
                 Text("None of your extensions is on")
                     .font(.system(size: 12.5))
                     .foregroundStyle(Palette.muted)
@@ -2807,8 +2821,7 @@ private struct ExtensionMenu: View {
                 }
                 Foot("gearshape", "Manage Extensions…") {
                     extensions.menuOpen = false
-                    Store.settings.set("extensions", forKey: "settings.page")
-                    (browser ?? extensions.browser)?.tuning = true
+                    (browser ?? extensions.browser)?.showExtensions()
                 }
             }
             .padding(6)

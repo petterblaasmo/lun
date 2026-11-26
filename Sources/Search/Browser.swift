@@ -215,6 +215,12 @@ final class Browser: NSObject, ObservableObject {
         get { pageTab(.settings) != nil }
         set { if newValue { show(InternalPage(.settings, settingsPage.rawValue)) } else { putAway(.settings) } }
     }
+    /// Settings at its Extensions page: the menu's Extensions…, and the
+    /// puzzle's Manage Extensions….
+    func showExtensions() {
+        Store.settings.set("extensions", forKey: "settings.page")
+        tuning = true
+    }
     /// The first-launch walk-through, over everything. Also from the menu.
     @Published var welcoming = false
     /// What's new, once after an update (see WhatsNew.swift).

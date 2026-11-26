@@ -207,6 +207,7 @@ struct Command: Identifiable {
     /// The same commands, keys and order as the menus (see App.swift).
     static let all: [Command] = [
         Command("app.settings", "Settings…", .app, KeyCombo(",")) { $0.tuning = true },
+        Command("app.extensions", "Extensions…", .app, nil) { $0.showExtensions() },
         Command("app.welcome", "Welcome…", .app, nil) { $0.welcoming = true },
         Command("app.passwords", "Passwords…", .app, KeyCombo("l", option: true)) { $0.managing = true },
 
