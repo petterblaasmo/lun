@@ -1082,6 +1082,20 @@ private struct SpaceButton: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        // A right-click opens the space's menu, on any of them: a click
+        // did only on the one you're in, and a right-click did nothing.
+        // The menu is about the space on screen, so another one's dot
+        // takes you there first, at once, and the menu is that space's.
+        .overlay {
+            RightClick {
+                if !current {
+                    SpaceSwipe.shared.land(browser)
+                    browser.switchSpace(to: space.id)
+                }
+                SpaceLookPopover.anchor = NSEvent.mouseLocation
+                return SpaceMenu.menu(for: browser)
+            }
+        }
         .onHover { hovering = $0 }
         .animation(Motion.quick, value: hovering)
         .animation(Motion.quick, value: current)
@@ -1089,7 +1103,7 @@ private struct SpaceButton: View {
         // or one of yours. The one you're in says its click opens the menu.
         .shortcutHelp { keys in
             let named = keys.tip(space.name, index < 9 ? "spaces.\(index + 1)" : nil)
-            return current ? named + " — click for the space’s menu" : named
+            return current ? named + " — click for the space’s menu" : named + " — right-click for its menu"
         }
         .accessibilityLabel(space.name)
         .accessibilityAddTraits(current ? .isSelected : [])
