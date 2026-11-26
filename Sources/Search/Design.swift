@@ -922,6 +922,30 @@ extension View {
     }
 }
 
+extension View {
+    /// A row pressed as a whole that can't be a Button, since it holds
+    /// buttons of its own or lies under other clicks: it gives under the
+    /// press as a button does (Gives, by a tab's means: Pressing and Give)
+    /// and does `act` on the click. A tap on a stack did the thing with
+    /// nothing to say it had been pressed. After the row's contentShape.
+    func pressed(to: CGFloat = 0.98, _ act: @escaping () -> Void) -> some View {
+        modifier(PressedRow(to: to, act: act))
+    }
+}
+
+private struct PressedRow: ViewModifier {
+    let to: CGFloat
+    let act: () -> Void
+    @State private var down = false
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(Give(pressed: down, to: to))
+            .modifier(Pressing(down: $down))
+            .onTapGesture(perform: act)
+    }
+}
+
 /// Hands what it draws whether the pointer is over it, eased as every
 /// hover is: for one of many built in a loop (a swatch, a tile, a cell of
 /// a grid), which has nowhere of its own to keep that.

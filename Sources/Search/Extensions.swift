@@ -2863,7 +2863,7 @@ private struct ExtensionMenu: View {
             .frame(height: 30)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
             .contentShape(Rectangle())
-            .onTapGesture {
+            .pressed {
                 // The list goes first; the popup, if there is one, then
                 // hangs from the puzzle button it came out of.
                 extensions.menuOpen = false
@@ -2871,6 +2871,7 @@ private struct ExtensionMenu: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { extensions.press(id, in: browser) }
             }
             .hovers($hovering)
+            .accessibilityAddTraits(.isButton)
             .help(button.label)
             .contextMenu { ExtensionActions(id: button.id, name: button.name, browser: browser, extensions: extensions) }
         }
@@ -2911,17 +2912,21 @@ private struct ExtensionMenu: View {
             self.act = act
         }
 
+        // A button, as each of a popover's rows is now: the keyboard and
+        // VoiceOver can press it, and it gives under the press.
         var body: some View {
-            HStack(spacing: 8) {
-                Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 14)
-                Text(title).font(.system(size: 12.5)).foregroundStyle(Palette.ink)
-                Spacer(minLength: 0)
+            SwiftUI.Button(action: act) {
+                HStack(spacing: 8) {
+                    Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 14)
+                    Text(title).font(.system(size: 12.5)).foregroundStyle(Palette.ink)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
-            .contentShape(Rectangle())
-            .onTapGesture(perform: act)
+            .buttonStyle(Gives(to: 0.98))
             .hovers($hovering)
         }
     }

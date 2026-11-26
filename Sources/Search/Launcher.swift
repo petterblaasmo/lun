@@ -554,7 +554,7 @@ private struct LauncherView: View {
             ForEach(Array(launcher.offers.enumerated()), id: \.element.id) { index, offer in
                 Omnibox.Row(offer: offer, picked: launcher.picked == index)
                     .contentShape(Rectangle())
-                    .onTapGesture { launcher.take(offer) }
+                    .pressed(to: 0.99) { launcher.take(offer) }
             }
         }
         .padding(6)

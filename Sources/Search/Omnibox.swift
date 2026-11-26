@@ -211,7 +211,7 @@ struct Omnibox: View {
             if let site = browser.siteOffer {
                 SiteOfferRow(site: site)
                     .contentShape(Rectangle())
-                    .onTapGesture { _ = browser.lockSiteOffer() }
+                    .pressed(to: 0.99) { _ = browser.lockSiteOffer() }
             }
             ForEach(Array(browser.offers.enumerated()), id: \.element.id) { index, offer in
                 // A line between the places and the words to search for.
@@ -220,7 +220,7 @@ struct Omnibox: View {
                 }
                 Row(offer: offer, picked: browser.picked == index, typed: browser.typed, large: large)
                     .contentShape(Rectangle())
-                    .onTapGesture { browser.take(offer) }
+                    .pressed(to: 0.99) { browser.take(offer) }
             }
             if let note = browser.switcherNote {
                 Text(note)

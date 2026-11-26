@@ -127,7 +127,7 @@ struct PlayerRow: View {
         .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         // The buttons take their own clicks; the rest of the row is the way
         // to the tab.
-        .onTapGesture { browser.select(tab) }
+        .pressed { browser.select(tab) }
         .onHover { hovering = $0 }
         .help("Go to the tab")
         .animation(Motion.quick, value: hovering)

@@ -339,7 +339,7 @@ private struct LinkChooserView: View {
                         }
                         SpaceRow(row: row, marked: index == chooser.marked)
                             .contentShape(Rectangle())
-                            .onTapGesture { chooser.choose(row: index) }
+                            .pressed(to: 0.99) { chooser.choose(row: index) }
                     }
                 }
             }

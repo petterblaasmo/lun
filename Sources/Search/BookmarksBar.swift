@@ -145,17 +145,18 @@ struct BookmarksBar: View {
         @State private var hovering = false
 
         var body: some View {
-            Image(systemName: "chevron.right.2")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(Palette.muted)
-                .frame(width: 22, height: 22)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hovering ? Palette.hover : .clear))
-                .contentShape(Rectangle())
-                .onTapGesture(perform: act)
-                .hovers($hovering)
-                .help("More bookmarks")
-                .accessibilityLabel("More Bookmarks")
-                .accessibilityAddTraits(.isButton)
+            Button(action: act) {
+                Image(systemName: "chevron.right.2")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(hovering ? Palette.ink : Palette.muted)
+                    .frame(width: 22, height: 22)
+                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hovering ? Palette.hover : .clear))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(Gives(to: 0.9))
+            .hovers($hovering)
+            .help("More bookmarks")
+            .accessibilityLabel("More Bookmarks")
         }
     }
 
@@ -209,7 +210,7 @@ struct BookmarksBar: View {
             .frame(height: 22)
             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hovering ? Palette.hover : .clear))
             .contentShape(Rectangle())
-            .onTapGesture(perform: act)
+            .pressed(to: 0.96, act)
             .hovers($hovering)
             .help(Item.tip(node, iconsOnly: iconsOnly))
             .accessibilityElement(children: .ignore)
@@ -366,7 +367,7 @@ struct SideBookmarks: View {
             .foregroundStyle(prefs.highContrastText || hovering ? Palette.ink : Palette.ink.opacity(0.75))
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hovering ? greys.hover : .clear))
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .onTapGesture {
+            .pressed {
                 if node.isFolder {
                     BookmarkMenu.shared.popUp(node)
                 } else if let url {
