@@ -706,15 +706,24 @@ struct ContentView: View {
                 // must not take the first one's motion with it.
                 // On whole pixels as it slides: between them, the page was
                 // drawn resampled, soft, for the length of the slide.
-                .modifier(PixelOffset(offset: CGSize(width: (cardLeading - cardTrailing) / 2, height: chrome.height),
+                //
+                // Not while the column's edge is held: the hand is on that
+                // edge, and the page stays against it, as it always did,
+                // rather than being cut on that side by half of what the
+                // edge has moved (ColumnDragTests).
+                .modifier(PixelOffset(offset: CGSize(width: edgeHeld ? (sideOnRight ? farGap : chrome.width)
+                                                                    : (cardLeading - cardTrailing) / 2,
+                                                     height: chrome.height),
                                       scale: displayScale))
-                .modifier(PixelOffset(offset: CGSize(width: -(laidLeading - laidTrailing) / 2, height: -roomed.height),
+                .modifier(PixelOffset(offset: CGSize(width: edgeHeld ? -(sideOnRight ? laidFar : roomed.width)
+                                                                    : -(laidLeading - laidTrailing) / 2,
+                                                     height: -roomed.height),
                                       scale: displayScale))
                 .modifier(CardEdge(on: (cards && !browser.prefs.splitView) || topCard, insets: cardInsets,
                                    corner: cardCorner, scale: displayScale))
                 // The page's own view cut to the card, on the same frames.
                 .modifier(CardClip(card: pageInsets, corner: cardCorner, scale: displayScale,
-                                   on: cards || topCard, squareTop: topCard))
+                                   on: cards || topCard, squareTop: topCard, centred: !edgeHeld))
 
             // An extension's side panel, on the side away from the column
             // (see SidePanel.swift); two pages in Split View share what's left.
@@ -905,6 +914,8 @@ struct ContentView: View {
     /// What the card leaves at each side right now, animated with the
     /// column, and what the page was laid out to leave there: the page is
     /// carried by half the difference, so it stays in the card's middle.
+    /// The column's edge is being dragged: the page keeps to that edge.
+    private var edgeHeld: Bool { edges.side != nil }
     private var cardLeading: CGFloat { sideOnRight ? farGap : chrome.width }
     private var cardTrailing: CGFloat { sideOnRight ? chrome.width : farGap }
     private var laidLeading: CGFloat { sideOnRight ? laidFar : roomed.width }

@@ -410,8 +410,9 @@ final class StageView: NSView {
         return mask
     }()
 
-    func clip(card: (() -> CGSize)?, corner: CGFloat, squareTop: Bool = false) {
+    func clip(card: (() -> CGSize)?, corner: CGFloat, squareTop: Bool = false, centred: Bool = true) {
         cardDriven = true
+        cardCentred = centred
         squaresTop = squareTop
         cardSize = card
         cardShort = .zero
@@ -433,6 +434,9 @@ final class StageView: NSView {
 
     /// Round at the foot alone, under the address row (CardClip.squareTop).
     var squaresTop = false
+    /// The card in this view's middle across, or from its leading edge
+    /// (CardClip.centred).
+    private var cardCentred = true
     private var roundCorners: CACornerMask {
         guard squaresTop else { return [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner] }
         return isFlipped ? [.layerMinXMaxYCorner, .layerMaxXMaxYCorner] : [.layerMinXMinYCorner, .layerMaxXMinYCorner]
@@ -462,7 +466,7 @@ final class StageView: NSView {
             // In the page's middle across: that is where the card is, the
             // page wider than it carried to stay centred in it (ContentView's
             // offsets). At its top down, as the page's top is the card's.
-            cardMask.frame = CGRect(x: cardShort.width / 2, y: isFlipped ? 0 : bounds.height - size.height,
+            cardMask.frame = CGRect(x: cardCentred ? cardShort.width / 2 : 0, y: isFlipped ? 0 : bounds.height - size.height,
                                     width: size.width, height: size.height)
             if layer.mask !== cardMask { layer.mask = cardMask }
         }

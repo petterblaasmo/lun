@@ -1020,6 +1020,9 @@ struct CardClip: ViewModifier, Animatable {
     let on: Bool
     /// Round at the foot alone: the address row is the card's own top.
     var squareTop = false
+    /// The card in the page's middle across (⌘S), or from its leading edge
+    /// (the column's edge held): where the page is carried decides.
+    var centred = true
 
     var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, AnimatablePair<AnimatablePair<CGFloat, CGFloat>, CGFloat>> {
         get { .init(.init(card.top, card.leading), .init(.init(card.bottom, card.trailing), corner)) }
@@ -1033,7 +1036,8 @@ struct CardClip: ViewModifier, Animatable {
     func body(content: Content) -> some View {
         func pixel(_ x: CGFloat) -> CGFloat { scale > 0 ? (x * scale).rounded() / scale : x }
         let across = CGSize(width: pixel(card.leading + card.trailing), height: pixel(card.top + card.bottom))
-        return content.background(Rider(across: on ? across : nil, corner: on ? max(0, corner) : 0, squareTop: squareTop))
+        return content.background(Rider(across: on ? across : nil, corner: on ? max(0, corner) : 0, squareTop: squareTop,
+                                        centred: centred))
     }
 
     /// The card, measured in the window: the room it leaves across and
@@ -1044,6 +1048,7 @@ struct CardClip: ViewModifier, Animatable {
         let across: CGSize?
         let corner: CGFloat
         let squareTop: Bool
+        let centred: Bool
 
         func makeNSView(context: Context) -> NSView { Unseen() }
 
@@ -1060,8 +1065,8 @@ struct CardClip: ViewModifier, Animatable {
                 }
             }
             switch unseen.stage {
-            case let panes as PaneStage: panes.clip(card: card, corner: corner, squareTop: squareTop)
-            case let one as StageView: one.clip(card: card, corner: corner, squareTop: squareTop)
+            case let panes as PaneStage: panes.clip(card: card, corner: corner, squareTop: squareTop, centred: centred)
+            case let one as StageView: one.clip(card: card, corner: corner, squareTop: squareTop, centred: centred)
             default: break
             }
         }
