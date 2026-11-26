@@ -3,6 +3,25 @@ import WebKit
 
 /// Settings › Extensions: what is installed, and the two ways in — a Chrome
 /// Web Store link, or a folder.
+/// Extensions as a page in a tab of its own (search://extensions): what
+/// Settings › Extensions lists, under its own title, as wide as Settings.
+struct ExtensionsPanel: View {
+    @ObservedObject var browser: Browser
+
+    var body: some View {
+        Plate("Extensions", line: "Chrome extensions, from the Chrome Web Store or a folder of your own.",
+              width: 600, across: 640, close: { browser.putAway(.extensions) }) {
+            ScrollView {
+                ExtensionsPage(browser: browser)
+                    .padding(.bottom, 24)
+            }
+            .listHeight(420)
+        } foot: {
+            EmptyView()
+        }
+    }
+}
+
 struct ExtensionsPage: View {
     @ObservedObject var browser: Browser
 
