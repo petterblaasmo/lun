@@ -160,11 +160,11 @@ final class SpaceSwipe {
     }
 
     /// The furthest page a stroke or a notch can bring: the card for a new
-    /// space past the last one, but not while there is only one space. Spaces
-    /// just turned on, a stroke over the tabs brought a nameless card that
-    /// looked like a second space nobody made; New Space… still opens it.
-    private func furthest(_ browser: Browser) -> Int {
-        browser.spaces.count > 1 || browser.makingSpace ? browser.spaces.count : browser.spaces.count - 1
+    /// space, past the last one. With only one space too: a swipe is how a
+    /// second one is made, and it did nothing at all there, which read as
+    /// the gesture being broken.
+    func furthest(_ browser: Browser) -> Int {
+        browser.spaces.count
     }
 
     /// With profiles in one window, past this window's first space or its
