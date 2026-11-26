@@ -400,18 +400,9 @@ private struct SiteList: View {
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
                         Spacer(minLength: 6)
-                        Button {
+                        IconButton("xmark", label: "Remove \(host)", glyph: 9, weight: .semibold, size: 18) {
                             extensions.setSiteAccess(item.id, access.removing(host))
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(Palette.muted)
-                                .frame(width: 18, height: 18)
-                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Remove \(host)")
-                        .help("Remove \(host)")
                     }
                 }
                 HStack(spacing: 8) {

@@ -299,8 +299,12 @@ struct PeekPanel: View {
                     .frame(width: 28, height: 28)
                     .background(hovering ? Palette.hover : Palette.ground, in: Circle())
                     .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: 1))
+                    .contentShape(Circle())
             }
-            .buttonStyle(.plain)
+            // On the page's own ground with an edge, so drawn here and not
+            // as an IconButton; it gives and has a name as one does.
+            .buttonStyle(Gives(to: 0.88))
+            .accessibilityLabel(help)
             .help(help)
             .hovers($hovering)
         }

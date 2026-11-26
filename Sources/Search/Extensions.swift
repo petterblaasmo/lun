@@ -2882,20 +2882,9 @@ private struct ExtensionMenu: View {
         let help: String
         var on = false
         let act: () -> Void
-        @State private var hovering = false
 
         var body: some View {
-            SwiftUI.Button(action: act) {
-                Image(systemName: symbol)
-                    .font(.system(size: 10.5, weight: .medium))
-                    .foregroundStyle(on || hovering ? Palette.ink : Palette.muted)
-                    .frame(width: 22, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hovering ? Palette.hover : .clear))
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .hovers($hovering)
-            .help(help)
+            IconButton(symbol, label: help, glyph: 10.5, size: 22, wash: Palette.hover, on: on, action: act)
         }
     }
 
