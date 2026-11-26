@@ -736,14 +736,14 @@ struct FetchDoor: View {
                     } else if fetches.done {
                         Image(systemName: "arrow.down")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Palette.ink.opacity(0.75))
+                            .foregroundStyle(Palette.soft)
                             .transition(.opacity)
                     } else if let fraction = fetches.fraction {
                         Circle()
                             .stroke(Palette.muted.opacity(0.3), lineWidth: 1.5)
                         Circle()
                             .trim(from: 0, to: max(0.02, fraction))
-                            .stroke(Palette.ink.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                            .stroke(Palette.soft, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
                             .rotationEffect(.degrees(-90))
                             .animation(Motion.quick, value: fraction)
                     } else {

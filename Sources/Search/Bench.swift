@@ -2559,7 +2559,7 @@ final class Bench {
             }
             if what.contains("tabs") {
                 // Its open tabs and groups, read as the sheet counts them,
-                // then brought in as Bring them in does.
+                // then brought in as Bring Over does.
                 let session = source.preview(profile: profile).session
                 let got = browser.takeSession(session, from: source, profile: profile)
                 out["tabs"] = ["found": session.found, "read": session.tabs, "groups": session.groups.count,

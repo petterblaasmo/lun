@@ -133,7 +133,7 @@ struct Omnibox: View {
     /// The field, and under a rule the places it thinks you mean, on one
     /// ground.
     private var card: some View {
-        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.middle, style: .continuous)
         return VStack(spacing: 0) {
             field
             // Present or gone, not always-on-and-hidden: the rows keep the

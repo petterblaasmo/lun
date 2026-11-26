@@ -49,6 +49,12 @@ enum Palette {
     /// Round a field that refused what was typed: the address field, the
     /// launcher, Find with nothing found.
     static let dangerRing = Color.red.opacity(0.35)
+    /// Ink a step back, between ink and muted: a title at rest that goes
+    /// to ink under the pointer or once it is picked (the update's and the
+    /// agent's pill, a live folder's item, a page a long swipe offers), and
+    /// a small sign drawn in a row's ink (a page of Lun's own by its
+    /// symbol, a download's ring).
+    static let soft = ink.opacity(0.75)
     /// Round a tab or a pin chosen along with others.
     static let ring = ink.opacity(0.35)
     /// The outline of where what is being dragged would land.
@@ -344,6 +350,9 @@ enum Radius {
     static let card: CGFloat = 10
     static let float: CGFloat = 14
     static let panel: CGFloat = 16
+    /// The address field alone in the middle of the window: rounder than a
+    /// panel, as it is the one thing there.
+    static let middle: CGFloat = 20
 }
 
 /// Three heights over the ground, one shadow each: a card lying on the column

@@ -789,7 +789,8 @@ struct NewSpaceCard: View {
             .background(RoundedRectangle(cornerRadius: inline ? 8 : 10, style: .continuous).fill(Palette.fill))
             .overlay {
                 if typing, !inline {
-                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    // Three points out from the field, so three rounder (Radius).
+                    RoundedRectangle(cornerRadius: Radius.card + 3, style: .continuous)
                         .strokeBorder(Color(nsColor: .controlAccentColor), lineWidth: 2)
                         .padding(-3)
                 }

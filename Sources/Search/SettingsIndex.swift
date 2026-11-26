@@ -656,7 +656,7 @@ enum SettingsIndex {
               keys: ["notifications.ask"], words: ["notifications", "alerts", "push"]),
         .init(id: "privacy.forget", group: "permissions", icon: "arrow.uturn.backward.circle",
               title: "Camera, microphone, location and notifications", detail: "What each site was allowed or refused",
-              words: ["permissions", "camera", "microphone", "location", "reset"]),
+              words: ["permissions", "camera", "microphone", "location", "reset", "forget", "show sites"]),
         .init(id: "clear.history", group: "clear", icon: "clock.arrow.circlepath",
               title: "History", detail: "Every address you have been to", words: ["clear history"]),
         .init(id: "clear.cookies", group: "clear", icon: "person.crop.circle.badge.xmark",
