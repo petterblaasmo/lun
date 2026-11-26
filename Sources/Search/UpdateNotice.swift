@@ -181,7 +181,7 @@ struct CardButton<Spot: View>: View {
         Button(action: act) {
             Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.8))
+                .foregroundStyle(hovering ? Palette.ink : Palette.soft)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 2)
                 .background(Palette.ground, in: Capsule())
@@ -190,7 +190,9 @@ struct CardButton<Spot: View>: View {
                 .background(spot)
                 .fixedSize()
         }
-        .buttonStyle(.plain)
+        // Gives under the press, as Quick does: Stop and Restart did
+        // their thing with nothing to say they had been pressed.
+        .buttonStyle(Gives(to: 0.95))
         .focusable(false)
         .hovers($hovering)
     }

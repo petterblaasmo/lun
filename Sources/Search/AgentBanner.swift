@@ -106,7 +106,7 @@ private struct AgentStatusFace: View {
     private var always: some View {
         Text("Always allowed")
             .font(.system(size: 12, weight: session.justAdmitted ? .medium : .regular))
-            .foregroundStyle(session.justAdmitted ? Palette.ink : Palette.muted.opacity(0.8))
+            .foregroundStyle(session.justAdmitted ? Palette.ink : Palette.muted)
             .lineLimit(1)
     }
 
