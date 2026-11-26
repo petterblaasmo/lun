@@ -167,7 +167,7 @@ final class SyncDefaultTests: XCTestCase {
         XCTAssertFalse(icloud.isScheduled)
         XCTAssertNil(icloud.engine)
         XCTAssertNil(icloud.problem)
-        XCTAssertTrue(["Needs a build of Search signed for iCloud", "Off in a test run"]
+        XCTAssertTrue(["Needs a build of Lun signed for iCloud", "Off in a test run"]
             .contains(icloud.summary(folderSyncOn: false, otherwise: "off")))
         // And it can be turned off again.
         icloud.turnOff()

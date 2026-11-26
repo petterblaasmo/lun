@@ -948,7 +948,7 @@ final class Bench {
             if request["again"] as? Bool == true {
                 guard let app = NSApp.mainMenu?.items.first?.submenu,
                       let index = app.items.firstIndex(where: { $0.title == "What's New…" }) else {
-                    answer(["error": "no What's New… in the Search menu"]); return
+                    answer(["error": "no What's New… in the Lun menu"]); return
                 }
                 browser.newsShowing = false
                 app.update()
@@ -2895,7 +2895,7 @@ final class Bench {
             let web = find(request, in: browser)?.built ?? browser.active?.built
             if let name = request["toggle"] as? String {
                 guard Store.ownContainer else {
-                    answer(["error": "textcheck toggle only works in a copy under its own bundle id — it would switch the real Search's setting"])
+                    answer(["error": "textcheck toggle only works in a copy under its own bundle id — it would switch the real Lun's setting"])
                     return
                 }
                 if name == "autocorrect" {
@@ -3830,8 +3830,8 @@ final class Bench {
                 return
             }
             let items = NSApp.mainMenu?.items.first { $0.submenu?.title == "Window" }?.submenu?.items ?? []
-            guard let item = items.first(where: { $0.title == "Search" }), let action = item.action else {
-                answer(["error": "no Search item in the Window menu", "items": items.map(\.title)])
+            guard let item = items.first(where: { $0.title == "Lun" }), let action = item.action else {
+                answer(["error": "no Lun item in the Window menu", "items": items.map(\.title)])
                 return
             }
             NSApp.sendAction(action, to: item.target, from: item)

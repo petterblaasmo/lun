@@ -64,7 +64,7 @@ struct DeveloperHeapSnapshot: Sendable {
             switch self {
             case .malformed(let why): "The heap snapshot couldn’t be read: \(why)."
             case .chromeFormat:
-                "This heap snapshot was saved from Chrome. Search reads snapshots in WebKit’s format, such as ones saved from Search’s Memory panel."
+                "This heap snapshot was saved from Chrome. Lun reads snapshots in WebKit’s format, such as ones saved from Lun’s Memory panel."
             }
         }
     }

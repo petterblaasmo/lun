@@ -25,7 +25,7 @@ Every command goes to one world. Pass the same flag on every call.
 | `--world NAME` | World `NAME` (lowercase letters, digits, hyphens) | `~/Library/Application Support/Lun (NAME)/` |
 | none | The installed browser they actually use | `~/Library/Application Support/Lun/` |
 
-Use a test world for any work that changes chrome, installs or removes extensions, resizes, sends real key events, or selects a tab. A `swift build` binary under `.build/` is always world `test`, even with no `SEARCH_PROBE`. `./fresh.sh` launches `build/Search.app` with `SEARCH_PROBE` set, which is also a test world.
+Use a test world for any work that changes chrome, installs or removes extensions, resizes, sends real key events, or selects a tab. A `swift build` binary under `.build/` is always world `test`, even with no `SEARCH_PROBE`. `./fresh.sh` launches `build/Lun.app` with `SEARCH_PROBE` set, which is also a test world.
 
 `select`, `key`, `resize`, and `ext-answer` fail on the installed browser. `--yes` skips an extension's install dialog only on a test run.
 
@@ -33,7 +33,7 @@ On the installed browser, only when they asked you to drive that window: `tabs`,
 
 ## Get a test world listening
 
-One process per world. Quit a process only after its executable path is this repo's `build/Search.app` or a `.build/` binary, or its environment contains `SEARCH_PROBE`. Leave `/Applications/Search.app` alone. `killall`, quitting by the name Search, and `osascript` quit hit the installed app too: same bundle id, same process name. A `SEARCH_DEV=1 ./build.sh` build shows as `Search-<branch>` on a yellow icon in the Dock and ⌘Tab (see build.sh), but that name is only what people see: its process is still `Search`, so go by the executable path.
+One process per world. Quit a process only after its executable path is this repo's `build/Lun.app` or a `.build/` binary, or its environment contains `SEARCH_PROBE`. Leave `/Applications/Lun.app` alone. `killall`, quitting by the name Search, and `osascript` quit hit the installed app too: same bundle id, same process name. A `SEARCH_DEV=1 ./build.sh` build shows as `Search-<branch>` on a yellow icon in the Dock and ⌘Tab (see build.sh), but that name is only what people see: its process is still `Search`, so go by the executable path.
 
 1. `./bench --test tabs` (or `--world NAME`). A tab list means that world is listening. Do not launch another.
 2. If it prints `Search isn't listening`:
@@ -46,7 +46,7 @@ One process per world. Quit a process only after its executable path is this rep
 
 If `./bench tabs` (no flag) is not listening, ask them to turn on **Settings › General › Let a script drive Search**. Do not write defaults for the installed app.
 
-`./fresh.sh` builds `build/Search.app` when that bundle is missing. It opens a world
+`./fresh.sh` builds `build/Lun.app` when that bundle is missing. It opens a world
 whose `bench` switch is on, hidden, since a test run that comes to the front trips the
 probe's guard and then refuses every command for the rest of that run. Write the switch
 before launching, not after, or the world opens in front and has to be thrown away.
@@ -122,7 +122,7 @@ Poll `extensions` until `busy` is `""`. Then read `loaded`, `errors`, and `repor
 
 ## From an MCP client
 
-`./bench-mcp` is the same bench as MCP tools, for an agent that has it registered (`claude mcp add search-bench -- /path/to/Search/bench-mcp`). It only drives test worlds it started itself: `open_session` with no world starts `build/Search.app` hidden in a fresh `agent-…` world and wipes it on `close_session`; with `world` it starts that test world and keeps it. A world that is already open, by `fresh.sh`, a test or anything else, gets `world_in_use`, and a second controller on the same world gets `world_busy`. Every request checks that the socket is still held by the process the session started; if not, `not_ours`.
+`./bench-mcp` is the same bench as MCP tools, for an agent that has it registered (`claude mcp add search-bench -- /path/to/Search/bench-mcp`). It only drives test worlds it started itself: `open_session` with no world starts `build/Lun.app` hidden in a fresh `agent-…` world and wipes it on `close_session`; with `world` it starts that test world and keeps it. A world that is already open, by `fresh.sh`, a test or anything else, gets `world_in_use`, and a second controller on the same world gets `world_busy`. Every request checks that the socket is still held by the process the session started; if not, `not_ours`.
 
 - `open_tab` returns a page handle (`p2`); `read_page` returns element handles (`p2.s1.e4`) with role, name, value and box. The next `read_page`, or the page going elsewhere, ends them: `stale_element` means read again.
 - `outline_page` is the same read in a few lines: a small page whole, a bigger one as what needs attention (dialogs, alerts, invalid fields, something over the page, the focused control) and then its sections (`§main`, `§history`, a list of rows) with their size and first words. `section` opens sections by id (`depth` for levels), `words` keeps only the controls and headings that say them. Its controls come with element handles like `read_page`'s, and either kind of read ends the other's. `read_section` gives a section's words (no handles, ends none); `find_in_page` says which sections hold some words. Start with `outline_page` on a big page and open what you need; `read_page` when you want every box.

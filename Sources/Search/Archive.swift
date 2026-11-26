@@ -174,7 +174,7 @@ struct ArchivePanel: View {
         let listed = self.listed
         Plate("Archived Tabs", width: 600, close: { browser.archiving = false }) {
             VStack(alignment: .leading, spacing: 14) {
-                Hunt(text: $hunt, prompt: "Search the tabs Search closed", focus: $hunting)
+                Hunt(text: $hunt, prompt: "Search the tabs Lun closed", focus: $hunting)
                 if listed.isEmpty {
                     Card { Nothing(hunt.isEmpty ? empty : "Nothing matches.") }
                 } else {
@@ -230,7 +230,7 @@ struct ArchivePanel: View {
     private var empty: String {
         browser.prefs.tabLife.interval == nil
             ? "Tabs never close by themselves (Settings › Tabs)."
-            : "Nothing yet. Tabs Search closes for you land here."
+            : "Nothing yet. Tabs Lun closes for you land here."
     }
 
     private struct Line: Identifiable {

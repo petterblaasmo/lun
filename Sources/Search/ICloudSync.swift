@@ -1035,7 +1035,7 @@ final class ICloudSync: ObservableObject {
         problem = nil
     }
 
-    static let deletedElsewhere = "Off: Search's data was deleted from iCloud, on another device. Turn on to start again"
+    static let deletedElsewhere = "Off: Lun's data was deleted from iCloud, on another device. Turn on to start again"
 
     /// Why it is off, when it turned itself off.
     var offReason: String? { on ? nil : defaults.string(forKey: ICloudSync.offKey) }
@@ -1102,7 +1102,7 @@ final class ICloudSync: ObservableObject {
     func summary(folderSyncOn: Bool, otherwise: String) -> String {
         guard available else {
             // A signed build in a test run is a build that could: it says so.
-            return Store.testing && ICloudSync.entitled ? "Off in a test run" : "Needs a build of Search signed for iCloud"
+            return Store.testing && ICloudSync.entitled ? "Off in a test run" : "Needs a build of Lun signed for iCloud"
         }
         if folderSyncOn && !on { return "Turn off Sync Macs through a folder first" }
         guard on else { return offReason ?? otherwise }

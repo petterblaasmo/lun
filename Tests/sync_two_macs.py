@@ -94,7 +94,7 @@ try:
 
     # A Search from before pin folders synced (1.0.16) edits pin a: its item
     # has no folder in it, and its file none of the folder items.
-    scope = next(p for p in Path(shared, "Search Sync").iterdir() if p.name.startswith("profile-"))
+    scope = next(p for p in Path(shared, "Lun Sync").iterdir() if p.name.startswith("profile-"))
     mine = json.load(open(next(p for p in scope.glob("*.json"))))
     a_id = next(d["id"] for d in json.load(open(f"{A.SUPPORT}/pins.json"))[FIRST] if d["title"] == "a")
     key = f"pin:{FIRST}:{a_id}"

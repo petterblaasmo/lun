@@ -1270,7 +1270,7 @@ final class Extensions: NSObject, ObservableObject {
         defer { try? FileManager.default.removeItem(at: folder) }
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try Data(#"{"manifest_version": 3, "name": "Search", "version": "1"}"#.utf8).write(to: folder.appendingPathComponent("manifest.json"))
+            try Data(#"{"manifest_version": 3, "name": "Lun", "version": "1"}"#.utf8).write(to: folder.appendingPathComponent("manifest.json"))
             let standIn = WKWebExtensionContext(for: try await WKWebExtension(resourceBaseURL: folder))
             standIn.uniqueIdentifier = id
             standIn.baseURL = base
@@ -1831,7 +1831,7 @@ final class Extensions: NSObject, ObservableObject {
 
     func ask(install name: String, wants: [String], icon: NSImage?, updating: Bool = false, fromApp: String? = nil) async -> Bool {
         await ask(
-            "Add “\(name)” to Search?",
+            "Add “\(name)” to Lun?",
             detail: (fromApp.map { "From the Safari extension in “\($0)”.\n\n" } ?? "")
                 + (wants.isEmpty ? "It doesn't ask for anything special." : "It will be able to:\n• " + wants.joined(separator: "\n• ")),
             icon: icon, yes: "Add Extension", no: "Cancel", updating: updating
@@ -1850,7 +1850,7 @@ final class Extensions: NSObject, ObservableObject {
         let name = context.webExtension.displayName ?? "An extension"
         return await ask(
             "“\(name)” wants to record your screen or a window.",
-            detail: "macOS will ask what to share. Search remembers your answer for \(name); Settings › Extensions takes it back.",
+            detail: "macOS will ask what to share. Lun remembers your answer for \(name); Settings › Extensions takes it back.",
             icon: context.webExtension.icon(for: CGSize(width: 64, height: 64)), yes: "Continue", no: "Don't Allow")
     }
 

@@ -64,7 +64,7 @@ struct SearchApp: App {
         // shares, and a probe resized for a test once changed the size the
         // real window came back at. The other windows' frames are in
         // windows.json (see Windows.swift).
-        Window("Search", id: Browsers.sceneID) {
+        Window("Lun", id: Browsers.sceneID) {
             SceneRoot(slot: SceneSlot.shared)
                 .frame(minWidth: 640, minHeight: 420)
         }
@@ -495,7 +495,7 @@ struct SearchApp: App {
             // (About.swift); then Check for Updates…, as in any Mac app, and
             // What's New…, this version's card again (idea 968).
             CommandGroup(replacing: .appInfo) {
-                Button("About Search") { AboutWindow.show() }
+                Button("About Lun") { AboutWindow.show() }
                 if Updater.available { UpdateMenuItem() }
                 Button("What's New…") { WhatsNew.showAgain(in: browser) }
                     .disabled(WhatsNew.current == nil)
@@ -521,7 +521,7 @@ private struct QuitAndHelp: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .appTermination) {
-            Button("Quit Search") {
+            Button("Quit Lun") {
                 if Links.shouldQuit() { NSApp.terminate(nil) }
             }
             .keyboardShortcut("q", modifiers: .command)

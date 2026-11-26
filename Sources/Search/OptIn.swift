@@ -132,7 +132,7 @@ enum OptIn {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         // Fixed words where CFNetwork would put the app's build, the
         // Darwin version and the Mac's languages.
-        request.setValue("Search", forHTTPHeaderField: "User-Agent")
+        request.setValue("Lun", forHTTPHeaderField: "User-Agent")
         request.setValue("en", forHTTPHeaderField: "Accept-Language")
         request.httpBody = try? JSONSerialization.data(withJSONObject: body(email: email, list: list, source: source), options: [.sortedKeys])
         return request
@@ -427,7 +427,7 @@ struct OptInBlock: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Get Search for iPhone early")
+                Text("Get Lun for iPhone early")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Palette.ink)
                 Text("Leave your email for the iPhone beta. After that, rare emails: only useful new features and big updates.")
@@ -457,7 +457,7 @@ struct OptInWelcomePage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Search for iPhone, early.")
+                Text("Lun for iPhone, early.")
                     .font(.system(size: 26, weight: .medium))
                     .foregroundStyle(Palette.ink)
                 Text("Leave your email and get the iPhone beta before everyone else. After that, rare emails: only useful new features and big updates.")

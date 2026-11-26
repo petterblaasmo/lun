@@ -2264,7 +2264,7 @@ final class DeveloperToolsSession: ObservableObject {
             switch self {
             case .script(let message): return message
             case .notOnThisMac: return DeveloperToolsSession.notAvailable
-            case .unavailable: return "Search couldn’t connect to this page’s debugger."
+            case .unavailable: return "Lun couldn’t connect to this page’s debugger."
             }
         }
     }

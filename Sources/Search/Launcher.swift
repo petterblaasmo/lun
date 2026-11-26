@@ -168,7 +168,7 @@ final class Launcher: NSObject, ObservableObject, NSWindowDelegate {
         if HotKey.usedByMacOS(code: key.code, modifiers: HotKey.modifiers(of: key.combo)) {
             refusal = "\(key.combo.display) is used by macOS"
         } else {
-            refusal = status == noErr ? nil : "macOS won’t give Search \(key.combo.display)"
+            refusal = status == noErr ? nil : "macOS won’t give Lun \(key.combo.display)"
         }
     }
 
@@ -591,7 +591,7 @@ private struct LauncherField: NSViewRepresentable {
             string: "Search or enter a web address",
             attributes: [.font: Self.font, .foregroundColor: NSColor(Palette.ink.opacity(0.3))]
         )
-        field.setAccessibilityLabel("Address, opened in Search")
+        field.setAccessibilityLabel("Address, opened in Lun")
         return field
     }
 

@@ -5,7 +5,7 @@ app closed a fifth of a second in, "this page kept crashing", and Search's
 log said nothing), in a hidden probe.
 
 Build first (`./build.sh debug`), then `python3 Tests/native_port_page_crash.py`.
-It runs a copy of build/Search.app under a bundle id of its own, in a world
+It runs a copy of build/Lun.app under a bundle id of its own, in a world
 of its own with split_view.py's harness, started hidden; the copy, its
 WebKit folders and the world are removed afterwards.
 
@@ -84,9 +84,9 @@ chrome.runtime.onMessage.addListener((m, s, reply) => {{
 
 
 def probe_copy():
-    """build/Search.app under a bundle id of its own, signed ad hoc."""
-    app = work / "Search.app"
-    shutil.copytree(Path(sv.ROOT, "build", "Search.app"), app, symlinks=True)
+    """build/Lun.app under a bundle id of its own, signed ad hoc."""
+    app = work / "Lun.app"
+    shutil.copytree(Path(sv.ROOT, "build", "Lun.app"), app, symlinks=True)
     subprocess.run(["/usr/libexec/PlistBuddy", "-c", f"Set :CFBundleIdentifier {BUNDLE}", str(app / "Contents/Info.plist")], check=True)
     (app / "Contents/embedded.provisionprofile").unlink(missing_ok=True)
     subprocess.run(["codesign", "-f", "-s", "-", "--entitlements", str(Path(sv.ROOT, "Search.entitlements")), "--deep", str(app)],

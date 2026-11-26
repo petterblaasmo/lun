@@ -14,6 +14,6 @@ final class MarkDownloadedTests: XCTestCase {
 
         let properties = try XCTUnwrap(try file.resourceValues(forKeys: [.quarantinePropertiesKey]).quarantineProperties)
         XCTAssertEqual(properties[kLSQuarantineTypeKey as String] as? String, kLSQuarantineTypeWebDownload as String)
-        XCTAssertEqual(properties[kLSQuarantineAgentNameKey as String] as? String, "Search")
+        XCTAssertEqual(properties[kLSQuarantineAgentNameKey as String] as? String, "Lun")
     }
 }

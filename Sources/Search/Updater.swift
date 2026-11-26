@@ -88,7 +88,7 @@ final class Updater: ObservableObject {
         /// instead — the same as the first time.
         case offered(Release)
         /// Found, and waiting to be asked for: installing on its own is
-        /// switched off in Settings; Install Update is in the Search menu.
+        /// switched off in Settings; Install Update is in the Lun menu.
         case waiting(Release)
     }
 
@@ -155,10 +155,10 @@ final class Updater: ObservableObject {
     func checkByHand() {
         switch stage {
         case .ready(let next):
-            say?("Search \(next.version) is ready — relaunch to use it")
+            say?("Lun \(next.version) is ready — relaunch to use it")
             return
         case .fetching(let next):
-            say?("Search \(next.version) is downloading…")
+            say?("Lun \(next.version) is downloading…")
             return
         default: break
         }
@@ -166,7 +166,7 @@ final class Updater: ObservableObject {
         say?("Checking for updates…")
         check { [weak self] found in
             guard let self else { return }
-            if found == nil { self.say?("Search is up to date"); return }
+            if found == nil { self.say?("Lun is up to date"); return }
             // The waiting branch or `take` announces the next state afterward.
         }
     }
@@ -196,7 +196,7 @@ final class Updater: ObservableObject {
             case .waiting(let known) where known == found: break
             case .none, .offered, .waiting:
                 stage = .waiting(found)
-                say?("Search \(found.version) is out — choose Install Update in the Search menu")
+                say?("Lun \(found.version) is out — choose Install Update in the Lun menu")
             }
         }
     }
@@ -224,7 +224,7 @@ final class Updater: ObservableObject {
     func openDisk() {
         guard case .offered(let release) = stage, !fetchingDisk else { return }
         fetchingDisk = true
-        say?("Downloading Search \(release.version)…")
+        say?("Downloading Lun \(release.version)…")
         Task.detached(priority: .utility) {
             let result: Result<URL, Error>
             do { result = .success(try await Swap.disk(release)) } catch { result = .failure(error) }
@@ -259,7 +259,7 @@ final class Updater: ObservableObject {
         case .none, .offered, .waiting: break
         }
         stage = .fetching(release)
-        say?("Search \(release.version) is downloading…")
+        say?("Lun \(release.version) is downloading…")
         Task.detached(priority: .utility) {
             let worked: Bool
             do {
@@ -276,8 +276,8 @@ final class Updater: ObservableObject {
         guard case .fetching(let fetching) = stage, fetching == release else { return }
         stage = worked ? .ready(release) : .offered(release)
         say?(worked
-            ? "Search \(release.version) is ready — it's there the next time you open it"
-            : "Search \(release.version) is out — choose Download Update in the Search menu")
+            ? "Lun \(release.version) is ready — it's there the next time you open it"
+            : "Lun \(release.version) is out — choose Download Update in the Lun menu")
     }
 
     /// A test run's stage, set as told (the bench's `update stage`, and the
@@ -550,7 +550,7 @@ private enum Swap {
         guard let expected = release.dmgSha256 else { throw Refused.hash }
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("search-disk-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let dmg = folder.appendingPathComponent("Search \(release.version).dmg")
+        let dmg = folder.appendingPathComponent("Lun \(release.version).dmg")
         try await download(release.dmg, to: dmg)
         guard try digest(of: dmg) == expected else { throw Refused.hash }
         var code: SecStaticCode?

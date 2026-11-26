@@ -3,7 +3,7 @@
 (Stuck.swift, #1468), in a hidden probe.
 
 Build first (`./build.sh`), then `python3 Tests/stuck_process.py` from a
-worktree. It runs build/Search.app in a world of its own with split_view.py's
+worktree. It runs build/Lun.app in a world of its own with split_view.py's
 harness, started hidden, against pages and an unpacked extension it serves
 and writes itself; the world is removed afterwards. About two minutes: each
 case waits out Stuck.wait.
