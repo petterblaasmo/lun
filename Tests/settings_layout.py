@@ -63,7 +63,9 @@ RETIRED = {"downloads.button", "toolbar.left", "glyph", "tabs.reading", "tabs.ne
            "tabs.shortcuts", "tabs.address", "reader.twins", "float.style", "fullscreen.escapeTwice",
            "fullscreen.keepsWindow", "pages.120.mode", "pins.home", "pins.peek", "passkeys", "swipe.history",
            # Fixed on (RetiredSettings.fixed).
-           "tabs.give", "motion.light", "tabs.popupWindows", "reader.follows", "commandbar"}
+           "tabs.give", "motion.light", "tabs.popupWindows", "reader.follows", "commandbar",
+           # Links from other apps open in a tab.
+           "links.little"}
 BEFORE = {k: v for k, v in BEFORE.items() if k not in RETIRED}
 
 
