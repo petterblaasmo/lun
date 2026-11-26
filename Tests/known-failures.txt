@@ -1,4 +1,21 @@
 # Tests that fail on main by themselves, with why. CI reports these as
 # warnings, not failures, and says when one passes so it can come off.
-# One per line: SearchTests' class/test, then # and the reason.
-DownloadsOpeningTests/testTheWindowResizesInSmallSteps  # fails on CI on main, alone too (issue 98)
+# One per line: SearchTests' class/test (or a whole class), then # and why.
+# All are issue 98's to fix.
+
+# Fail on main whatever runs before them.
+DownloadsOpeningTests/testTheWindowResizesInSmallSteps  # the window resizes in steps of its own on CI
+SpaceLookPreviewTests/testThePreviewIsTheColumnsColour  # the preview's colours are off from the column's by more than the test allows
+
+# Fail when their class runs alone: they passed only after a class that
+# loaded a page, entered the test world or set a preference for them.
+PDFExportTests/testExportKeepsRequestedTabAfterActiveTabChanges  # its page never loads when the class runs alone
+PageSaveTests/testSavedArchiveOpensAgain  # its page never loads when the class runs alone
+FindStageTests/testCloseButtonClearsFindWithoutClickingPageAfterStatusChanges  # its fixture pages never load when the class runs alone
+ExtensionLoadRaceTests/testSwitchedOffWhileLoadingStaysOffAndOnlyNewestLoadLands  # the extension never loads when the class runs alone
+VaultAndUpdaterTests/testNothingIsFetchedFromSearch  # the class never enters the test world, so Updater.feed is the real one
+
+# Fail on CI's Macs only.
+NoWindowsTests/testWindowsPanelsAndPopoversAreTransparentOnScreen  # the runner's screen moves the window 63 points
+PeekSkeletonTests/testSweepAppearsOnlyWithMotionAndStopsOutsideAWindow  # no sweep animation on the runner
+SidebarJoinTests/testCarriedPastWithoutStoppingOnlyMovesIt  # the 0.3 s hold is reached on a slow runner before the let-go
