@@ -723,9 +723,10 @@ final class Tab: ObservableObject, Identifiable {
     /// download it and then, on at least some sites, does neither — see
     /// ImageMenu.swift for why this is built rather than patched.
     var onImageMenu: ((Tab, URL) -> Void)?
-    /// WebKit's Copy Image (true) or Download Image (false) chosen over a
-    /// picture that is also a link, done as the image menu does them.
-    var onImageItem: ((Tab, URL, Bool) -> Void)?
+    /// WebKit's Copy Image or Download Image, or Add Image to Photos beside
+    /// them, chosen over a picture that is also a link: done as the image
+    /// menu does them.
+    var onImageItem: ((Tab, URL, ImageAction) -> Void)?
     /// Where the last image right-clicked came from (see ImageMenu.swift).
     var imageFrame: WKFrameInfo? { images.frame }
     var searchName: (() -> String?)?
@@ -883,6 +884,12 @@ final class Tab: ObservableObject, Identifiable {
     /// what you were just reading is what you are most likely to want back.
     /// Written into the session, so a tab's time away counts across quits.
     private(set) var touched = Date()
+    /// The document a look for sleep last found something typed in and not
+    /// sent (Browser.sleep). A page is only asked as it is about to be let
+    /// go, so this is what the tab's menu has to say why it stayed awake.
+    var typedIn: UInt64?
+    /// Whether that look was at the page the tab still shows.
+    var holdsTyped: Bool { built != nil && typedIn == documentGeneration }
     /// When it was last let go of: unpinned, taken out of its group, its
     /// name taken away. Kept apart from `touched`, which says when you last
     /// looked, for ⌃Tab and for where ⌘W on a pin lands; letting go of a
@@ -1042,9 +1049,9 @@ final class Tab: ObservableObject, Identifiable {
         web.searchName = { [weak self] in self?.searchName?() }
         web.translating = { [weak self] in self.map { $0.translator != nil && $0.translation?.failed != true } ?? false }
         web.onTranslate = { [weak self] in self?.toggleTranslation() }
-        web.onImage = { [weak self] url, copy in
+        web.onImage = { [weak self] url, action in
             guard let self else { return }
-            self.onImageItem?(self, url, copy)
+            self.onImageItem?(self, url, action)
         }
         web.onSearch = { [weak self] text in
             guard let self else { return }
@@ -2701,13 +2708,7 @@ final class PageView: WKWebView {
         // does. Told of the picture just before this menu, for this menu only.
         if let image = keptImage {
             keptImage = nil
-            for (id, action) in [("WKMenuItemIdentifierCopyImage", #selector(copyImage(_:))),
-                                 ("WKMenuItemIdentifierDownloadImage", #selector(downloadImage(_:)))] {
-                guard let item = menu.items.first(where: { $0.identifier?.rawValue == id }) else { continue }
-                item.target = self
-                item.action = action
-                item.representedObject = image
-            }
+            PageView.dress(menu, for: image, target: self)
         }
         // The bench's linkmenu: the item it names is chosen as the menu
         // comes up, the way a hand would choose it, and the menu goes.
@@ -2846,15 +2847,40 @@ final class PageView: WKWebView {
     /// The picture under the right-click, when this menu is WebKit's over
     /// one (see ImageRelay), or nil.
     var keptImage: URL?
-    /// Copy Image (true) or Download Image (false), this app's own.
-    var onImage: ((URL, Bool) -> Void)?
+    /// Copy Image, Download Image or Add Image to Photos, this app's own.
+    var onImage: ((URL, ImageAction) -> Void)?
 
     @objc private func copyImage(_ item: NSMenuItem) {
-        if let url = item.representedObject as? URL { onImage?(url, true) }
+        if let url = item.representedObject as? URL { onImage?(url, .copy) }
     }
 
     @objc private func downloadImage(_ item: NSMenuItem) {
-        if let url = item.representedObject as? URL { onImage?(url, false) }
+        if let url = item.representedObject as? URL { onImage?(url, .download) }
+    }
+
+    @objc private func addImageToPhotos(_ item: NSMenuItem) {
+        if let url = item.representedObject as? URL { onImage?(url, .photos) }
+    }
+
+    /// WebKit's menu over the picture at `image`: its Copy Image and
+    /// Download Image sent to `target` to be done this app's way, and Add
+    /// Image to Photos put under Download Image, as this app's own picture
+    /// menu has it. A menu with no Download Image is none for a picture,
+    /// and gets no Photos either.
+    static func dress(_ menu: NSMenu, for image: URL, target: PageView) {
+        for (id, action) in [("WKMenuItemIdentifierCopyImage", #selector(copyImage(_:))),
+                             ("WKMenuItemIdentifierDownloadImage", #selector(downloadImage(_:)))] {
+            guard let item = menu.items.first(where: { $0.identifier?.rawValue == id }) else { continue }
+            item.target = target
+            item.action = action
+            item.representedObject = image
+        }
+        guard let at = menu.items.firstIndex(where: { $0.identifier?.rawValue == "WKMenuItemIdentifierDownloadImage" }) else { return }
+        let photos = NSMenuItem(title: Browser.addToPhotosTitle, action: #selector(addImageToPhotos(_:)), keyEquivalent: "")
+        photos.identifier = NSUserInterfaceItemIdentifier("SearchAddImageToPhotos")
+        photos.target = target
+        photos.representedObject = image
+        menu.insertItem(photos, at: at + 1)
     }
 
     /// Open Link in Split View: the same action, the tab it makes marked to

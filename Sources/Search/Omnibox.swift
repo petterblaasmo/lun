@@ -107,8 +107,11 @@ struct Omnibox: View {
                     // The page is still there, just out of the way.
                     // Or out of sight, for whoever asked (Settings › Hide
                     // the page behind the field).
+                    // In a light window that is white over white, so the
+                    // page is dimmed a little too (Palette.fieldDim).
                     Rectangle()
                         .fill(Palette.ground.opacity(browser.prefs.fieldHidesPage ? 1 : 0.74))
+                        .overlay(Palette.fieldDim)
                         .ignoresSafeArea(.all, edges: fitted ? [] : .all)
                         .onTapGesture { browser.dismiss() }
                         .transition(.opacity)

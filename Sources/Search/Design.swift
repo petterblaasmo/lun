@@ -63,6 +63,14 @@ enum Palette {
     /// page over the page and wants the one behind further back.
     static let scrim = Color.black.opacity(0.10)
     static let scrimDeep = Color.black.opacity(0.22)
+    /// What sets the page back under the raised address field in a light
+    /// window. The cover there is the ground let through (Omnibox), which
+    /// in a light window is white over what is most often a white page:
+    /// nothing said the field was a layer over it. A panel's scrim over
+    /// the cover makes the page a step darker than the card. In a dark
+    /// window the cover is darker than the card already, and this is
+    /// nothing.
+    static let fieldDim = Color(nsColor: NS.fieldDim)
     /// A hint over a page in full screen, most often over a video: black
     /// let through and white on it, whatever the window's appearance.
     static let overPage = Color.black.opacity(0.72)
@@ -87,6 +95,9 @@ enum Palette {
         static let fill = shade(0.07, 0.08)
         static let fillHover = shade(0.11, 0.13)
         static let rule = shade(0.10, 0.10)
+        static let fieldDim = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .clear : NSColor(white: 0, alpha: 0.10)
+        }
         static let knob = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? NSColor(white: 1, alpha: 0.16) : .white
         }
