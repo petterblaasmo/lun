@@ -578,6 +578,14 @@ struct SettingsPanel: View {
         }
     }
 
+    private var newTabPlaceTitle: String {
+        switch prefs.newTabPlace {
+        case .next: return "After current"
+        case .top: return prefs.sidebar ? "Top" : "Leftmost"
+        case .end: return prefs.sidebar ? "Bottom" : "Rightmost"
+        }
+    }
+
     private var arcHere: Bool { FileManager.default.fileExists(atPath: Arc.file.path) }
 
     // MARK: - controls
@@ -617,15 +625,12 @@ struct SettingsPanel: View {
                 }
             }
         case "mail.webmail":
-            Picker("", selection: $prefs.webmail) {
+            PopUp("Email links open in", shows: prefs.webmail.title, selection: $prefs.webmail) {
                 ForEach(Webmail.allCases) { mail in
                     Text(mail.title).tag(mail)
                     if mail == .none { Divider() }
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "mail.default":
             if mailDefault {
                 Image(systemName: "checkmark")
@@ -674,12 +679,9 @@ struct SettingsPanel: View {
         case "downloads.ask": Switch(on: $prefs.asksWhereToSave)
         case "downloads.button": Switch(on: $prefs.alwaysShowsDownloads)
         case "downloads.open":
-            Picker("Open Downloads", selection: $prefs.downloadsOpening) {
+            PopUp("Open Downloads", shows: prefs.downloadsOpening.title, selection: $prefs.downloadsOpening) {
                 ForEach(DownloadsOpening.allCases) { Text($0.title).tag($0) }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         default: EmptyView()
         }
     }
@@ -786,14 +788,11 @@ struct SettingsPanel: View {
     private func tabsControl(_ id: String) -> some View {
         switch id {
         case "tabs.newPlace":
-            Picker("New tab position", selection: $prefs.newTabPlace) {
+            PopUp("New tab position", shows: newTabPlaceTitle, selection: $prefs.newTabPlace) {
                 Text("After current").tag(NewTabPlace.next)
                 Text(prefs.sidebar ? "Top" : "Leftmost").tag(NewTabPlace.top)
                 Text(prefs.sidebar ? "Bottom" : "Rightmost").tag(NewTabPlace.end)
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "tabs.newAfterLast": Switch(on: $prefs.newTabAfterLast)
         case "tabs.keepWindow": Switch(on: $prefs.keepWindowAfterLast)
         case "tabs.closeGoesBack": Switch(on: $prefs.closeGoesBack)
@@ -816,14 +815,11 @@ struct SettingsPanel: View {
             }
         case "tabs.sleep.dim": Switch(on: $prefs.dimsSleepingTabs)
         case "tabs.close.after":
-            Picker("", selection: $prefs.tabLife) {
+            PopUp("Close tabs you leave alone", shows: prefs.tabLife.title, selection: $prefs.tabLife) {
                 ForEach(TabLife.allCases) { life in
                     Text(life.title).tag(life)
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "tabs.shortcuts": Switch(on: $prefs.showsTabShortcuts)
         case "tabs.address":
             Switch(on: Binding(
@@ -841,25 +837,19 @@ struct SettingsPanel: View {
     private func browsingControl(_ id: String) -> some View {
         switch id {
         case "search.engine":
-            Picker("", selection: $prefs.engine) {
+            PopUp("Search with", shows: prefs.engine.title, selection: $prefs.engine) {
                 ForEach(Engine.allCases) { engine in
                     Text(engine.title).tag(engine)
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "search.shift":
-            Picker("", selection: $prefs.shiftEngine) {
+            PopUp("Shift-Return searches with", shows: prefs.shiftEngine?.title ?? "Off", selection: $prefs.shiftEngine) {
                 Text("Off").tag(Engine?.none)
                 Divider()
                 ForEach(Engine.allCases) { engine in
                     Text(engine.title).tag(Engine?.some(engine))
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "search.suggest": Switch(on: $prefs.engineSuggests)
         case "field.top": Switch(on: $prefs.returnTakesTop)
         case "search.keywords":
@@ -988,14 +978,11 @@ struct SettingsPanel: View {
     private func otherControl(_ id: String) -> some View {
         switch id {
         case "links.peek":
-            Picker("Peek at a link", selection: $prefs.peekChoice) {
+            PopUp("Peek at a link", shows: prefs.peekChoice.title, selection: $prefs.peekChoice) {
                 ForEach(PeekChoice.allCases) { choice in
                     Text(choice.title).tag(choice)
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         case "links.peek.stays": Switch(on: $prefs.peekStays)
         case "links.optionSplit": Switch(on: $prefs.optionClickSplits)
         case "keys.backspaceBack": Switch(on: $prefs.backspaceGoesBack)
@@ -1779,14 +1766,12 @@ private struct PermissionSites: View {
                 HStack {
                     Hunt(text: $query, prompt: "Find a site", focus: $searching)
                         .accessibilityLabel("Find a site")
-                    Picker("Filter by permission", selection: $kind) {
+                    PopUp("Filter by permission", shows: kind?.title ?? "All permissions", selection: $kind) {
                         Text("All permissions").tag(Optional<CaptureChoices.Kind>.none)
                         ForEach(CaptureChoices.listedKinds) { permission in
                             Text(permission.title).tag(Optional(permission))
                         }
                     }
-                    .labelsHidden().fixedSize()
-                    .accessibilityLabel("Filter by permission")
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 12)

@@ -338,12 +338,9 @@ struct ProxySettings: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Line("Send everything through a proxy", draft.mode == .system ? "Off: Lun follows the Mac's own network settings." : note) {
-                Picker("Proxy", selection: $draft.mode) {
+                PopUp("Proxy", shows: draft.mode.title, selection: $draft.mode) {
                     ForEach(ProxySettingsValue.Mode.allCases) { Text($0.title).tag($0) }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 180)
             }
             if draft.mode != .system {
                 Rule()

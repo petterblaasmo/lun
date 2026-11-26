@@ -206,13 +206,10 @@ struct HistoryPanel: View {
                 Line("History", historyDetail) {
                     let scopes = browser.historyScopes
                     if !scopes.isEmpty {
-                        Picker("", selection: $clearsIn) {
+                        PopUp("Clear history in", shows: scopes.first { $0.space == clearsIn }?.name ?? "All Spaces", selection: $clearsIn) {
                             Text("All Spaces").tag(UUID?.none)
                             ForEach(scopes, id: \.space) { Text($0.name).tag(UUID?.some($0.space)) }
                         }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .fixedSize()
                     }
                     Pill("Clear") {
                         browser.clearHistory(in: scopes.contains { $0.space == clearsIn } ? clearsIn : nil)
