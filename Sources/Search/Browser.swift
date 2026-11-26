@@ -3741,7 +3741,8 @@ final class Browser: NSObject, ObservableObject {
         redusk()
     }
 
-    func writeSession(now: Bool = false) {
+    /// `held`: on the calling thread, for the way out (see writeRow).
+    func writeSession(now: Bool = false, held: Bool = false) {
         guard !isPopup, !retired else { return }
         // The pins as they are here, for the other windows (see Pins.swift):
         // the space's own, and the ones every space shows (only from a row
@@ -3756,7 +3757,7 @@ final class Browser: NSObject, ObservableObject {
             for space in Array(parked.keys) { pinsChanged(in: space) }
         }
         writeRow(spaceID, session(tabs, active: activeID, groups: tabGroups, splits: splits,
-                                  aside: lifted(from: spaceID, besides: tabs)), now: now)
+                                  aside: lifted(from: spaceID, besides: tabs)), now: now, held: held)
         twinsSoon()
     }
 
@@ -4340,12 +4341,18 @@ final class Browser: NSObject, ObservableObject {
         usesFiles ? Session.read(space: space) : (record.rows[space.uuidString] ?? Session.Shape(tabs: [], active: 0))
     }
 
-    func writeRow(_ space: UUID, _ shape: Session.Shape, now: Bool) {
+    /// `now`: handed over at once, not a moment from now with whatever else
+    /// changes meanwhile (Browsers.saveSoon). Either way the row is encoded
+    /// and written off the main thread (see Disk), where a save at every tab
+    /// closed, moved or pinned used to hold the window until the file was
+    /// on disk. `held` is for the way out, when no queue may be left to
+    /// finish it: on the calling thread, on disk when this returns.
+    func writeRow(_ space: UUID, _ shape: Session.Shape, now: Bool, held: Bool = false) {
         if usesFiles {
-            Session.write(now: now, space: space, shape)
+            Session.write(now: held, space: space, shape)
         } else {
             record.rows[space.uuidString] = shape
-            if now { Browsers.save(now: true) } else { Browsers.saveSoon() }
+            if now || held { Browsers.save(now: held) } else { Browsers.saveSoon() }
         }
     }
 
@@ -4530,7 +4537,7 @@ final class Browser: NSObject, ObservableObject {
     /// stops waiting: this writes straight to disk, on the thread asking to
     /// quit, before there is a process left to finish the wait on its behalf.
     func flushSession() {
-        writeSession(now: true)
+        writeSession(now: true, held: true)
     }
 
     // MARK: - tabs

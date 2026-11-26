@@ -597,7 +597,7 @@ enum Browsers {
         if !restored { records = carried(records, over: read()) }
         // Frozen before it goes to the Disk queue.
         let snapshot = records
-        Disk.write(file, now: now) { try? JSONEncoder().encode(snapshot) }
+        Disk.write(file, now: now, brisk: true) { try? JSONEncoder().encode(snapshot) }
     }
 
     /// The windows open, then last time's that aren't among them: each
@@ -621,6 +621,8 @@ enum Browsers {
     private static var saving = false
 
     static func read() -> [WindowRecord] {
+        // As last saved, when that save is still on its way (see Disk).
+        Disk.settle(file)
         guard let data = try? Data(contentsOf: file) else { return [] }
         return (try? JSONDecoder().decode([WindowRecord].self, from: data)) ?? []
     }
@@ -632,7 +634,7 @@ enum Browsers {
         let records = read()
         guard records.count > 1 else { return }
         let first = [records[0]]
-        Disk.write(file, now: true) { try? JSONEncoder().encode(first) }
+        Disk.write(file, now: true, brisk: true) { try? JSONEncoder().encode(first) }
     }
 
     /// At launch, once the first window is up.
