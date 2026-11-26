@@ -3639,7 +3639,7 @@ final class PageView: WKWebView {
         }
         pulls += 1
         let mine = pulls
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + Motion.swipeGone) { [weak self] in
             guard let self, pulls == mine else { return }
             going = false
             settle(nil)

@@ -971,11 +971,8 @@ final class SwipeGlide: NSObject {
     /// Steps it on when no frame comes: a window that isn't drawn — a hidden
     /// one, as the bench's — gets none, and the rows stayed out of place.
     private var watch: Timer?
-    /// How quickly the spring pulls, a second: most of the way in a tenth
-    /// of a second, within a point of its place in a fifth. At 20, a slide
-    /// took 0.4 s, and at 26 a third of a second: it felt slow, and the
-    /// next stroke often had to wait for it.
-    private static let pull: Double = 34
+    /// How quickly the spring pulls, a second (Motion.spacePull).
+    private static let pull = Motion.spacePull
 
     private init(_ browser: Browser, to: CGFloat, speed: CGFloat?, land: (() -> CGFloat)?,
                  halfway: (() -> Void)?, done: @escaping () -> Void) {
