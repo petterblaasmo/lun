@@ -6342,6 +6342,17 @@ final class Browser: NSObject, ObservableObject {
         writeSession(now: true)
     }
 
+    /// The tab in front, one place up or down among the tabs beside it:
+    /// its group's, or the loose ones. The keys' way to reorder, where
+    /// there was only dragging. A pin keeps its place, and the first and
+    /// last stay where they are rather than going round.
+    func nudgeTab(_ direction: Int) {
+        guard let tab = active, tab.pin == nil else { return }
+        let peers = tabs(in: tab.groupID).filter(standsInRow)
+        guard let from = peers.firstIndex(where: { $0.id == tab.id }) else { return }
+        move(tab, within: tab.groupID, to: from + direction)
+    }
+
     /// Reorder only among peers in the displayed section. The underlying
     /// tab row remains flat for keyboard shortcuts and the top strip.
     func move(_ tab: Tab, within group: UUID?, to index: Int) {
