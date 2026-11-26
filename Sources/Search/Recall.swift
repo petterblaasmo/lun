@@ -339,7 +339,7 @@ struct HistoryPanel: View {
             }
             .padding(.horizontal, 14)
             .frame(height: 36)
-            .background(hovering ? Palette.hover : .clear)
+            .background(hovering ? Palette.fillHover : .clear)
             .contentShape(Rectangle())
             .onTapGesture(perform: go)
             .onHover { hovering = $0 }
@@ -876,7 +876,7 @@ struct DownloadsPanel: View {
             .foregroundStyle(Palette.muted)
             .padding(.horizontal, 14)
             .frame(minHeight: 46)
-            .background(hovering ? Palette.hover : .clear)
+            .background(hovering ? Palette.fillHover : .clear)
             .contentShape(Rectangle())
             .contextMenu { if let address = keep.address { CopyAddress(address: address) } }
             .modifier(DragOut(keep: keep))

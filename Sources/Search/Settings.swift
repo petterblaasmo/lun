@@ -1338,7 +1338,7 @@ struct SettingRow<Control: View>: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(lit ? Palette.hover : .clear)
+        .background(lit ? Palette.fillHover : .clear)
     }
 }
 
