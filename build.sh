@@ -20,9 +20,9 @@
 # Same shape as the one next door: SwiftPM builds the executable, and a macOS
 # app bundle is just a folder with a plist and the binary in the right place.
 #
-# The three files keep the same names from release to release, so the site
-# links to them once and the updater reads one address forever. ./publish.sh
-# copies them into the site.
+# The three files keep the same names from release to release, so the
+# updater reads one address forever. ./release.sh puts them in a release on
+# GitHub, as a draft.
 #
 # Two builds from 1.0.5, each for one kind of Mac: Apple Silicon, in build/,
 # and Intel, in build/intel/, served from the site's search/intel/ folder
@@ -40,8 +40,8 @@
 #   - a notarytool profile: xcrun notarytool store-credentials "search"
 #     (SEARCH_NOTARY_PROFILE names it; default "search")
 #   - SEARCH_DOWNLOAD_URL, the https folder the three files are served from,
-#     for the appcast. No default: Updater.feed in Updater.swift has none
-#     until Lun has a site.
+#     for the appcast. No default: release.sh sets it to the release's own
+#     folder on GitHub, where Updater.feed looks.
 #
 # NOTES.md, next to this script, is what's new: newest release first, one
 # paragraph each. The first paragraph goes into the appcast, and from there
@@ -493,7 +493,7 @@ echo "packed: $ZIP"
 # characters JSON minds escaped, is the line under the version in Settings.
 # Written last — after notarisation has stapled its ticket to the DMG, which
 # changes it — so the DMG's hash is the one people download.
-BASE="${SEARCH_DOWNLOAD_URL:?the https folder the files are served from; Lun has no site yet}"
+BASE="${SEARCH_DOWNLOAD_URL:?the https folder the files are served from; ./release.sh sets it}"
 BASE="${BASE%/}$SUBFOLDER"
 NOTES=""
 if [ -f NOTES.md ]; then
@@ -589,4 +589,4 @@ for FILE in "$DMG" "$ZIP" "$OUT"/devtools/*.zip; do
 done
 xcrun stapler staple "$DMG"
 write_appcast
-echo "shipped: $DMG, $ZIP, $OUT/appcast.json and its signed ZIP — ./publish.sh <folder> puts them on the site"
+echo "shipped: $DMG, $ZIP, $OUT/appcast.json and its signed ZIP — ./release.sh drafts the release on GitHub"
