@@ -638,12 +638,12 @@ struct ContentView: View {
             } else if browser.glassy {
                 GlassGround(prefs: browser.prefs, look: browser.wash)
             } else {
-                cards ? Palette.frame : Palette.ground
+                cards || topCard ? Palette.frame : Palette.ground
             }
             // As cards, the column, the bookmarks bar and the gaps around the
             // page share that ground, so the space's colour washes all of it
             // alike. Edge to edge the column and the strip bring their own.
-            if cards && !browser.glassy { SpaceWash(look: browser.wash) }
+            if (cards || topCard) && !browser.glassy { SpaceWash(look: browser.wash) }
 
             // One stage, always. It starts beside the column and under the
             // strip, not behind them — a page sliding beneath floating chrome
@@ -688,11 +688,11 @@ struct ContentView: View {
                 .modifier(PixelOffset(offset: CGSize(width: sideOnRight ? farGap - laidFar : chrome.width - roomed.width,
                                                      height: chrome.height - roomed.height),
                                       scale: displayScale))
-                .modifier(CardEdge(on: cards && !browser.prefs.splitView, insets: cardInsets,
+                .modifier(CardEdge(on: (cards && !browser.prefs.splitView) || topCard, insets: cardInsets,
                                    corner: cardCorner, scale: displayScale))
                 // The page's own view cut to the card, on the same frames.
-                .modifier(CardClip(card: cardInsets, corner: cardCorner, scale: displayScale,
-                                   on: cards))
+                .modifier(CardClip(card: pageInsets, corner: cardCorner, scale: displayScale,
+                                   on: cards || topCard, squareTop: topCard))
 
             // An extension's side panel, on the side away from the column
             // (see SidePanel.swift); two pages in Split View share what's left.
@@ -703,7 +703,18 @@ struct ContentView: View {
 
             if !browser.prefs.sidebar, !browser.folded, fullscreenTab == nil {
                 TabBar(browser: browser)
+                    .environment(\.greys, topCard ? .frame : .white)
                     .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            if addressRow > 0 {
+                AddressRow(browser: browser)
+                    .padding(.horizontal, topCard ? 8 : 4)
+                    .frame(height: addressRow)
+                    .padding(.leading, farGap)
+                    .padding(.trailing, farGap + panelRoom)
+                    .padding(.top, band)
+                    .zIndex(2)
+                    .transition(.opacity)
             }
 
             // The bookmarks bar, under the strip or beside the column's top —
@@ -712,7 +723,7 @@ struct ContentView: View {
                 BookmarksBar(browser: browser, bookmarks: browser.bookmarks, onFrame: cards)
                     .padding(.leading, sideOnRight ? farGap : chrome.width)
                     .padding(.trailing, sideOnRight ? chrome.width : farGap)
-                    .padding(.top, band)
+                    .padding(.top, band + addressRow)
                     .transition(.opacity)
             }
         }
@@ -820,7 +831,15 @@ struct ContentView: View {
             return CGSize(width: sidebar ? sideWidth : gap,
                           height: barShown ? bar : gap)
         }
-        return CGSize(width: sidebar ? sideWidth : 0, height: band + bar)
+        return CGSize(width: sidebar ? sideWidth : topCard ? Metrics.cardGap : 0, height: band + addressRow + bar)
+    }
+
+    /// The page as a card under the tabs across the top (Browser.standsOnCard).
+    private var topCard: Bool { browser.standsOnCard && fullscreenTab == nil }
+
+    /// The address's own row under those tabs: none of it folded away.
+    private var addressRow: CGFloat {
+        browser.showsAddressRow && fullscreenTab == nil ? Metrics.addressRow : 0
     }
 
     /// The column's width folded away: the room ⌘S gives the page before
@@ -833,14 +852,22 @@ struct ContentView: View {
     private var edgeToEdge: Bool { cards && browser.folded }
 
     /// The card's corners: square edge to edge.
-    private var cardCorner: CGFloat { cards && !edgeToEdge ? Metrics.cardRadius : 0 }
+    private var cardCorner: CGFloat { (cards && !edgeToEdge) || topCard ? Metrics.cardRadius : 0 }
 
     /// Where the card lies in the window, animated with the column: what
     /// the column and the strip take, and the gaps beyond.
     private var cardInsets: EdgeInsets {
         let far = farGap + panelRoom
-        return EdgeInsets(top: chrome.height, leading: sideOnRight ? far : chrome.width,
+        return EdgeInsets(top: topCard ? band : chrome.height, leading: sideOnRight ? far : chrome.width,
                           bottom: farGap, trailing: sideOnRight ? chrome.width : far)
+    }
+
+    /// The page in that card: under the address row and the bookmarks bar,
+    /// where the card has them for its top.
+    private var pageInsets: EdgeInsets {
+        var insets = cardInsets
+        insets.top = chrome.height
+        return insets
     }
 
     /// The far gap the page is laid out to leave (see `farRoom`).
@@ -857,7 +884,7 @@ struct ContentView: View {
     }
 
     /// The card's gap on the side away from the column, and along the bottom.
-    private var farGap: CGFloat { cards && !edgeToEdge ? Metrics.cardGap : 0 }
+    private var farGap: CGFloat { (cards && !edgeToEdge) || topCard ? Metrics.cardGap : 0 }
 
     /// The side panel is up: an extension's page in it, the tab in front one
     /// that extension may see, and no page filling the screen.
@@ -882,12 +909,12 @@ struct ContentView: View {
     }
 
     /// The side panel as a card: as the page is.
-    private var panelCard: Bool { cards && !edgeToEdge }
+    private var panelCard: Bool { (cards && !edgeToEdge) || topCard }
 
     private var sidePanel: some View {
         SidePanelBeside(browser: browser, prefs: browser.prefs, onLeft: sideOnRight,
                         card: panelCard, width: panelWidth, onDrag: { [edges] in edges.panel = $0 })
-            .padding(.top, chrome.height)
+            .padding(.top, topCard ? band : chrome.height)
             .padding(.bottom, farGap)
             .padding(sideOnRight ? .leading : .trailing, farGap)
             .frame(maxWidth: .infinity, maxHeight: .infinity,
@@ -1082,7 +1109,7 @@ struct ContentView: View {
                     .onTapGesture { browser.styling = nil }
                 StylePanel(browser: browser, host: host)
                     .id(host)
-                    .padding(.top, Metrics.strip + 8)
+                    .padding(.top, Metrics.strip + addressRow + 8)
                     .padding(.trailing, 14)
                     .transition(.scale(scale: 0.97, anchor: .topTrailing).combined(with: .opacity))
             }

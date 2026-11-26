@@ -650,7 +650,7 @@ struct SpaceLookPicker: View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         let none = choice == .none
         return ZStack(alignment: .bottomLeading) {
-            shape.fill(browser.glassy || browser.asCards ? Palette.frame : Palette.ground)
+            shape.fill(browser.glassy || browser.asCards || browser.standsOnCard ? Palette.frame : Palette.ground)
             if !none {
                 if browser.glassy {
                     PickerGlassTint(look: space.look, clear: browser.prefs.glassClear)

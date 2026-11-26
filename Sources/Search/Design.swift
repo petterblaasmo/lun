@@ -181,8 +181,14 @@ enum Metrics {
     /// to a few points above and below the 28-point tabs: a strip, not a
     /// toolbar. The column keeps the full band, as its first row shares it.
     @MainActor static var strip: CGFloat {
-        Shared.prefs.sidebar ? 48 : Shared.prefs.compactStrip ? 36 : 52
+        Shared.prefs.sidebar ? 48 : Shared.prefs.compactStrip ? 36 : 44
     }
+    /// The row under the tabs across the top, with back, forward, reload and
+    /// the page's address in it (AddressRow).
+    @MainActor static var addressRow: CGFloat { Shared.prefs.compactStrip ? 36 : 44 }
+    /// A tab across the top as it stands on the page's card: down to the
+    /// strip's foot, and this tall.
+    @MainActor static var standingTab: CGFloat { Shared.prefs.compactStrip ? 30 : 36 }
     /// With the tabs down the side the page is a card: this far from the
     /// window's edges (and from the column, folded away), and its corners
     /// this round.
@@ -254,7 +260,7 @@ enum Metrics {
     static let tabMinWidth: CGFloat = 36
     static let tabGap: CGFloat = 2
     /// A pinned tab is a square the height of the row, holding one letter.
-    static let pinWidth: CGFloat = 30
+    static let pinWidth: CGFloat = 36
     /// The square at the end of the row that opens a new page.
     static let plusWidth: CGFloat = 30
     /// What a full row of tabs still leaves past the plus to take the window
@@ -363,6 +369,40 @@ struct FadingLine: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
+    }
+}
+
+/// A tab standing on the page's card: round at the top, and at the foot two
+/// small curves out to either side, so the two are one piece.
+struct StandingTab: Shape {
+    var radius: CGFloat = 10
+    /// The curves at the foot: the tab you're on; a tab under the pointer
+    /// stops at its own edges.
+    var flares = true
+
+    func path(in rect: CGRect) -> Path {
+        let r = min(radius, rect.height / 2, rect.width / 2)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX - (flares ? r : 0), y: rect.maxY))
+        if flares {
+            path.addArc(center: CGPoint(x: rect.minX - r, y: rect.maxY - r), radius: r,
+                        startAngle: .degrees(90), endAngle: .degrees(0), clockwise: true)
+        }
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
+        path.addArc(center: CGPoint(x: rect.minX + r, y: rect.minY + r), radius: r,
+                    startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
+        path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+        path.addArc(center: CGPoint(x: rect.maxX - r, y: rect.minY + r), radius: r,
+                    startAngle: .degrees(270), endAngle: .degrees(0), clockwise: false)
+        if flares {
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
+            path.addArc(center: CGPoint(x: rect.maxX + r, y: rect.maxY - r), radius: r,
+                        startAngle: .degrees(180), endAngle: .degrees(90), clockwise: true)
+        } else {
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        }
+        path.closeSubpath()
+        return path
     }
 }
 
@@ -735,6 +775,8 @@ struct CardClip: ViewModifier, Animatable {
     var corner: CGFloat
     let scale: CGFloat
     let on: Bool
+    /// Round at the foot alone: the address row is the card's own top.
+    var squareTop = false
 
     var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, AnimatablePair<AnimatablePair<CGFloat, CGFloat>, CGFloat>> {
         get { .init(.init(card.top, card.leading), .init(.init(card.bottom, card.trailing), corner)) }
@@ -748,7 +790,7 @@ struct CardClip: ViewModifier, Animatable {
     func body(content: Content) -> some View {
         func pixel(_ x: CGFloat) -> CGFloat { scale > 0 ? (x * scale).rounded() / scale : x }
         let across = CGSize(width: pixel(card.leading + card.trailing), height: pixel(card.top + card.bottom))
-        return content.background(Rider(across: on ? across : nil, corner: on ? max(0, corner) : 0))
+        return content.background(Rider(across: on ? across : nil, corner: on ? max(0, corner) : 0, squareTop: squareTop))
     }
 
     /// The card, measured in the window: the room it leaves across and
@@ -758,6 +800,7 @@ struct CardClip: ViewModifier, Animatable {
     private struct Rider: NSViewRepresentable {
         let across: CGSize?
         let corner: CGFloat
+        let squareTop: Bool
 
         func makeNSView(context: Context) -> NSView { Unseen() }
 
@@ -774,8 +817,8 @@ struct CardClip: ViewModifier, Animatable {
                 }
             }
             switch unseen.stage {
-            case let panes as PaneStage: panes.clip(card: card, corner: corner)
-            case let one as StageView: one.clip(card: card, corner: corner)
+            case let panes as PaneStage: panes.clip(card: card, corner: corner, squareTop: squareTop)
+            case let one as StageView: one.clip(card: card, corner: corner, squareTop: squareTop)
             default: break
             }
         }

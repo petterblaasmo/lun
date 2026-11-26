@@ -409,8 +409,9 @@ final class StageView: NSView {
         return mask
     }()
 
-    func clip(card: (() -> CGSize)?, corner: CGFloat) {
+    func clip(card: (() -> CGSize)?, corner: CGFloat, squareTop: Bool = false) {
         cardDriven = true
+        squaresTop = squareTop
         cardSize = card
         cardShort = .zero
         cardCorner = corner
@@ -429,6 +430,13 @@ final class StageView: NSView {
         applyCard()
     }
 
+    /// Round at the foot alone, under the address row (CardClip.squareTop).
+    var squaresTop = false
+    private var roundCorners: CACornerMask {
+        guard squaresTop else { return [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner] }
+        return isFlipped ? [.layerMinXMaxYCorner, .layerMaxXMaxYCorner] : [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+    }
+
     private func applyCard() {
         guard cardDriven else { return }
         if let card = cardSize?() {
@@ -441,6 +449,7 @@ final class StageView: NSView {
         if cardShort.width < 0.25, cardShort.height < 0.25 {
             if layer.mask != nil { layer.mask = nil }
             layer.cornerRadius = cardCorner
+            layer.maskedCorners = roundCorners
             layer.cornerCurve = .continuous
             layer.masksToBounds = cardCorner > 0
         } else {
@@ -448,6 +457,7 @@ final class StageView: NSView {
             layer.masksToBounds = false
             let size = CGSize(width: max(0, bounds.width - cardShort.width), height: max(0, bounds.height - cardShort.height))
             cardMask.cornerRadius = cardCorner
+            cardMask.maskedCorners = roundCorners
             cardMask.frame = CGRect(x: 0, y: isFlipped ? 0 : bounds.height - size.height, width: size.width, height: size.height)
             if layer.mask !== cardMask { layer.mask = cardMask }
         }

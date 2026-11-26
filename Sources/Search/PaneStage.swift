@@ -79,8 +79,9 @@ final class PaneStage: NSView {
     private var cardSize: (() -> CGSize)?
     private var cardCorner: CGFloat?
 
-    func clip(card: (() -> CGSize)?, corner: CGFloat) {
+    func clip(card: (() -> CGSize)?, corner: CGFloat, squareTop: Bool = false) {
         cardSize = card
+        for slot in slots { slot.squaresTop = squareTop }
         cardCorner = corner
         // In this pass's layout, once the stage is where this frame has it
         // (see StageView.clip).
