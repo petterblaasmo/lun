@@ -4,12 +4,13 @@ import XCTest
 
 /// The page's word on a sideways swipe (Swipe.watch): "taken" when the page
 /// keeps it, "free" when it may go back or forward. Here, what the root's
-/// overscroll-behavior says about it.
+/// overscroll-behavior says about it, and a page's own wheel handler.
 @MainActor
 final class SwipeWatchTests: XCTestCase {
     /// A page that scrolls nowhere sideways, with the root's
-    /// overscroll-behavior as given, swiped once. What the watch said.
-    private func said(overscrollX: String, overscrollY: String) throws -> [String] {
+    /// overscroll-behavior as given, swiped once: what the watch said.
+    /// `pagePansItself` is a handler of the page's calling preventDefault.
+    private func said(overscrollX: String, overscrollY: String, pagePansItself: Bool = false) throws -> [String] {
         let context = try XCTUnwrap(JSContext())
         var trouble: String?
         context.exceptionHandler = { _, error in trouble = error?.toString() }
@@ -30,6 +31,8 @@ final class SwipeWatchTests: XCTestCase {
         context.evaluateScript("""
         var swipe = { deltaX: 40, deltaY: 0, target: root, defaultPrevented: false };
         listeners.wheel.forEach(function (listener) { listener(swipe); });
+        // The page's own handler runs after the watch's, which is first.
+        swipe.defaultPrevented = \(pagePansItself);
         timers.forEach(function (run) { run(); });
         """)
         XCTAssertNil(trouble)
@@ -38,6 +41,12 @@ final class SwipeWatchTests: XCTestCase {
 
     func testAnOrdinaryPageLeavesTheSwipeFree() throws {
         XCTAssertEqual(try said(overscrollX: "auto", overscrollY: "auto"), ["free"])
+    }
+
+    /// A whiteboard or a map pans under two fingers with a wheel handler
+    /// of its own and nothing that scrolls: its preventDefault is its claim.
+    func testAPageThatTakesTheWheelItselfKeepsTheSwipe() throws {
+        XCTAssertEqual(try said(overscrollX: "auto", overscrollY: "auto", pagePansItself: true), ["taken"])
     }
 
     /// A spreadsheet's word: sideways held, up and down left alone.
