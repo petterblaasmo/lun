@@ -70,6 +70,14 @@ struct SearchApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1180, height: 780)
+        // Nothing from outside is SwiftUI's to bring to this window. Given a
+        // page handed off from an iPhone, or a file opened from the Finder,
+        // SwiftUI closed the window and opened it again before the event
+        // reached Links, and the close counted as yours: with another
+        // window open, every tab of this one went. Links takes them all
+        // itself (application(_:continue:), (_:open:), the URL Apple
+        // Event). `python3 Tests/handoff_scene.py`
+        .handlesExternalEvents(matching: [])
         .commands {
             CommandGroup(replacing: .newItem) {
                 // Another window, with tabs of its own (see Windows.swift).

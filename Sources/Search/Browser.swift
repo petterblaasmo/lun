@@ -5001,6 +5001,7 @@ final class Browser: NSObject, ObservableObject {
     /// still comes up for one to be asked about: a private new tab never
     /// asks.
     func launch() {
+        comeBackIfShut()
         // Again while it is up: put away, as the key that raised it, the way
         // Spotlight's does. What was typed waits for the next ⌘T (see
         // dismiss()). It used to stay up with what was typed cleared.
@@ -5284,6 +5285,14 @@ final class Browser: NSObject, ObservableObject {
         if putsAway(tab) { putAway(tab) } else { close(tab) }
     }
 
+    /// ⌘T or ⇧⌘N with every window closed. The menus then act on the window
+    /// closed last, which is kept while the app runs, and the new tab was
+    /// made there unseen until a click on the Dock icon brought the window
+    /// back. The window comes back first, as ⌘N brings it.
+    private func comeBackIfShut() {
+        if shut, !isPopup, !tucked { Browsers.show(self) }
+    }
+
     /// Whether Close Tab puts this tab away rather than closing it: a page
     /// open in a group, with groups on. Not an empty tab, which has nothing
     /// to come back to, nor one already put away or asleep: that one goes.
@@ -5405,13 +5414,16 @@ final class Browser: NSObject, ObservableObject {
         if floating == tab.id { land(covering: false) }
 
         // A pinned tab is not closed by ⌘W — it is put down. The letter keeps
-        // its place, the page is let go, and you land on whatever you were
-        // looking at before. Only Unpin takes it out of the row.
+        // its place and the page is let go; if it was the one on screen, you
+        // land on whatever you were looking at before. One put down from the
+        // row while another tab is on screen leaves you on that tab. Only
+        // Unpin takes it out of the row.
         if tab.pin != nil {
             // Put down is also gone home with Settings › Tabs › Pins stay on
             // their site, as Arc's pins are: the pin wakes on the page it was
             // pinned at, not wherever its links had taken it.
             let going = together.map { pair in tabs.filter { pair.contains($0.id) } } ?? [tab]
+            let onScreen = going.first { $0.id == activeID }
             for each in going {
                 let home = prefs.pinsGoHome || prefs.pinsPeek ? each.home : nil
                 // A pin on an extension's page has that extension's
@@ -5424,7 +5436,7 @@ final class Browser: NSObject, ObservableObject {
                     && home.map { Browser.extensionHost(of: $0) == nil } == true
                 each.rest(at: home, websiteConfiguration: leavesExtension ? websiteConfiguration(for: each) : nil)
             }
-            leave(tab)
+            if let onScreen { leave(onScreen) }
             writeSession(now: true)
             return
         }
@@ -7029,6 +7041,7 @@ final class Browser: NSObject, ObservableObject {
     /// history, and no place in tomorrow's session.
     func newShyTab() {
         if websitePopup { tabDestination.newShyTab(); return }
+        comeBackIfShut()
         // Never two empty private tabs, as ⌘T never makes two empty ones:
         // one already open is moved to the chosen position.
         if let blank = tabs.last(where: { $0.isBlank && $0.shy && !$0.bench && split(for: $0) == nil }) {
@@ -9488,8 +9501,12 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
     /// you are back on that page. A tab you opened yourself stays, as a new
     /// tab, and so does a window's only tab: closing it would close the
     /// window.
-    private func dropEmpty(_ webView: WKWebView) {
-        guard let tab = tab(for: webView), tab.committed == nil, tab.pin == nil else { return }
+    func dropEmpty(_ webView: WKWebView) {
+        // Judged by WebKit's own list as well as the tab's word: a tab with
+        // a page behind it, however its address was kept, was never opened
+        // for a file, and closing it takes that page from you.
+        guard let tab = tab(for: webView), tab.committed == nil, tab.pin == nil,
+              webView.backForwardList.currentItem == nil else { return }
         // Without its address, it is not offered back by ⇧⌘T either.
         tab.forget()
         guard let opener = tab.opener, tabs.count > 1 else { return }
@@ -9919,6 +9936,13 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
             window?.close()
             return
         }
+        // A tab you opened yourself is not the page's to close. WebKit lets
+        // a page close any tab whose history is one page long, and a sign-in
+        // that comes back by redirects leaves exactly that: a landing page
+        // that calls close() whether or not a script opened it took the tab
+        // away before the sign-in was kept, and any page could do the same
+        // to a tab just opened. Only a tab a page opened closes itself.
+        guard tab.opener != nil else { return }
         // Back to whoever opened it, so you land where you started the sign-in
         // rather than wherever the row happens to put you.
         if let opener = tab.opener, let home = tabs.first(where: { $0.id == opener }) {
@@ -9936,6 +9960,12 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         if websitePopup { cancelCapture() }
         popupTab(for: webView)?.popupGesture.clear()
         guard let tab = tab(for: webView) else {
+            // A page that came in while its tab was in another space, a
+            // link's still loading as you went there: it is that tab's page
+            // all the same. Left without its address, the tab's first
+            // download later took it for one opened only for the file, and
+            // closed it with the page in it.
+            parkedTabs.first { $0.built === webView }?.didCommit()
             // A small window's page came: what failed before it is over.
             littleTab(for: webView)?.failure = nil
             // A peek or a small window opens at the size the site has, or
@@ -10268,8 +10298,25 @@ extension Browser: WKDownloadDelegate {
         panel.nameFieldStringValue = name
         panel.directoryURL = downloadsFolder
         panel.canCreateDirectories = true
-        guard panel.runModal() == .OK else { return nil }
-        return panel.url
+        guard panel.runModal() == .OK, let file = panel.url else { return nil }
+        return Browser.makingWay(for: file)
+    }
+
+    /// Where a download goes when the name picked in the save panel is a
+    /// file's already: the panel asked, and Replace was the answer. WebKit
+    /// writes over nothing, so the download failed at once, and trying it
+    /// again saved "Photo 1 2.jpg" beside the file meant to be replaced. The
+    /// old file goes to the Trash first, where it can still be found; if it
+    /// won't go, the new one takes a free name beside it instead of failing.
+    nonisolated static func makingWay(
+        for file: URL,
+        remove: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
+    ) -> URL {
+        let files = FileManager.default
+        guard files.fileExists(atPath: file.path) else { return file }
+        try? remove(file)
+        if !files.fileExists(atPath: file.path) { return file }
+        return free(file.lastPathComponent, in: file.deletingLastPathComponent())
     }
 
     /// The folders in a name an extension asked for ("photos/2026/a.jpg"),
@@ -10343,7 +10390,7 @@ extension Browser: WKDownloadDelegate {
 
     /// WebKit refuses to write over a file that is already there, so the name
     /// gains a number rather than the download quietly failing.
-    static func free(_ name: String, in folder: URL) -> URL {
+    nonisolated static func free(_ name: String, in folder: URL) -> URL {
         let stem = (name as NSString).deletingPathExtension
         let ext = (name as NSString).pathExtension
         var candidate = folder.appendingPathComponent(name)

@@ -82,6 +82,33 @@ final class TabCloseTests: XCTestCase {
         XCTAssertEqual(browser.activeID, b.id)
     }
 
+    /// Put down from the row while another tab is on screen: the pin's page
+    /// goes, and the tab you are on stays the one you are on.
+    func testAPinPutDownBehindLeavesYouOnTheTabInFront() {
+        let (a, _, c) = viewedBAC()
+        browser.pin(a)
+        defer { browser.unpin(a) }
+        XCTAssertFalse(a.asleep)
+
+        browser.closeTab(a)
+
+        XCTAssertEqual(browser.activeID, c.id)
+        XCTAssertTrue(a.asleep)
+        XCTAssertNotNil(a.pin)
+    }
+
+    func testAPinPutDownInFrontStillGoesBack() {
+        let (a, _, c) = viewedBAC()
+        browser.pin(c)
+        defer { browser.unpin(c) }
+
+        browser.closeTab(c)
+
+        XCTAssertEqual(browser.activeID, a.id)
+        XCTAssertTrue(c.asleep)
+        XCTAssertNotNil(c.pin)
+    }
+
     func testOrderInTheRowDoesNotMatter() {
         let (a, b, c) = viewedBAC()
         browser.move(c, to: 1)
