@@ -35,7 +35,8 @@ CLASS_LIMIT = 600
 # Seconds a test is guessed to take, for a class with no time on record.
 GUESS_PER_TEST = 0.4
 
-FAILURE = re.compile(r"^(?P<file>/\S+?\.swift):(?P<line>\d+): error: -\[" + MODULE +
+# A failed assertion names its file and line; a thrown error says <unknown>:0.
+FAILURE = re.compile(r"^(?P<file>/\S+?\.swift|<unknown>):(?P<line>\d+): error: -\[" + MODULE +
                      r"\.(?P<cls>\w+) (?P<test>\w+)\] : (?P<message>.*)$")
 STARTED = re.compile(r"^Test Case '-\[" + MODULE + r"\.(\w+) (\w+)\]' started")
 FINISHED = re.compile(r"^Test Case '-\[" + MODULE + r"\.(\w+) (\w+)\]' (passed|failed|skipped)")
@@ -142,7 +143,7 @@ def unique(failures: list[dict]) -> list[dict]:
 
 def annotate(kind: str, title: str, f: dict, text: str) -> None:
     where = ""
-    if f.get("file"):
+    if f.get("file", "").startswith("/"):
         path = os.path.relpath(f["file"], ROOT) if f["file"].startswith(str(ROOT)) else f["file"]
         where = f" file={path},line={f['line']}"
     text = text.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
