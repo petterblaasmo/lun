@@ -7364,6 +7364,19 @@ final class Browser: NSObject, ObservableObject {
         linkRun = LinkRun(opener: source.id, last: tab.id, opened: earlier.union([tab.id]))
     }
 
+    /// What is said when a link opens behind with the tabs out of sight.
+    static let openedBehind = "Opened in a new tab"
+
+    /// A link opened in a tab behind the page — ⌘-click, the middle button,
+    /// Open Link in New Tab — while the tabs are folded away: with no row
+    /// to see it land in, nothing showed the click had done anything, so a
+    /// line says so. With the tabs in sight the new tab is the sign, and a
+    /// tab that went beside its page as a pair is on screen already.
+    func sayOpenedBehind(_ tab: Tab) {
+        guard folded, !peeking, tabs.contains(where: { $0.id == tab.id }), !visibleTabIDs.contains(tab.id) else { return }
+        announce(Browser.openedBehind)
+    }
+
     /// Settings › Tabs › Links opened in front go beside their page, which
     /// counts only with After current: Top and Bottom are for pages opened
     /// in front (see placeForLink).
@@ -9314,6 +9327,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
             // site's own pop-up window, whose tab opens in another window,
             // leaves it behind.
             if beside, destination === self { pair(tab, with: opener, onLeft: false) }
+            destination.sayOpenedBehind(tab)
         } else if clicked, destination === self, frontLinksBeside {
             // Settings › Tabs › Links opened in front go beside their page:
             // where a ⌘-click's goes, after the ones the page already opened,
@@ -9379,13 +9393,17 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
                 tabs.insert(tab, at: placeForLink(from: source))
                 if !foreground || frontLinksBeside { noteLink(tab, from: source) }
             }
+            if !foreground { sayOpenedBehind(tab) }
             return
         }
         // To a site Settings sends to another space: there, in front.
         if sendToSpace(url, from: source) { return }
         // From a small window's page, to the space chosen for it.
         if sendToChosenSpace(url, from: source) { return }
-        open(url, foreground: foreground, from: source, mayWait: true, link: true)
+        let tab = open(url, foreground: foreground, from: source, mayWait: true, link: true)
+        // In whichever window it went to: a link out of a site's own pop-up
+        // window opens in a window of tabs.
+        if !foreground { (Browsers.all.first { $0.tabs.contains { $0 === tab } } ?? self).sayOpenedBehind(tab) }
     }
 
     /// Anything the window can't show is something to keep instead.
