@@ -58,7 +58,7 @@ struct ExtensionsPage: View {
                             }
                         }
                         Text("Or find it in the store and press Add to Lun on its page.")
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -84,7 +84,7 @@ struct ExtensionsPage: View {
                         }
                     }
                     Text("Each extension stays out of private tabs until you allow it in its … menu. One you allow can tell which tabs are private, but may still keep what you visit in them.")
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -203,7 +203,7 @@ struct ExtensionsPage: View {
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
                         Text(detail(context))
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(1)
                             .help(item.source ?? "")
@@ -211,7 +211,7 @@ struct ExtensionsPage: View {
                         // WebKit's reason, not a row like any other (#1208).
                         if item.enabled, context == nil, let reason = extensions.notStarted[item.id] {
                             Text("Couldn’t start: \(reason)")
-                                .font(.system(size: 11.5))
+                                .font(.system(size: 12))
                                 .foregroundStyle(Palette.unsafe)
                                 .lineLimit(3)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -220,7 +220,7 @@ struct ExtensionsPage: View {
                         // Running, but without what it is for (#1208).
                         if let limit = context.flatMap({ Extensions.cantDo($0.webExtension.manifest) }) {
                             Text(limit)
-                                .font(.system(size: 11.5))
+                                .font(.system(size: 12))
                                 .foregroundStyle(Palette.unsafe)
                                 .lineLimit(3)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -341,7 +341,7 @@ private struct RunsOn: View {
         } label: {
             HStack(spacing: 3) {
                 Text(access.mode.title)
-                    .font(.system(size: 11.5))
+                    .font(.system(size: 12))
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 8, weight: .semibold))
             }
@@ -414,7 +414,7 @@ private struct SiteList: View {
                 }
             }
             Text(note(access))
-                .font(.system(size: 11))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }

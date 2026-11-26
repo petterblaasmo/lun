@@ -136,7 +136,7 @@ struct UpdateNoticePill: View {
                     Image(systemName: "arrow.down.circle")
                         .font(.system(size: 10, weight: .medium))
                     Text(UpdateNotice.title(shown.kind))
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
                         .lineLimit(1)
                 }
                 .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.75))
@@ -180,7 +180,7 @@ struct CardButton<Spot: View>: View {
     var body: some View {
         Button(action: act) {
             Text(title)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.8))
                 .padding(.horizontal, 7)
                 .padding(.vertical, 2)

@@ -109,7 +109,7 @@ private struct AgentStatusFace: View {
     /// Let in without asking: always said, said out loud for a few seconds.
     private var always: some View {
         Text("Always allowed")
-            .font(.system(size: 10, weight: session.justAdmitted ? .medium : .regular))
+            .font(.system(size: 12, weight: session.justAdmitted ? .medium : .regular))
             .foregroundStyle(session.justAdmitted ? Palette.ink : Palette.muted.opacity(0.8))
             .lineLimit(1)
     }
@@ -163,11 +163,11 @@ private struct AgentStatusFace: View {
         HStack(spacing: 4) {
             mark.font(.system(size: 10, weight: .medium))
             Text(session.client)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
                 .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.75))
             if session.auto {
-                Text("·").font(.system(size: 11)).foregroundStyle(Palette.muted)
+                Text("·").font(.system(size: 12)).foregroundStyle(Palette.muted)
                 always
             }
             stop.padding(.leading, 2)
@@ -266,7 +266,7 @@ private struct AgentQuestion: View {
                         .font(.system(size: 12.5, weight: .medium))
                         .foregroundStyle(Palette.ink)
                     Text(detail)
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -284,7 +284,7 @@ private struct AgentQuestion: View {
             // otherwise, why not.
             if let why = session.noAlways {
                 Text("Can't be remembered: \(why).")
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, 23)

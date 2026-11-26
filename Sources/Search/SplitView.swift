@@ -114,7 +114,7 @@ private struct SplitDropHint: View {
                 .strokeBorder(Palette.ink.opacity(0.18), lineWidth: 1)
             Image(systemName: "rectangle.split.2x1")
                 .font(.system(size: 15))
-                .foregroundStyle(Palette.ink.opacity(0.4))
+                .foregroundStyle(Palette.muted)
         }
         .padding(6)
         .frame(width: band)
@@ -141,7 +141,7 @@ private struct PaneLayers: View {
     private var whose: some View {
         if paired, !focused, hovered || browser.folded, let host = tab.address?.host(), !tab.isBlank {
             Text(host.hasPrefix("www.") ? String(host.dropFirst(4)) : host)
-                .font(.system(size: 11.5))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.muted)
                 .lineLimit(1)
                 .padding(.horizontal, 10)
@@ -306,7 +306,7 @@ private struct OpenTabs: View {
             if !list.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Or bring in an open tab")
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .padding(.horizontal, 10)
                         .padding(.bottom, 4)

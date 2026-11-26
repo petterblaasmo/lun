@@ -101,7 +101,7 @@ struct ThemesPage: View {
                 .fill(Palette.ground)
                 .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
                 .overlay(Text("Search or enter address")
-                    .font(.system(size: 11)).foregroundStyle(Palette.muted))
+                    .font(.system(size: 12)).foregroundStyle(Palette.muted))
                 .frame(width: 220, height: 30)
             tabs(side: side, right: right)
         }
@@ -179,7 +179,7 @@ struct ThemesPage: View {
                     .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous)
                         .strokeBorder(on ? Color.accentColor : .clear, lineWidth: 2.5))
                 Text(title)
-                    .font(.system(size: 11.5, weight: on ? .medium : .regular))
+                    .font(.system(size: 12, weight: on ? .medium : .regular))
                     .foregroundStyle(on ? Palette.ink : Palette.muted)
             }
             .contentShape(Rectangle())
@@ -269,7 +269,7 @@ struct ThemesPage: View {
                     }
                 }
                 Text("A copy is kept inside Lun.")
-                    .font(.system(size: 11)).foregroundStyle(Palette.muted)
+                    .font(.system(size: 12)).foregroundStyle(Palette.muted)
             }
         }
     }
@@ -318,7 +318,7 @@ private struct ThemeSlider: View {
                 }
             }
             Text("\(Int((held ?? value).rounded()))\(unit)")
-                .font(.system(size: 11).monospacedDigit()).foregroundStyle(Palette.muted)
+                .font(.system(size: 12).monospacedDigit()).foregroundStyle(Palette.muted)
                 .frame(width: 40, alignment: .trailing)
         }
     }

@@ -381,7 +381,7 @@ struct ProxySettings: View {
 
     private func small(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11.5))
+            .font(.system(size: 12))
             .foregroundStyle(Palette.muted)
             .fixedSize(horizontal: false, vertical: true)
     }

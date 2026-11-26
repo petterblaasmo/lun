@@ -915,7 +915,7 @@ struct WhatsNewCard: View {
                             .font(.system(size: 13))
                             .foregroundStyle(Palette.ink)
                         Text(toggle.detail)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
                     }

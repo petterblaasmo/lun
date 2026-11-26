@@ -889,7 +889,7 @@ struct BookmarkOutline: View {
         let node = line.node
         return Text("Empty")
             .font(.system(size: 12))
-            .foregroundStyle(Palette.faint)
+            .foregroundStyle(Palette.muted)
             .padding(.leading, indent(line.depth + 1) + 26)
             .padding(.vertical, 5)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1050,7 +1050,7 @@ struct BookmarkOutline: View {
                 if node.isFolder {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(Palette.faint)
+                        .foregroundStyle(Palette.muted)
                         .rotationEffect(.degrees(isOpen ? 90 : 0))
                         .frame(width: 10)
                     Mark(icon: nil, letter: "", size: 15)
@@ -1071,8 +1071,8 @@ struct BookmarkOutline: View {
                 Spacer(minLength: 8)
                 if node.isFolder, let kids = node.children, !kids.isEmpty {
                     Text("\(Bookmarks.count(kids))")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Palette.faint)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
                 }
             }
             .padding(.leading, CGFloat(depth) * 18 + 10)
@@ -1271,7 +1271,7 @@ struct BookmarkCard: View {
     private func line(_ name: String, @ViewBuilder _ control: () -> some View) -> some View {
         HStack(spacing: 10) {
             Text(name)
-                .font(.system(size: 11.5))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.muted)
                 .frame(width: 42, alignment: .leading)
             control()
@@ -1556,7 +1556,7 @@ struct BookmarksPanel: View {
                         .foregroundStyle(node.unnamed ? Palette.muted : Palette.ink)
                         .lineLimit(1)
                     Text(whereabouts)
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                         .lineLimit(1)
                         .truncationMode(.middle)

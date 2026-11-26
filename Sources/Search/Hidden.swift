@@ -80,7 +80,7 @@ struct HiddenPanel: View {
                         .truncationMode(.tail)
                     if let note = veil.note, !note.isEmpty {
                         Text(note)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(1)
                     }

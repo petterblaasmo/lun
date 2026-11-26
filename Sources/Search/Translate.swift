@@ -1053,7 +1053,7 @@ struct TranslateMenu: View {
         let mark = tab.translation ?? TranslationMark(from: nil, to: "en", phase: .done)
         VStack(alignment: .leading, spacing: 0) {
             Text(TranslateMenu.heading(mark))
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Palette.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 16)
@@ -1077,8 +1077,8 @@ struct TranslateMenu: View {
                 .padding(6)
                 Divider().overlay(Palette.hairline)
                 Text("Translated on this Mac. Nothing is sent anywhere.")
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(Palette.faint)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.muted)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
             }

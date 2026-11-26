@@ -705,7 +705,7 @@ struct NewSpaceCard: View {
                         label("Sign-ins")
                         Segmented(options: [(true, "As now"), (false, "Start fresh")], selection: $shared, wide: true)
                         Text(saying)
-                            .font(.system(size: 11))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
                     }

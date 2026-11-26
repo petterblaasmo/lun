@@ -219,7 +219,7 @@ struct SettingsPanel: View {
                     Button { text = "" } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 11))
-                            .foregroundStyle(Palette.faint)
+                            .foregroundStyle(Palette.muted)
                     }
                     .buttonStyle(.plain)
                 }
@@ -248,7 +248,7 @@ struct SettingsPanel: View {
                     Spacer(minLength: 0)
                     if let count, count > 0 {
                         Text("\(count)")
-                            .font(.system(size: 10.5, weight: .medium).monospacedDigit())
+                            .font(.system(size: 12, weight: .medium).monospacedDigit())
                             .foregroundStyle(Palette.ink)
                             .padding(.horizontal, 6)
                             .frame(height: 17)
@@ -701,7 +701,7 @@ struct SettingsPanel: View {
                 Segmented(options: SleepChoice.allCases.map { ($0, $0.title) }, selection: $prefs.sleepChoice, wide: true)
                     .frame(maxWidth: 340)
                 Text(prefs.sleepChoice.detail)
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
             }
         case "tabs.sleep.dim": Switch(on: $prefs.dimsSleepingTabs)
@@ -991,7 +991,7 @@ struct SettingsPanel: View {
             addressField(text, placeholder: "https://example.com/search?q=%s")
             if let suggest {
                 Text("Suggestions address (optional)")
-                    .font(.system(size: 11.5))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
                     .padding(.leading, 10)
                     .padding(.top, 2)
@@ -1069,7 +1069,7 @@ struct SettingsPanel: View {
                     prefs.keywords.removeAll { $0.id == entry.id }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(Palette.faint)
+                        .foregroundStyle(Palette.muted)
                 }
                 .buttonStyle(.plain)
             }
@@ -1347,7 +1347,7 @@ struct Always: View {
     var text = "Always on"
     var body: some View {
         Text(text)
-            .font(.system(size: 11))
+            .font(.system(size: 12))
             .foregroundStyle(Palette.muted)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
@@ -1511,7 +1511,7 @@ struct Steps: View {
             Step(icon: "minus", to: below) { value = $0 }
             Button { value = home } label: {
                 Text(label(value))
-                    .font(.system(size: 11.5))
+                    .font(.system(size: 12))
                     .monospacedDigit()
                     .foregroundStyle(Palette.ink)
                     .frame(minWidth: 36)
@@ -1607,7 +1607,7 @@ private struct PermissionSites: View {
             Rule()
             VStack(alignment: .leading, spacing: 10) {
                 Text("Reset asks again next time. Devices already in use keep running.")
-                    .font(.system(size: 11.5)).foregroundStyle(Palette.muted)
+                    .font(.system(size: 12)).foregroundStyle(Palette.muted)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack {
                     Hunt(text: $query, prompt: "Find a site", focus: $searching)

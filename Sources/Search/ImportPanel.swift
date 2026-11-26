@@ -270,7 +270,7 @@ struct ImportPanel: View {
                 }
                 if let folderError {
                     Text(folderError)
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                 }
             }
@@ -658,8 +658,8 @@ struct ImportPanel: View {
                     .frame(width: 14, height: 14)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name).font(.system(size: 13)).foregroundStyle(Palette.ink)
-                    Text(detail).font(.system(size: 11.5)).foregroundStyle(Palette.muted).monospacedDigit()
-                    Text(can).font(.system(size: 11)).foregroundStyle(Palette.faint)
+                    Text(detail).font(.system(size: 12)).foregroundStyle(Palette.muted).monospacedDigit()
+                    Text(can).font(.system(size: 12)).foregroundStyle(Palette.muted)
                 }
                 Spacer(minLength: 0)
             }

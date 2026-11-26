@@ -177,7 +177,7 @@ struct BlockedPopupsMenu: View {
         }
         VStack(alignment: .leading, spacing: 0) {
             Text(tab.blockedPopups.count == 1 ? "Pop-up blocked" : "\(tab.blockedPopups.count) pop-ups blocked")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Palette.muted)
                 .padding(.horizontal, 16)
                 .padding(.top, 11)

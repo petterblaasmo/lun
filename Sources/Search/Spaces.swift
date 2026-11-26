@@ -947,7 +947,7 @@ struct SpaceDot: View {
         .overlay(alignment: browser.prefs.sidebar ? .bottomLeading : .leading) {
             if let named {
                 Text(named)
-                    .font(.system(size: 11.5, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Palette.ink)
                     .lineLimit(1)
                     .fixedSize()

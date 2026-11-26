@@ -107,7 +107,7 @@ struct PasswordsPanel: View {
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
                         Text(login.user.isEmpty ? "No username" : login.user)
-                            .font(.system(size: 11))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(1)
                             .truncationMode(.middle)

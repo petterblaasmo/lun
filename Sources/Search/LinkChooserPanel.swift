@@ -369,7 +369,7 @@ private struct LinkChooserView: View {
                 }
             }
             Text(chooser.alwaysShown ? "1–0 or Return opens · Space: Always · Esc cancels" : "1–0 or Return opens · Esc cancels")
-                .font(.system(size: 10.5))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.muted)
         }
         .padding(.horizontal, 12)

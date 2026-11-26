@@ -2447,7 +2447,7 @@ struct KeepLine: View {
                         Image(systemName: "arrow.down")
                             .font(.system(size: 8, weight: .semibold))
                         Text("Clear")
-                            .font(.system(size: 11))
+                            .font(.system(size: 12))
                     }
                     .foregroundStyle(Palette.muted)
                     .contentShape(Rectangle())

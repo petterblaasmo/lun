@@ -235,7 +235,7 @@ struct StylePanel: View {
     private var corner: some View {
         Image(systemName: "arrow.down.left.and.arrow.up.right")
             .font(.system(size: 8, weight: .semibold))
-            .foregroundStyle(over || start != nil ? Palette.muted : Palette.faint)
+            .foregroundStyle(over || start != nil ? Palette.muted : Palette.muted)
             .frame(width: 22, height: 22)
             .contentShape(Rectangle())
             .onHover { inside in

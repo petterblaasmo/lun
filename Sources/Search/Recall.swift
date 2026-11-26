@@ -323,7 +323,7 @@ struct HistoryPanel: View {
                 } else {
                     if trace.count > 1 {
                         Text("\(trace.count) visits")
-                            .font(.system(size: 11))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .padding(.horizontal, 8)
                             .frame(height: 18)
@@ -547,7 +547,7 @@ struct DownloadsPanel: View {
                     .frame(width: 150, height: 96)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     FadingLine(text: keep.name).font(.system(size: 12)).foregroundStyle(Palette.ink)
-                    Text(When.day(keep.date)).font(.system(size: 11)).foregroundStyle(Palette.muted)
+                    Text(When.day(keep.date)).font(.system(size: 12)).foregroundStyle(Palette.muted)
                 }
                 .frame(width: 150, alignment: .leading)
                 .contentShape(Rectangle())
@@ -702,7 +702,7 @@ struct DownloadsPanel: View {
 
         private func status(_ text: String) -> some View {
             Text(text)
-                .font(.system(size: 11.5))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.muted)
                 .monospacedDigit()
                 .lineLimit(1)
@@ -751,7 +751,7 @@ struct DownloadsPanel: View {
                     }
                     if case .failed = entry.state {
                         Text(entry.errorDescription ?? "The download failed.")
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
                             .textSelection(.enabled)
@@ -846,10 +846,10 @@ struct DownloadsPanel: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if !keep.stillThere {
-                        Text("Moved or deleted").font(.system(size: 11)).foregroundStyle(Palette.muted)
+                        Text("Moved or deleted").font(.system(size: 12)).foregroundStyle(Palette.muted)
                     } else if !wide {
                         Text(keep.from.isEmpty ? When.said(keep.date) : "\(keep.from) · \(When.said(keep.date))")
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(1)
                     }

@@ -201,7 +201,7 @@ struct BookmarksBar: View {
                 if node.isFolder {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 7.5, weight: .semibold))
-                        .foregroundStyle(Palette.faint)
+                        .foregroundStyle(Palette.muted)
                 }
             }
             .padding(.horizontal, bare ? 0 : 8)

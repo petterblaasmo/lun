@@ -110,7 +110,7 @@ struct IPhoneAskLine: View {
                     VStack(alignment: centred ? .center : .leading, spacing: 6) {
                         if !thanked {
                             Text(IPhoneAsk.pitch)
-                                .font(.system(size: 11.5))
+                                .font(.system(size: 12))
                                 .foregroundStyle(Palette.muted)
                                 .multilineTextAlignment(centred ? .center : .leading)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -123,14 +123,14 @@ struct IPhoneAskLine: View {
                     // The About window is narrow: the question, then the two.
                     VStack(spacing: 4) {
                         Text(IPhoneAsk.short)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                         choices
                     }
                 } else {
                     HStack(spacing: 6) {
                         Text(IPhoneAsk.short)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 12))
                             .foregroundStyle(Palette.muted)
                         choices
                     }
@@ -152,13 +152,13 @@ struct IPhoneAskLine: View {
                         .buttonStyle(.plain)
                         .font(.system(size: 11.5))
                         .foregroundStyle(Palette.ink)
-                        Text(verbatim: "·").font(.system(size: 11.5)).foregroundStyle(Palette.faint)
+                        Text(verbatim: "·").font(.system(size: 12)).foregroundStyle(Palette.muted)
                         Button { IPhoneAsk.dismiss() } label: {
                             Text(IPhoneAsk.notNow)
                         }
                         .buttonStyle(.plain)
                         .font(.system(size: 11.5))
-                        .foregroundStyle(Palette.faint)
+                        .foregroundStyle(Palette.muted)
         }
         .lineLimit(1)
         .fixedSize()
