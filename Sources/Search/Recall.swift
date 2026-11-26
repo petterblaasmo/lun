@@ -377,6 +377,12 @@ struct DownloadsPanel: View {
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(Palette.ink)
                 Spacer(minLength: 0)
+                // The whole list, sorted by kind, in a tab: the card is
+                // where Downloads opens, so this is the way to the rest.
+                Door(icon: "arrow.up.forward.square", help: "Show All in a Tab") {
+                    close?()
+                    browser.hoarding = true
+                }
                 Door(icon: "folder", help: "Open the Downloads Folder") {
                     NSWorkspace.shared.open(browser.downloadsFolder)
                 }
