@@ -73,12 +73,12 @@ enum Palette {
     }
 }
 
-/// Search's motion (Motion in its Design.swift), as far as the panels use
-/// it. The two switches are Search's own, asked of it each time something
+/// The app's motion (Motion in its Design.swift), as far as the panels use
+/// it. The two switches are the app's own, asked of it each time something
 /// moves: with Reduce animations on in its Settings, or the Mac's Reduce
-/// Motion, nothing here travels either. A Search from before it could say
+/// Motion, nothing here travels either. An app from before it could say
 /// leaves the Mac's setting alone to go by. Every curve the panels move on
-/// is written here and nowhere else, as Search's are in its own (a test
+/// is written here and nowhere else, as the app's are in its own (a test
 /// holds both); each is nil when nothing should move.
 enum Motion {
     static var reduced: Bool {
@@ -86,12 +86,12 @@ enum Motion {
             ?? NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 
-    /// Not even a fade: Reduce animations in Search's Settings.
+    /// Not even a fade: Reduce animations in the app's Settings.
     static var instant: Bool {
         MainActor.assumeIsolated { DevHost.host?.stillsMotion } ?? false
     }
 
-    /// Hover, and small things appearing: Search's quick.
+    /// Hover, and small things appearing: the app's quick.
     static var quick: Animation? { reduced ? nil : .easeOut(duration: 0.14) }
 
     /// A sheet over the panels arriving and leaving.
