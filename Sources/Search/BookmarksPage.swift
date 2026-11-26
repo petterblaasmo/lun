@@ -292,7 +292,7 @@ struct BookmarksPanel: View {
                     HStack(spacing: 8) {
                         Image(systemName: symbol)
                             .font(.system(size: 13))
-                            .foregroundStyle(Palette.ink.opacity(0.75))
+                            .foregroundStyle(Palette.soft)
                             .frame(width: 18)
                         Text(title)
                             .font(.system(size: 13, weight: on ? .medium : .regular))
@@ -693,7 +693,7 @@ struct BookmarksPanel: View {
                 HStack(spacing: 10) {
                     Image(systemName: "folder")
                         .font(.system(size: 13))
-                        .foregroundStyle(Palette.ink.opacity(0.75))
+                        .foregroundStyle(Palette.soft)
                         .frame(width: 18)
                     Text(node.title)
                         .font(.system(size: 13))
