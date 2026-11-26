@@ -34,20 +34,7 @@ struct PopUp<Value: Hashable, Content: View>: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
         } label: {
-            HStack(spacing: 6) {
-                Text(shows)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Palette.ink)
-                    .lineLimit(1)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(Palette.muted)
-            }
-            .padding(.leading, 12)
-            .padding(.trailing, 9)
-            .frame(height: 24)
-            .background(hovering ? Palette.fillHover : Palette.fill, in: Capsule())
-            .contentShape(Capsule())
+            PopUpFace(shows: shows, hovering: hovering)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
@@ -56,5 +43,30 @@ struct PopUp<Value: Hashable, Content: View>: View {
         .hovers($hovering)
         .accessibilityLabel(label)
         .accessibilityValue(shows)
+    }
+}
+
+/// What a pop-up shows closed: the chosen value in the pill, and the pair
+/// of chevrons. Drawn alone where a picture needs the pop-up without the
+/// Mac's menu behind it.
+struct PopUpFace: View {
+    let shows: String
+    var hovering = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(shows)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Palette.muted)
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 9)
+        .frame(height: 24)
+        .background(hovering ? Palette.fillHover : Palette.fill, in: Capsule())
+        .contentShape(Capsule())
     }
 }

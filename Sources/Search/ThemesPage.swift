@@ -26,14 +26,12 @@ struct ThemesPage: View {
         VStack(alignment: .leading, spacing: 16) {
             mock
 
-            // A pop-up where the six segments (~488 pt, which don't
-            // shrink) would run off the card. By the preview's width (see
-            // mock): the segments' ideal width counts each as the widest.
-            Group {
-                if width >= 470 {
-                    families.pickerStyle(.segmented)
-                } else {
-                    families.pickerStyle(.menu).fixedSize()
+            // The families side by side, in Lun's own track; a pop-up
+            // where the six would run off the card.
+            ViewThatFits(in: .horizontal) {
+                Segmented(options: HomeTheme.Family.allCases.map { ($0, $0.title) }, selection: chosenFamily)
+                PopUp("Theme", shows: family.title, selection: chosenFamily) {
+                    ForEach(HomeTheme.Family.allCases) { Text($0.title).tag($0) }
                 }
             }
 
@@ -64,9 +62,7 @@ struct ThemesPage: View {
             }
 
             if family == .wall || family == .stickers {
-                Toggle("Shuffle: a different one each day", isOn: $prefs.homeShuffle)
-                    .toggleStyle(.checkbox)
-                    .font(.system(size: 12))
+                Ticked("Shuffle: a different one each day", on: $prefs.homeShuffle)
             }
 
             if family != .off && (family != .image || HomeBackground.load(prefs.homeThemeImage) != nil) {
@@ -75,11 +71,11 @@ struct ThemesPage: View {
         }
     }
 
-    private var families: some View {
-        Picker("", selection: Binding(get: { family }, set: choose)) {
-            ForEach(HomeTheme.Family.allCases) { Text($0.title).tag($0) }
-        }
-        .labelsHidden()
+    /// The family on show, chosen at once: the page under the track
+    /// changes as it did under the Mac's picker, and only the track's own
+    /// white slides.
+    private var chosenFamily: Binding<HomeTheme.Family> {
+        Binding(get: { family }, set: { next in atOnce { choose(next) } })
     }
 
     // MARK: - the live preview
@@ -311,12 +307,13 @@ private struct ThemeSlider: View {
             Text(title)
                 .font(.system(size: 12)).foregroundStyle(Palette.muted)
                 .frame(width: 64, alignment: .leading)
-            Slider(value: Binding(get: { held ?? value }, set: { held = $0 }), in: range) { editing in
+            Slide(value: Binding(get: { held ?? value }, set: { held = $0 }), range: range) { editing in
                 if !editing, let done = held {
                     commit(done)
                     held = nil
                 }
             }
+            .accessibilityLabel(title)
             Text("\(Int((held ?? value).rounded()))\(unit)")
                 .font(.system(size: 12).monospacedDigit()).foregroundStyle(Palette.muted)
                 .frame(width: 40, alignment: .trailing)

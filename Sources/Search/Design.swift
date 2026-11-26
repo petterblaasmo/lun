@@ -860,6 +860,14 @@ extension View {
     }
 }
 
+/// A change made at once, from inside a control that slides a knob of its
+/// own (Segmented, Switch): the knob still moves, on its own animation, and
+/// what it sets in the window doesn't ride along on it. For what was set by
+/// one of the Mac's controls, which carried no animation with it.
+func atOnce(_ change: () -> Void) {
+    withTransaction(Transaction(animation: nil), change)
+}
+
 /// Wrong address, said without a dialog: the field shivers and stops.
 struct Shake: GeometryEffect {
     var travel: CGFloat

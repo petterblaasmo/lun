@@ -489,29 +489,27 @@ struct SiteCard: View {
         @ObservedObject var prefs: Preferences
         let kind: CaptureChoices.Kind
         let origin: String
+        @State private var hovering = false
 
         var body: some View {
             let now = CaptureChoices.choice(kind, origin: origin).title
             Line(kind.title) {
+                // The pop-up every other choice has (PopUp), over a menu
+                // of things to do: an answer saved two ways is none of
+                // the three, so there is no one value to tick.
                 Menu {
                     Button("Ask") { browser.setSitePermission(nil, kind: kind, origin: origin) }
                     Button("Allow") { browser.setSitePermission(true, kind: kind, origin: origin) }
                         .disabled(kind == .notifications && !prefs.siteNotifications)
                     Button("Refuse") { browser.setSitePermission(false, kind: kind, origin: origin) }
                 } label: {
-                    HStack(spacing: 5) {
-                        Text(now).font(.system(size: 12)).foregroundStyle(Palette.ink)
-                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(Palette.muted)
-                    }
-                    .padding(.leading, 8)
-                    .padding(.trailing, 6)
-                    .frame(height: 22)
-                    .background(Palette.fill, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    PopUpFace(shows: now, hovering: hovering)
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
                 .menuIndicator(.hidden)
                 .fixedSize()
+                .hovers($hovering)
                 .accessibilityLabel("\(kind.title): \(now)")
             }
         }

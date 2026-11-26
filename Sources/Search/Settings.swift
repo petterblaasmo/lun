@@ -714,8 +714,8 @@ struct SettingsPanel: View {
         case "address.width": Segmented(options: AddressWidth.allCases.map { ($0, $0.title) }, selection: $prefs.addressWidth)
         case "window.glass": Switch(on: $prefs.glass)
         case "window.glass.style": Segmented(options: GlassStyle.allCases.map { ($0, $0.title) }, selection: $prefs.glassStyle)
-        case "window.glass.clear": Slider(value: $prefs.glassClear, in: 0...1).controlSize(.small).frame(width: 160)
-        case "window.glass.grain": Slider(value: $prefs.glassGrain, in: 0...1).controlSize(.small).frame(width: 160)
+        case "window.glass.clear": Slide(value: $prefs.glassClear).frame(width: 160).accessibilityLabel("Transparency")
+        case "window.glass.grain": Slide(value: $prefs.glassGrain).frame(width: 160).accessibilityLabel("Grain")
         case "toolbar.left": Switch(on: $prefs.navigationLeft)
         case "tabs.compact":
             Switch(on: Binding(
@@ -1517,13 +1517,17 @@ struct Segmented<Option: Hashable>: View {
     /// True when the control has the whole width to itself, so the choices
     /// share it evenly instead of each taking only what its word needs.
     var wide = false
+    /// Symbols where the words would be (a gradient's eight directions):
+    /// each option's string is then a symbol's name, and this says what it
+    /// is called, for its tooltip and VoiceOver.
+    var symbols: ((Option) -> String)? = nil
 
     @Namespace private var slide
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(options, id: \.0) { option, title in
-                Choice(title: title, chosen: option == selection, wide: wide, slide: slide) {
+                Choice(title: title, named: symbols?(option), chosen: option == selection, wide: wide, slide: slide) {
                     withAnimation(Motion.settle) { selection = option }
                 }
             }
@@ -1538,6 +1542,8 @@ struct Segmented<Option: Hashable>: View {
     /// and it gives under the press.
     private struct Choice: View {
         let title: String
+        /// What a symbol is called; nil where the title is words.
+        let named: String?
         let chosen: Bool
         let wide: Bool
         let slide: Namespace.ID
@@ -1546,11 +1552,8 @@ struct Segmented<Option: Hashable>: View {
 
         var body: some View {
             Button(action: pick) {
-                Text(title)
-                    .font(.system(size: 13, weight: chosen ? .medium : .regular))
+                words
                     .foregroundStyle(chosen || hovering ? Palette.ink : Palette.muted)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: !wide, vertical: false)
                     .frame(maxWidth: wide ? .infinity : nil)
                     .padding(.horizontal, wide ? 4 : 10)
                     .frame(height: wide ? 26 : 22)
@@ -1565,28 +1568,41 @@ struct Segmented<Option: Hashable>: View {
             }
             .buttonStyle(Gives(to: 0.96))
             .hovers($hovering)
+            .help(named ?? "")
+            .accessibilityLabel(named ?? title)
             .accessibilityAddTraits(chosen ? .isSelected : [])
+        }
+
+        @ViewBuilder private var words: some View {
+            if named != nil {
+                Image(systemName: title)
+                    .font(.system(size: 10, weight: .semibold))
+            } else {
+                Text(title)
+                    .font(.system(size: 13, weight: chosen ? .medium : .regular))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: !wide, vertical: false)
+            }
         }
     }
 }
 
-/// On or off, in ink rather than in blue.
 /// A few things each shown or not, side by side: a tick for each
-/// (Back, Forward, Reload…).
+/// (Back, Forward, Reload…), in Lun's own drawing (Tick) where the Mac's
+/// blue checkboxes were.
 struct Ticks: View {
     let items: [(String, Binding<Bool>)]
 
     var body: some View {
         HStack(spacing: 14) {
             ForEach(items.indices, id: \.self) { index in
-                Toggle(items[index].0, isOn: items[index].1)
-                    .toggleStyle(.checkbox)
-                    .font(.system(size: 12.5))
+                Ticked(items[index].0, on: items[index].1)
             }
         }
     }
 }
 
+/// On or off, in ink rather than in blue.
 ///
 /// A button, so the keyboard and VoiceOver can press it and it says whether
 /// it is on. It answers the pointer (the track a shade darker), gives under

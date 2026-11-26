@@ -586,27 +586,17 @@ struct ReaderLook: View {
     @Environment(\.colorScheme) private var window
 
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(Look.allCases) { each in
-                Button {
-                    look = each
-                    Reader.look = each
-                    tab.built?.evaluateJavaScript(Reader.apply(each))
-                } label: {
-                    Image(systemName: each == .light ? "sun.max" : each == .dark ? "moon" : "circle.lefthalf.filled")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(look == each ? Palette.ink : Palette.muted)
-                        .frame(width: 24, height: 22)
-                        .background(Capsule().fill(look == each ? Palette.wash : .clear))
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .help(each == .system ? "As the window is" : each.title)
-            }
-        }
-        .padding(3)
-        .background(Palette.ground, in: Capsule())
-        .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
+        // The track every other choice of a few has (Segmented), with a
+        // symbol for each look: the third hand-made copy of it had no
+        // answer to the pointer or the press.
+        Segmented(options: Look.allCases.map { ($0, $0 == .light ? "sun.max" : $0 == .dark ? "moon" : "circle.lefthalf.filled") },
+                  selection: Binding(get: { look }, set: { each in
+                      look = each
+                      Reader.look = each
+                      tab.built?.evaluateJavaScript(Reader.apply(each))
+                  }),
+                  symbols: { $0 == .system ? "As the window is" : $0.title })
+        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         // In the article's colours, which may not be the window's.
         .environment(\.colorScheme, look == .dark ? .dark : look == .light ? .light : window)
         .opacity(hovering ? 1 : 0.55)

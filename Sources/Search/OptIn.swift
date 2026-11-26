@@ -265,7 +265,7 @@ struct OptInForm: View {
                     hint(suggestion)
                 }
                 if offersBeta && !betaOnly {
-                    Tick(on: $beta, title: "Also send me the iPhone beta")
+                    Ticked("Also send me the iPhone beta", on: $beta)
                 }
                 if case .failed(let failure) = phase {
                     Text(failure.line)
@@ -364,37 +364,6 @@ struct OptInForm: View {
             case .failure(let failure):
                 phase = .failed(failure)
             }
-        }
-    }
-
-    /// A checkbox in the app's own ink.
-    private struct Tick: View {
-        @Binding var on: Bool
-        let title: String
-        var body: some View {
-            Button { on.toggle() } label: {
-                HStack(spacing: 7) {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(on ? Palette.ink : Palette.ground)
-                        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .strokeBorder(on ? .clear : Palette.faint, lineWidth: 1))
-                        .overlay {
-                            if on {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 8.5, weight: .bold))
-                                    .foregroundStyle(Palette.ground)
-                            }
-                        }
-                        .frame(width: 14, height: 14)
-                    Text(title)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.ink)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(on ? [.isSelected] : [])
-            .accessibilityLabel(title)
         }
     }
 }

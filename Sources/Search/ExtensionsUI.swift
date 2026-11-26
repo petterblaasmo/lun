@@ -348,35 +348,14 @@ private struct RunsOn: View {
 
     var body: some View {
         let access = extensions.siteAccess(item.id)
-        Menu {
-            Picker("Runs on", selection: Binding(
-                get: { access.mode },
-                set: { extensions.setSiteAccess(item.id, SiteAccess(mode: $0, hosts: access.hosts)) }
-            )) {
-                Text("All Sites It Asks For").tag(SiteAccess.Mode.all)
-                Text("Only Sites I Name").tag(SiteAccess.Mode.some)
-                Text("Only When I Click It").tag(SiteAccess.Mode.click)
-            }
-            .pickerStyle(.inline)
-            .labelsHidden()
-        } label: {
-            HStack(spacing: 3) {
-                Text(access.mode.title)
-                    .font(.system(size: 12))
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 8, weight: .semibold))
-            }
-            .foregroundStyle(access.restricted ? Palette.ink : Palette.muted)
-            .padding(.horizontal, 8)
-            .frame(height: 22)
-            .background(Palette.wash, in: Capsule())
-            .contentShape(Capsule())
+        PopUp("\(item.name) runs on", shows: access.mode.title, selection: Binding(
+            get: { access.mode },
+            set: { extensions.setSiteAccess(item.id, SiteAccess(mode: $0, hosts: access.hosts)) }
+        )) {
+            Text("All Sites It Asks For").tag(SiteAccess.Mode.all)
+            Text("Only Sites I Name").tag(SiteAccess.Mode.some)
+            Text("Only When I Click It").tag(SiteAccess.Mode.click)
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .accessibilityLabel("\(item.name) runs on")
-        .accessibilityValue(access.mode.title)
         .help("Where \(item.name) runs. Fewer sites, less memory on the rest")
     }
 }

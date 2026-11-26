@@ -424,19 +424,16 @@ struct AISettings: View {
             if prefs.ai {
                 Card {
                     Line("Where it runs", place) {
+                        let chosen = prefs.aiProvider.map(Self.runsOn) ?? "Choose…"
                         if drawn {
-                            Stand(prefs.aiProvider.map { $0.isLocal ? "\($0.name), on this Mac" : $0.name } ?? "Choose…", menu: true)
+                            PopUpFace(shows: chosen)
                         } else {
-                        Picker("", selection: Binding(get: { prefs.aiProvider }, set: { prefs.aiProvider = $0 })) {
-                            Text("Choose…").tag(AIProvider?.none)
-                            ForEach(AIProvider.allCases.filter { $0 != .thisMac || engine.available || prefs.aiProvider == .thisMac }) { provider in
-                                Text(provider == .thisMac ? provider.name : provider.isLocal ? "\(provider.name), on this Mac" : provider.name)
-                                    .tag(AIProvider?.some(provider))
+                            PopUp("Where it runs", shows: chosen, selection: Binding(get: { prefs.aiProvider }, set: { prefs.aiProvider = $0 })) {
+                                Text("Choose…").tag(AIProvider?.none)
+                                ForEach(AIProvider.allCases.filter { $0 != .thisMac || engine.available || prefs.aiProvider == .thisMac }) { provider in
+                                    Text(Self.runsOn(provider)).tag(AIProvider?.some(provider))
+                                }
                             }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .fixedSize()
                         }
                     }
                     if let provider = prefs.aiProvider {
@@ -551,22 +548,22 @@ struct AISettings: View {
         }
     }
 
-    /// A menu or a field, as a picture shows it.
+    /// A provider as the pop-up names it: an app on this Mac says so.
+    private static func runsOn(_ provider: AIProvider) -> String {
+        provider == .thisMac ? provider.name : provider.isLocal ? "\(provider.name), on this Mac" : provider.name
+    }
+
+    /// A field, as a picture shows it.
     private struct Stand: View {
         let text: String
-        var menu = false
         var width: CGFloat?
-        init(_ text: String, menu: Bool = false, width: CGFloat? = nil) { self.text = text; self.menu = menu; self.width = width }
+        init(_ text: String, width: CGFloat? = nil) { self.text = text; self.width = width }
         var body: some View {
-            HStack(spacing: 5) {
-                Text(text).font(.system(size: 12)).foregroundStyle(menu ? Palette.ink : Palette.muted)
-                if menu { Image(systemName: "chevron.up.chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(Palette.muted) }
-            }
-            .frame(width: width, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(menu ? Palette.ground : Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(menu ? Palette.hairline : .clear, lineWidth: 1))
+            Text(text).font(.system(size: 12)).foregroundStyle(Palette.muted)
+                .frame(width: width, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
     }
 
@@ -578,13 +575,12 @@ struct AISettings: View {
             }
         } else {
             Line("Model", "From \(provider.name) on this Mac") {
-                Picker("", selection: Binding(get: { prefs.aiModel(for: provider) }, set: { prefs.setAIModel($0, for: provider) })) {
+                let chosen = prefs.aiModel(for: provider)
+                PopUp("Model", shows: chosen.isEmpty ? "Choose…" : chosen,
+                      selection: Binding(get: { prefs.aiModel(for: provider) }, set: { prefs.setAIModel($0, for: provider) })) {
                     Text("Choose…").tag("")
                     ForEach(models, id: \.self) { Text($0).tag($0) }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
             }
         }
     }

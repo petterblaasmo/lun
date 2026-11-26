@@ -208,13 +208,16 @@ struct Line<Control: View>: View {
 /// it is on, an outline when it is not.
 struct Tick: View {
     let on: Bool
+    /// Under the pointer: its edge goes to ink, and its ink eases off as a
+    /// filled pill's does.
+    var lit = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: 4.5, style: .continuous)
-            .fill(on ? Palette.ink : Color.clear)
+            .fill(on ? Palette.ink.opacity(lit ? 0.86 : 1) : Color.clear)
             .overlay(
                 RoundedRectangle(cornerRadius: 4.5, style: .continuous)
-                    .strokeBorder(on ? Color.clear : Palette.muted.opacity(0.7), lineWidth: 1.2)
+                    .strokeBorder(on ? Color.clear : lit ? Palette.ink : Palette.muted.opacity(0.7), lineWidth: 1.2)
             )
             .overlay {
                 if on {
@@ -224,6 +227,41 @@ struct Tick: View {
                 }
             }
             .frame(width: 16, height: 16)
+    }
+}
+
+/// A tick box with its words beside it: one of a few things side by side
+/// (Ticks), or a line of its own under a form. The words are part of the
+/// button, and it is a little taller to land on than it looks.
+struct Ticked: View {
+    let title: String
+    @Binding var on: Bool
+    @State private var hovering = false
+
+    init(_ title: String, on: Binding<Bool>) {
+        self.title = title
+        self._on = on
+    }
+
+    var body: some View {
+        Button { on.toggle() } label: {
+            HStack(spacing: 7) {
+                Tick(on: on, lit: hovering)
+                Text(title)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .padding(.vertical, -4)
+        }
+        .buttonStyle(Gives(to: 0.96))
+        .hovers($hovering)
+        .accessibilityLabel(title)
+        .accessibilityValue(on ? "Ticked" : "Not ticked")
+        .accessibilityAddTraits(.isToggle)
     }
 }
 
