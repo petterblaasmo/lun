@@ -6,6 +6,13 @@ import XCTest
 /// Nothing here touches the keychain: every CSV row below is one that is
 /// skipped, so nothing is ever saved.
 final class VaultAndUpdaterTests: XCTestCase {
+    /// The run's world: run alone, without it, the updater took this for
+    /// Lun itself and read its real feed (issue 98).
+    override class func setUp() {
+        TestWorld.enter()
+        super.setUp()
+    }
+
     func testHostIsTheSiteWithoutWWW() {
         XCTAssertEqual(Vault.host(of: "https://www.example.com/login?next=/"), "example.com")
         XCTAssertEqual(Vault.host(of: "  Example.COM  "), "example.com")
