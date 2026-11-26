@@ -15,9 +15,10 @@ import WebKit
 // never waits:
 // - a page on screen, or about to be: the tab in front, a page of its split,
 //   a peek (Tab.onScreen);
-// - a page that comes into sight while it waits. Picked, it loads as its
-//   view lands in the window (Tab.revive, `hurry`); put in a window any
-//   other way, in the step after (PageView.viewDidMoveToWindow, `shown`).
+// - a page that comes into sight while it waits. Its tab brought to the
+//   front, it loads as its view lands in the window (Tab.hurry); put in a
+//   window any other way, in the step after (PageView.viewDidMoveToWindow,
+//   `shown`).
 //
 // And every page that waits does load. A turn ends when its page stops
 // loading; `unstarted` seconds on if the page never began; `longest` seconds
@@ -38,7 +39,7 @@ final class LoadTurns {
     /// WebKit didn't take holds up nobody.
     static var unstarted: TimeInterval = 2
     /// How long a turn lasts at most. A page still loading after this long
-    /// is waiting for its network, not using a processor.
+    /// is more likely waiting for its network than using a processor.
     static var longest: TimeInterval = 10
 
     /// Who asked. One page somebody just asked for (a link opened in a new
