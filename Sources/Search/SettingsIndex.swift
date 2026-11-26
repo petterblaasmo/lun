@@ -110,6 +110,22 @@ enum SettingsIndex {
     static func groups(of page: SettingsPanel.Page) -> [SettingsGroup] { groups.filter { $0.page == page } }
     static func items(in group: String) -> [SettingsItem] { items.filter { $0.group == group && !$0.findOnly } }
 
+    /// What most people come to Settings for: the rows a page opens on. The
+    /// rest of a page's rows are one press away, under More options
+    /// (SettingsPanel.groups), and the find field finds every one of them
+    /// as before. Nothing is removed by not being here. A page with none of
+    /// these (Themes, Keyboard & Mouse) opens on all it has.
+    static let essential: Set<String> = [
+        "general.default", "general.import", "icloud", "downloads.folder",
+        "look", "tabs.layout", "address.shown",
+        "tabs.close.after",
+        "search.engine", "search.suggest", "links.little",
+        "arc.setup", "spaces", "newtab.floating",
+        "passwords.open", "passwords.save", "passwords.fill",
+        "shield", "privacy.forget", "clear.history", "clear.cookies",
+        "updates.version", "about.notes", "about.feedback", "about.licences",
+    ]
+
     // MARK: - rows
 
     static let items: [SettingsItem] = ([
