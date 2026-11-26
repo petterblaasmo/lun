@@ -107,4 +107,63 @@ final class TabSwitcherPressTests: XCTestCase {
             window.contentView = nil
         }
     }
+
+    /// The whole way, through the window's own monitor, which takes the
+    /// click before any view does: a real mouse down on a card leaves the
+    /// switcher up with that card pressed and the tab unchanged, and the
+    /// mouse up takes the tab. Sent through the app, as a hand's arrive.
+    func testAClickThroughTheWindowTakesTheTabWhenTheButtonComesUp() async throws {
+        _ = NSApplication.shared
+        let browser = Browser(record: WindowRecord())
+        browser.welcoming = false
+        for number in 1...3 {
+            if number > 1 { browser.newTab() }
+            browser.tabs.last?.restore(url: URL(string: "about:blank#\(number)")!, title: "Tab \(number)")
+        }
+        let window = NSWindow(contentRect: NSRect(x: -20_000, y: -20_000, width: 900, height: 600),
+                              styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: ContentView(browser: browser))
+        window.orderFrontRegardless()
+        defer {
+            ContentView.forget(browser)
+            window.contentView = nil
+            window.close()
+            browser.closeAll()
+        }
+        func wait(_ what: String, until done: () -> Bool) async throws {
+            for _ in 0..<150 where !done() { try await Task.sleep(for: .milliseconds(20)) }
+            XCTAssertTrue(done(), what)
+        }
+        // The monitor is in once the window's keys are watched.
+        try await wait("the window watches its keys") { ContentView.keyHooks[ObjectIdentifier(browser)] != nil }
+
+        let switcher = browser.tabSwitcher
+        let start = try XCTUnwrap(browser.activeID)
+        browser.switchTabs(backwards: false)
+        browser.switchTabs(backwards: false)
+        XCTAssertTrue(switcher.visible)
+        try await wait("every card says where it is") { switcher.cardFrames.count == 3 && switcher.panelFrame != .zero }
+        let target = try XCTUnwrap(switcher.candidates.first { $0 != start && $0 != switcher.selectedID })
+        let frame = try XCTUnwrap(switcher.cardFrames[target])
+        let height = try XCTUnwrap(window.contentView).bounds.height
+        let spot = NSPoint(x: frame.midX, y: height - frame.midY)
+        func mouse(_ type: NSEvent.EventType) throws {
+            NSApp.sendEvent(try XCTUnwrap(NSEvent.mouseEvent(
+                with: type, location: spot, modifierFlags: [.control], timestamp: ProcessInfo.processInfo.systemUptime,
+                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1,
+                pressure: type == .leftMouseUp ? 0 : 1)))
+        }
+
+        try mouse(.leftMouseDown)
+        XCTAssertEqual(switcher.pressedID, target, "The card under the button is pressed")
+        XCTAssertEqual(switcher.selectedID, target)
+        XCTAssertTrue(switcher.visible, "The switcher is still up while the button is down")
+        XCTAssertEqual(browser.activeID, start, "and the tab is not taken yet")
+
+        try mouse(.leftMouseUp)
+        XCTAssertFalse(switcher.visible, "Let go on the card: the switcher goes")
+        XCTAssertNil(switcher.pressedID)
+        XCTAssertEqual(browser.activeID, target, "and the tab is the card's")
+    }
 }
