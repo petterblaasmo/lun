@@ -13,6 +13,12 @@ import WebKit
 // whole web view is lifted out of the window and into a small floating one. The
 // video never stops, because it is the same page it always was — it has only
 // changed windows.
+//
+// And, wherever it can, the page keeps the size it had in its tab: the little
+// window shows the part of it the picture is in, scaled to the window by the
+// view around it (see `kept`). A page given the window's size instead is laid
+// out again by WebKit, and has to be covered with a still of the video until
+// that is done, going out and coming back.
 
 @MainActor
 final class Float {
@@ -53,6 +59,31 @@ final class Float {
     /// (see `film float` in Bench.swift).
     var covered: Bool { cover != nil }
     var coveredByStill: Bool { cover?.layer?.contents != nil }
+
+    /// Whether the page in the window kept its tab's size (see `kept`), and
+    /// whether the window is up but not shown yet, the frame or two until
+    /// the page is drawn in it. For the bench.
+    private(set) var keeps = false
+    private(set) var unseen = false
+    /// The window itself, for the bench and the tests.
+    var benchWindow: NSWindow? { panel }
+    /// How the page was sized by its superview before it came here.
+    private var resizing: NSView.AutoresizingMask = []
+
+    /// A test run's bench has every page laid out at the window's size, as
+    /// one that can't keep its own is (see `film float` in Bench.swift).
+    static var benchFits = false
+
+    /// For the bench: the size of the page's view, and where the whole of
+    /// that view is in the window, from the window's top left, as the views
+    /// have it and as the layers that are drawn do.
+    func benchShows() -> (page: NSSize, views: NSRect, layers: NSRect)? {
+        guard let page, let ground = panel?.contentView, let layer = page.layer, let top = ground.layer else { return nil }
+        func down(_ rect: NSRect) -> NSRect {
+            NSRect(x: rect.minX, y: ground.bounds.height - rect.maxY, width: rect.width, height: rect.height)
+        }
+        return (page.bounds.size, down(page.convert(page.bounds, to: ground)), down(layer.convert(layer.bounds, to: top)))
+    }
 
     /// Where a test run's bench opens the window instead: off every screen,
     /// at the size it would have had, and not remembered (see `film float`
@@ -106,10 +137,55 @@ final class Float {
     /// everywhere else.
     static var benchScreens: [NSRect]?
 
+    /// The part of its page a window of `shape` shows: around the video's
+    /// `picture`, of the window's shape, and no larger than holds the
+    /// picture whole. In the page's own points, down from its top left. It
+    /// may run past the page's edges: the page around the picture is black,
+    /// and so is the window behind it.
+    nonisolated static func crop(around picture: NSRect, shape: NSSize) -> NSRect? {
+        guard picture.width > 0, picture.height > 0, shape.width > 0, shape.height > 0 else { return nil }
+        let across = max(picture.width, picture.height * shape.width / shape.height)
+        let down = across * shape.height / shape.width
+        return NSRect(x: picture.midX - across / 2, y: picture.midY - down / 2, width: across, height: down)
+    }
+
+    /// Where the video's picture is in its page's view, if the page can
+    /// stay the size it is while it floats; nil if it has to be laid out at
+    /// the window's size. `picture` and `page` are what the page said of
+    /// itself as it was isolated (Isolate.on), in its own pixels, `zoom`
+    /// points each. Only for the page as it is now: an answer can come
+    /// after its view was resized. And not for a page pinched larger, whose
+    /// view shows a part of the page and not all of it.
+    nonisolated static func kept(picture: [Double], page: [Double], zoom: CGFloat, magnification: CGFloat, view: NSSize) -> NSRect? {
+        guard picture.count == 4, page.count == 2,
+              (picture + page).allSatisfy(\.isFinite), zoom.isFinite, zoom > 0,
+              abs(magnification - 1) < 0.001, view.width > 0, view.height > 0,
+              abs(page[0] * zoom - view.width) <= max(1, zoom), abs(page[1] * zoom - view.height) <= max(1, zoom)
+        else { return nil }
+        let rect = NSRect(x: picture[0] * zoom, y: picture[1] * zoom, width: picture[2] * zoom, height: picture[3] * zoom)
+        guard rect.width >= 1, rect.height >= 1,
+              NSRect(origin: .zero, size: view).insetBy(dx: -2, dy: -2).contains(rect) else { return nil }
+        return rect
+    }
+
+    /// The same, from the page's answer and its view.
+    static func kept(_ answer: Any?, in web: WKWebView) -> NSRect? {
+        guard !benchFits, let found = answer as? [String: Any], found["kept"] as? Bool == true else { return nil }
+        return kept(
+            picture: (found["alone"] as? [NSNumber] ?? []).map(\.doubleValue),
+            page: (found["page"] as? [NSNumber] ?? []).map(\.doubleValue),
+            zoom: web.pageZoom, magnification: web.magnification, view: web.bounds.size
+        )
+    }
+
     /// `still`: the video as it was in its tab, cut out of a picture of the
     /// page with the rest of it hidden (see `still(of:picture:page:)`),
     /// shown until the page is laid out at this window's size.
-    func lift(_ page: NSView, still: NSImage? = nil) {
+    ///
+    /// `picture`: where the video's picture is in the page's view, down
+    /// from its top left, for a page that keeps its size (see `kept`). The
+    /// window shows that part of it, and there is nothing to cover.
+    func lift(_ page: NSView, still: NSImage? = nil, picture: NSRect? = nil) {
         guard panel == nil else { return }
         self.page = page
 
@@ -124,6 +200,9 @@ final class Float {
             height: size.height
         )
         if let away = Float.benchAway { spot.origin = away }
+        let crop = (page is WKWebView ? picture : nil).flatMap { Float.crop(around: $0, shape: spot.size) }
+        keeps = crop != nil
+        resizing = page.autoresizingMask
 
         let panel = Panel(
             contentRect: spot,
@@ -181,21 +260,45 @@ final class Float {
         (page as? WKWebView)?.allowsMagnification = false
 
         page.removeFromSuperview()
-        page.frame = ground.bounds
-        page.autoresizingMask = [.width, .height]
-        ground.addSubview(page)
+        if let crop {
+            // The page at the size it had in its tab, placed so that the
+            // part around the picture is what the cutout shows. WebKit is
+            // never told of another size: nothing is laid out again here, as
+            // the window is resized, or back in the tab, and the video's own
+            // picture, drawn by another of WebKit's processes, is never
+            // drawn anew. The live video is what the window opens on.
+            let cutout = Cutout(frame: ground.bounds, showing: crop.size)
+            cutout.autoresizingMask = [.width, .height]
+            page.autoresizingMask = []
+            page.setFrameOrigin(NSPoint(x: -crop.minX, y: crop.maxY - page.frame.height))
+            cutout.addSubview(page)
+            ground.addSubview(cutout)
+            // The isolation was asked for a moment ago, and what the page's
+            // view holds may still be the page as it was before: the window
+            // waits unseen, a frame or two, until the video alone is drawn
+            // in it (see uncover). All but clear, and not quite: WebKit
+            // draws nothing in a window it is told nobody can see, and a
+            // window wholly clear is one macOS may count as that.
+            panel.alphaValue = 0.01
+            unseen = true
+        } else {
+            page.frame = ground.bounds
+            page.autoresizingMask = [.width, .height]
+            ground.addSubview(page)
 
-        // WebKit takes a moment to lay a page out at a new size, a third of
-        // a second for YouTube's, and shows the layout it had meanwhile. The
-        // still covers that moment, fitted as the video itself will be.
-        let cover = NSView(frame: ground.bounds)
-        cover.wantsLayer = true
-        cover.layer?.backgroundColor = NSColor.black.cgColor
-        cover.layer?.contents = still?.cgImage(forProposedRect: nil, context: nil, hints: nil)
-        cover.layer?.contentsGravity = .resizeAspect
-        cover.autoresizingMask = [.width, .height]
-        ground.addSubview(cover)
-        self.cover = cover
+            // WebKit takes a moment to lay a page out at a new size, a third
+            // of a second for YouTube's, and shows the layout it had
+            // meanwhile. The still covers that moment, fitted as the video
+            // itself will be.
+            let cover = NSView(frame: ground.bounds)
+            cover.wantsLayer = true
+            cover.layer?.backgroundColor = NSColor.black.cgColor
+            cover.layer?.contents = still?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+            cover.layer?.contentsGravity = .resizeAspect
+            cover.autoresizingMask = [.width, .height]
+            ground.addSubview(cover)
+            self.cover = cover
+        }
 
         let controls = Controls(frame: ground.bounds)
         controls.autoresizingMask = [.width, .height]
@@ -220,10 +323,15 @@ final class Float {
 
         // Off once the page has drawn a frame at the window's size with the
         // video alone in it, and never later than the limit: a page that
-        // stops answering does not leave the window frozen.
+        // stops answering does not leave the window frozen. A page that
+        // keeps its size has only to be drawn with the video alone, at the
+        // size it already is: a frame or two for a page of little, a tenth
+        // of a second for YouTube's, which takes that long to hide the rest
+        // of itself.
         if let web = page as? WKWebView {
             let zoom = max(web.pageZoom, 0.1)
-            web.evaluateInSearch(Isolate.fits(width: spot.width / zoom, height: spot.height / zoom))
+            let laid = keeps ? web.bounds.size : spot.size
+            web.evaluateInSearch(Isolate.fits(width: laid.width / zoom, height: laid.height / zoom, kept: keeps))
             settling.watch(web, within: 0.8) { [weak self] in self?.uncover() }
         } else {
             uncover()
@@ -238,7 +346,7 @@ final class Float {
                 // and rather than hunt every path that could, this makes it
                 // impossible for the empty black rectangle to outlive it by
                 // more than half a second.
-                if self.page?.superview !== ground {
+                if self.page?.isDescendant(of: ground) != true {
                     self.onClose?()
                     return
                 }
@@ -251,7 +359,7 @@ final class Float {
                 // A video that ended or went closes its window, rather than
                 // leave the page's black in it (idea 923).
                 self.onGone? { [weak self] gone in
-                    guard gone, let self, self.panel != nil, self.page?.superview === ground else { return }
+                    guard gone, let self, self.panel != nil, self.page?.isDescendant(of: ground) == true else { return }
                     self.onClose?()
                 }
             }
@@ -309,6 +417,11 @@ final class Float {
         if Float.shown === self { Float.shown = nil }
         (page as? WKWebView)?.allowsMagnification = true
         page?.removeFromSuperview()
+        // Sized by whoever takes it back as it was before it came here; its
+        // size is still the one it had there.
+        if keeps { page?.autoresizingMask = resizing }
+        keeps = false
+        unseen = false
         page = nil
         controls = nil
         panel.orderOut(nil)
@@ -317,8 +430,13 @@ final class Float {
     }
 
     /// The live page from under the still. A short fade, for the frames of
-    /// film that went by while it was up.
+    /// film that went by while it was up. A page that kept its size had no
+    /// still over it: its window, unseen until now, is shown.
     private func uncover() {
+        if unseen {
+            unseen = false
+            panel?.alphaValue = 1
+        }
         guard let cover else { return }
         self.cover = nil
         NSAnimationContext.runAnimationGroup({ context in
@@ -1052,6 +1170,48 @@ private final class Panel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+/// A part of a page, shown at whatever size this view is. The page inside
+/// keeps the size it had in its tab; this view's own points are the page's,
+/// `showing` of them across and down from its corner, however large it is
+/// in the window. Sizing the window changes how large a point of the page
+/// is drawn and nothing else: WebKit is never asked to lay the page out
+/// again.
+private final class Cutout: NSView {
+    private let showing: NSSize
+
+    init(frame: NSRect, showing: NSSize) {
+        self.showing = showing
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.masksToBounds = true
+        // The page stays where it was put, whatever size this is.
+        autoresizesSubviews = false
+        show()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    /// A view given a new size keeps its scale, and so shows more or less
+    /// of what is in it: the same part is asked for again.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        show()
+    }
+
+    /// The part, whole and in the middle, a point of it as wide as it is
+    /// tall: a window not quite the part's shape, as one in whole points
+    /// rarely is, shows a sliver more of the black around it and never the
+    /// picture squashed.
+    private func show() {
+        guard frame.width > 0, frame.height > 0, showing.width > 0, showing.height > 0 else { return }
+        let by = min(frame.width / showing.width, frame.height / showing.height)
+        let seen = NSSize(width: frame.width / by, height: frame.height / by)
+        setBoundsSize(seen)
+        setBoundsOrigin(NSPoint(x: (showing.width - seen.width) / 2, y: (showing.height - seen.height) / 2))
+    }
+}
+
 /// Waits for a page moved between the tab and the floating window to settle
 /// where it now is (`Isolate.fits` going out, `Isolate.off` coming back), so
 /// that what covers it meanwhile comes off once, onto the page as it will
@@ -1514,7 +1674,18 @@ enum Isolate {
       var whole = shown[0] && shown[1] ? shown : [vw, vh];
       var by = Math.min(innerWidth / whole[0], innerHeight / whole[1]) || 0;
       var alone = [(innerWidth - whole[0] * by) / 2, (innerHeight - whole[1] * by) / 2, whole[0] * by, whole[1] * by];
-      return { floating: true, alone: alone, page: [innerWidth, innerHeight] };
+      // Whether the page can stay the size it is while it floats, the part
+      // of it around the picture shown at the window's size (Float.kept):
+      // only where the picture is, as the page lays it out now, where it
+      // was worked out to be, and can be seen. A player whose styles get
+      // the better of these is laid out at the window's size, as before.
+      var now = best.getBoundingClientRect(), fit = vw && vh ? Math.min(now.width / vw, now.height / vh) : 0;
+      var real = fit ? [now.left + (now.width - vw * fit) / 2, now.top + (now.height - vh * fit) / 2, vw * fit, vh * fit]
+        : [now.left, now.top, now.width, now.height];
+      var kept = alone[2] > 0 && alone[3] > 0 && getComputedStyle(best).objectPosition === '50% 50%';
+      for (var q = 0; q < 4; q++) if (!isFinite(alone[q]) || Math.abs(alone[q] - real[q]) > 2) kept = false;
+      if (kept && best.checkVisibility && !best.checkVisibility({ contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true })) kept = false;
+      return { floating: true, alone: alone, kept: kept, page: [innerWidth, innerHeight] };
     })();
     """
 
@@ -1525,9 +1696,12 @@ enum Isolate {
     /// Out in the floating window: settled once the page is laid out at the
     /// window's size, CSS pixels, with the video alone in it. Checked as
     /// each frame is drawn, so the frame it answers for is drawn so too.
-    static func fits(width: Double, height: Double) -> String {
+    /// `kept`: the page keeps the size it had in its tab, which is the size
+    /// given here, and is told so for its way back (see off).
+    static func fits(width: Double, height: Double, kept: Bool = false) -> String {
         """
         (function () {
+          window.__officeFloatKept = \(kept);
           var wait = window.__officeFloatWait = { settled: false }, began = Date.now();
           (function frame() {
             if (window.__officeFloatWait !== wait || Date.now() - began > 3000) return;
@@ -1601,6 +1775,11 @@ enum Isolate {
       } catch (e) {}
 
       var root = document.documentElement;
+      // Whether the page kept its tab's size while it was out (see fits):
+      // nothing in it was laid out for the little window, and nothing has
+      // to be laid out again.
+      var kept = !!window.__officeFloatKept;
+      window.__officeFloatKept = false;
       var landing = window.__officeFloatLanding = {};
       var wait = window.__officeFloatWait = { settled: false, landing: true };
       function put() {
@@ -1629,7 +1808,8 @@ enum Isolate {
       // it anew: full screen, or a reload. Taken out of the layout for a
       // frame once its tab is in front, it is drawn at its own size.
       function redraw(video) {
-        if (document.visibilityState !== 'hidden') return;
+        // Never drawn at another size, where the page kept its own.
+        if (kept || document.visibilityState !== 'hidden') return;
         document.addEventListener('visibilitychange', function seen() {
           if (document.visibilityState !== 'visible') return;
           document.removeEventListener('visibilitychange', seen);
@@ -1653,7 +1833,7 @@ enum Isolate {
       function reopen() {
         var home = window.__officeFloatHome;
         if (!home || !home.chat || root.classList.contains('office-floating')) return;
-        if (innerWidth === wide && innerHeight === high) {
+        if (!kept && innerWidth === wide && innerHeight === high) {
           // Put back by the clock, its tab not in front: once it is.
           addEventListener('resize', function again() {
             removeEventListener('resize', again);
@@ -1698,8 +1878,12 @@ enum Isolate {
       // little window's — the tab's — and its player has had that frame's
       // resize to fit the video to it. A page not drawn, its tab no longer
       // the one in front, is put back by the clock.
+      // A page that kept its size has no other size to wait for: only to be
+      // drawn in its tab again. Two frames on: one may still be owed from
+      // the little window, and a page in no window draws none.
       var wide = innerWidth, high = innerHeight, began = Date.now();
-      (function frame() {
+      if (kept) requestAnimationFrame(function () { requestAnimationFrame(put); });
+      else (function frame() {
         if (window.__officeFloatLanding !== landing) return;
         if (innerWidth !== wide || innerHeight !== high || Date.now() - began > 400) return put();
         requestAnimationFrame(frame);

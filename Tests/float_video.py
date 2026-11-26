@@ -7,7 +7,9 @@ fixed elements (a transform, a filter, containment…), is drawn only when on
 screen, or is faded out. Video styles also exercise minimum sizes, spacing,
 clips and masks, across viewport resizes and return. The isolation script runs
 on an ordinary tab of a hidden probe — the floating window itself is never opened — and the video
-must then fill the page's view, as `contain` fits it, and be visible.
+must then fill the page's view, as `contain` fits it, and be visible. And be
+where the script worked out it would be: that is what lets the page keep its
+tab's size in the floating window (`kept`, Float.kept; float_kept.py).
 """
 import functools
 import json
@@ -111,6 +113,8 @@ def main():
             time.sleep(1.5)
             before = sv.cmd({"do": "eval", "id": tab, "js": styling})["value"]
             said = sv.cmd({"do": "eval", "id": tab, "js": isolate, "world": "search"}).get("value")
+            t.ok(f"{name}: the picture is where it was worked out to be, so the page can keep its size",
+                 isinstance(said, dict) and said.get("kept") is True, said)
             for width, height in [(1180, 780), (700, 500), (900, 900)]:
                 sv.cmd({"do": "resize", "width": width, "height": height, "steps": 2})
                 p = json.loads(sv.cmd({"do": "eval", "id": tab, "js": PROBE}).get("value"))

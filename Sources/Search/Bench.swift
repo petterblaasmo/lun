@@ -4183,6 +4183,48 @@ final class Bench {
             }
             let args = request["args"] as? [Double] ?? []
             switch request["action"] as? String {
+            case "shows":
+                // What of the page the window shows: whether the page kept
+                // its tab's size (Float.kept), that size, and where the whole
+                // of its view is in the window, from the top left, as the
+                // views have it and as the layers drawn do.
+                var out = state()
+                out["kept"] = browser.floater.keeps
+                out["unseen"] = browser.floater.unseen
+                if let shows = browser.floater.benchShows() {
+                    func four(_ r: NSRect) -> [Double] { [r.minX, r.minY, r.width, r.height].map { (Double($0) * 100).rounded() / 100 } }
+                    out["page"] = [Double(shows.page.width), Double(shows.page.height)]
+                    out["views"] = four(shows.views)
+                    out["layers"] = four(shows.layers)
+                }
+                answer(out)
+            case "size":
+                // The window made W wide where it is, its shape kept, as a
+                // drag at its corner leaves it.
+                guard args.count == 1, panel.frame.width > 0 else { answer(["error": "float size W"]); return }
+                let f = panel.frame
+                panel.setFrame(NSRect(x: f.minX, y: f.minY, width: args[0], height: args[0] * f.height / f.width), display: false)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { answer(state()) }
+            case "shot":
+                // The window as the window server has it, the video's own
+                // picture included, which no view draws: a PNG at "path".
+                // Asked of the system by name: the call is no longer in the
+                // SDK, and nothing else reads a window nobody can see.
+                guard let path = request["path"] as? String, !path.isEmpty else { answer(["error": "float shot PATH"]); return }
+                typealias Create = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+                guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") else {
+                    answer(["error": "this macOS has no way to read a window back"]); return
+                }
+                let create = unsafeBitCast(symbol, to: Create.self)
+                // This window alone (1 << 3), its own bounds (1 << 0), a pixel a point (1 << 4).
+                guard let image = create(.null, 1 << 3, UInt32(panel.windowNumber), 1 | (1 << 4))?.takeRetainedValue(),
+                      let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]),
+                      (try? data.write(to: URL(fileURLWithPath: path))) != nil
+                else { answer(["error": "nothing read back"]); return }
+                var out = state()
+                out["saved"] = path
+                out["pixels"] = [image.width, image.height]
+                answer(out)
             case "screens":
                 // One made-up screen, or two side by side.
                 Float.benchScreens = request["two"] as? Bool == true
@@ -4383,6 +4425,10 @@ final class Bench {
             // another app coming forward and Search again ("app"). A page the
             // bench serves itself is taken for a player's, for those two.
             let via = request["via"] as? String ?? "key"
+            // "fit": the page laid out at the little window's size, as one
+            // that can't keep its own is (see Float.kept), for the still
+            // and the late player that only that way has.
+            Float.benchFits = request["fit"] as? Bool == true
             let other = browser.tabs.first { $0.id != tab.id && !$0.isBlank && !$0.asleep }
             if via == "switch", out, other == nil { answer(["error": "film float via switch needs another tab"]); return }
             if via != "key", let host = tab.address?.host() { Players.benchHosts.insert(host) }
@@ -4536,6 +4582,9 @@ final class Bench {
                               "in": web.window === hall ? (web.alphaValue == 0 ? "held" : "tab") : web.window == nil ? "none" : "float",
                               "view": [Int(view.width), Int(view.height)], "showing": showing.map { "\(type(of: $0))" },
                               "still": browser.floater.covered ? (browser.floater.coveredByStill ? "frame" : "black") : "none",
+                              // "kept": the page at its tab's size out there;
+                              // "unseen": the little window up, not shown yet.
+                              "kept": browser.floater.keeps, "unseen": browser.floater.unseen,
                               "cover": tab.cover != nil, "drawn": drawn()])
                 guard CACurrentMediaTime() - started < seconds else { return finish(view) }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { watch() }
