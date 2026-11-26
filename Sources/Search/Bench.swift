@@ -2478,6 +2478,50 @@ final class Bench {
                       "icon": !node.isFolder && Favicons.shared.cached(for: node.address) != nil]] + rows(node.children ?? [], depth + 1)
                 }
             }
+            // "page": the Bookmarks page (BookmarksPage.swift) asked what a
+            // hand would do on it, each thing named by its title: "pick" a
+            // folder ("" for the top level), "layout" list or grid, "find"
+            // words, "show" one found where it lives, and "drop": [carried,
+            // over, zone]; "held": [carried, over, zone, tree or pane] stops
+            // a drag there for a picture, and [] lets go. Answered with what
+            // the page then shows, how many of its rows were built for it,
+            // and the list as it is kept.
+            if let page = request["page"] as? [String: Any] {
+                func named(_ title: String) -> Bookmark? {
+                    func walk(_ nodes: [Bookmark]) -> Bookmark? {
+                        for node in nodes {
+                            if node.title == title { return node }
+                            if let found = walk(node.children ?? []) { return found }
+                        }
+                        return nil
+                    }
+                    return walk(browser.bookmarks.roots)
+                }
+                Bench.bodies["bookmarkLine"] = 0
+                if let title = page["pick"] as? String { BookmarksPanel.bench.send(.pick(named(title)?.id)) }
+                if let layout = (page["layout"] as? String).flatMap(BookmarksLayout.init) { BookmarksPanel.bench.send(.layout(layout)) }
+                if let words = page["find"] as? String { BookmarksPanel.bench.send(.find(words)) }
+                if let title = page["show"] as? String, let node = named(title) { BookmarksPanel.bench.send(.show(node.id)) }
+                if let drop = page["drop"] as? [String], drop.count == 3, let carried = named(drop[0]),
+                   let zone = BookmarkDrop.Zone(rawValue: drop[2]) {
+                    BookmarksPanel.bench.send(.drop(carried.id, over: named(drop[1])?.id, zone))
+                }
+                if let held = page["held"] as? [String] {
+                    if held.count == 4, let carried = named(held[0]), let zone = BookmarkDrop.Zone(rawValue: held[2]) {
+                        BookmarksPanel.bench.send(.held(carried.id, over: named(held[1])?.id, zone, tree: held[3] == "tree"))
+                    } else {
+                        BookmarksPanel.bench.send(.held(nil, over: nil, .into, tree: false))
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    var shows = BookmarksPanel.benchShows
+                    shows["lines"] = Bench.bodies["bookmarkLine"] ?? 0
+                    shows["kept"] = BookmarksLayout.kept.rawValue
+                    shows["list"] = rows(browser.bookmarks.roots, 0)
+                    answer(shows)
+                }
+                return
+            }
             // "path": the button's list drawn there, every folder open, in
             // the light, off every screen.
             if let path = request["path"] as? String {
