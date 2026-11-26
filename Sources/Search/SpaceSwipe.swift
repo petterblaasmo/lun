@@ -160,11 +160,11 @@ final class SpaceSwipe {
     }
 
     /// The furthest page a stroke or a notch can bring: the card for a new
-    /// space past the last one, but not while there is only one space. Spaces
-    /// just turned on, a stroke over the tabs brought a nameless card that
-    /// looked like a second space nobody made; New Space… still opens it.
-    private func furthest(_ browser: Browser) -> Int {
-        browser.spaces.count > 1 || browser.makingSpace ? browser.spaces.count : browser.spaces.count - 1
+    /// space, past the last one. With only one space too: a swipe is how a
+    /// second one is made, and it did nothing at all there, which read as
+    /// the gesture being broken.
+    func furthest(_ browser: Browser) -> Int {
+        browser.spaces.count
     }
 
     /// With profiles in one window, past this window's first space or its
@@ -914,7 +914,17 @@ struct SwipeShift: ViewModifier {
 
     private var parked: Bool {
         guard let park else { return false }
-        return offset.value == 0 || abs(offset.value + by) >= park
+        return SwipeShift.parks(offset: offset.value, by: by, park: park)
+    }
+
+    /// Whether a page of the map stands out of the way: while nothing
+    /// moves, or while it is more than a page off. Not at exactly a page
+    /// off: that is where the rows end as they are carried to the card for
+    /// a new space, in an animation of SwiftUI's (SpaceSwipe.carry), which
+    /// went from where they were to where they would be parked, far off to
+    /// the right, so they left that way while the card came from it.
+    static func parks(offset: CGFloat, by: CGFloat, park: CGFloat) -> Bool {
+        offset == 0 || abs(offset + by) > park
     }
 
     private var place: CGFloat {
