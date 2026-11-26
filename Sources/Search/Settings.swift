@@ -441,13 +441,52 @@ struct SettingsPanel: View {
     /// undone and one press did it. A site's own answers are reset one by
     /// one in the list under this row.
     private func forgetChoices() {
-        guard !Store.testing else { return browser.forgetCaptureChoices() }
+        ask(.choices) { browser.forgetCaptureChoices() }
+    }
+
+    /// Asks before something that can't be undone, and does it on a yes.
+    /// At once in a test run, which has nobody to answer.
+    private func ask(_ wiping: Wiping, then act: () -> Void) {
+        guard !Store.testing else { return act() }
         let alert = NSAlert()
-        alert.messageText = "Forget every site's answers?"
-        alert.informativeText = "Each site will ask again before it uses the camera, the microphone or your location, or sends notifications."
-        alert.addButton(withTitle: "Forget")
+        alert.messageText = wiping.question
+        alert.informativeText = wiping.detail
+        alert.addButton(withTitle: wiping.yes)
         alert.addButton(withTitle: "Cancel")
-        if alert.runModal() == .alertFirstButtonReturn { browser.forgetCaptureChoices() }
+        if alert.runModal() == .alertFirstButtonReturn { act() }
+    }
+
+    /// What Settings › Privacy takes away for good, and how it asks first:
+    /// each row's pill ends in "…" and one press no longer does it.
+    enum Wiping: CaseIterable {
+        case choices, history, cookies, cache
+
+        var question: String {
+            switch self {
+            case .choices: return "Forget every site's answers?"
+            case .history: return "Clear all of your history?"
+            case .cookies: return "Sign out of every site?"
+            case .cache: return "Clear the cache?"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .choices: return "Each site will ask again before it uses the camera, the microphone or your location, or sends notifications."
+            case .history: return "Every address you have been to, in every space, and the tabs Lun put away. This can't be undone."
+            case .cookies: return "Cookies and everything sites keep on this Mac are removed. Your saved passwords stay."
+            case .cache: return "Only what was fetched to draw pages. You stay signed in, and pages take a little longer the first time."
+            }
+        }
+
+        /// The button that does it, named for what it does.
+        var yes: String {
+            switch self {
+            case .choices: return "Forget"
+            case .history, .cache: return "Clear"
+            case .cookies: return "Sign Out"
+            }
+        }
     }
 
     /// In its section, a dependent row is there only while it counts.
@@ -962,9 +1001,11 @@ struct SettingsPanel: View {
         case "privacy.httpsFirst": Switch(on: $prefs.triesHTTPSFirst)
         case "notifications.ask": Switch(on: $prefs.siteNotifications)
         case "privacy.forget": Pill("Forget Choices…") { forgetChoices() }
-        case "clear.history": Pill("Clear") { browser.clearHistory() }
-        case "clear.cookies": Pill("Sign out of everything") { browser.clearSites() }
-        case "clear.cache": Pill("Clear") { browser.clearCache() }
+        // "Clear…" on each, as the board has it, and asked first: History
+        // and Cookies went at the press, with no way back.
+        case "clear.history": Pill("Clear…") { ask(.history) { browser.clearHistory() } }
+        case "clear.cookies": Pill("Clear…") { ask(.cookies) { browser.clearSites() } }
+        case "clear.cache": Pill("Clear…") { ask(.cache) { browser.clearCache() } }
         default: EmptyView()
         }
     }

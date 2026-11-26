@@ -151,3 +151,21 @@ final class DesignTokensTests: XCTestCase {
         }
     }
 }
+
+/// Settings › Privacy asks before it takes something away for good: each
+/// of the four has a question of its own and a button named for what it
+/// does, never a bare OK.
+final class WipingTests: XCTestCase {
+    func testEachAsksInItsOwnWords() {
+        let all = SettingsPanel.Wiping.allCases
+        XCTAssertEqual(all.count, 4)
+        XCTAssertEqual(Set(all.map(\.question)).count, all.count, "A question each")
+        XCTAssertEqual(Set(all.map(\.detail)).count, all.count, "What goes, each in its own words")
+        for wiping in all {
+            XCTAssertTrue(wiping.question.hasSuffix("?"), wiping.question)
+            XCTAssertFalse(wiping.detail.isEmpty)
+            XCTAssertFalse(["OK", "Yes", "Cancel", ""].contains(wiping.yes), "The button says what it does")
+            XCTAssertFalse(wiping.yes.hasSuffix("…"), "The last step asks nothing more")
+        }
+    }
+}

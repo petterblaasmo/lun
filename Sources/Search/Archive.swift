@@ -167,6 +167,7 @@ struct ArchivePanel: View {
 
     @FocusState private var hunting: Bool
     @State private var hunt = ""
+    @Environment(\.asTab) private var asTab
 
     private var listed: [Archived] { archive.listed(matching: hunt) }
 
@@ -215,6 +216,17 @@ struct ArchivePanel: View {
 
     private var tools: some View {
         HStack(spacing: 8) {
+            // What the pop-up chooses, said before it, as the board has it:
+            // "After 12 hours" alone didn't say what happens then. In a tab,
+            // where there is the room; a card's title row has none to spare.
+            if asTab {
+                Text("Put tabs away")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.muted)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .accessibilityHidden(true)
+            }
             PopUp("Put tabs away", shows: browser.prefs.tabLife.title,
                     selection: Binding(get: { browser.prefs.tabLife }, set: { browser.prefs.tabLife = $0 })) {
                 ForEach(TabLife.allCases) { Text($0.title).tag($0) }
