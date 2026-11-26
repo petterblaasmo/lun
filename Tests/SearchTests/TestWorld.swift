@@ -53,8 +53,27 @@ enum TestWorld {
             try? FileManager.default.removeItem(at: Store.file("windows.json"))
             Browsers.restoreOnce()
             KeptSettings.take()
+            settleShield()
         }
         XCTestObservationCenter.shared.addTestObserver(Cleanup.shared)
+    }
+
+    /// Shield's block list ready, or given up on, before the first test, as
+    /// it is a second into a launch. The world is new each run, so the list
+    /// is compiled afresh, and until it is a tab's load waits (Tab.go). A
+    /// test that loaded its own page into a tab it had just opened had that
+    /// page replaced by the tab's own once the list was ready: the first
+    /// such test of a run (FindStageTests alone, PDFExportTests in the P–R
+    /// part) never saw its page (issue 98).
+    @MainActor
+    private static func settleShield() {
+        var settled = false
+        Shield.shared.compile()
+        Shield.shared.whenReady { settled = true }
+        let end = Date().addingTimeInterval(30)
+        while !settled, Date() < end {
+            RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
     }
 
     /// Before each test: the world as the run found it, where a test can
