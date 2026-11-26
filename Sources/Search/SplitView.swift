@@ -342,7 +342,7 @@ private struct OpenTabRow: View {
                     .font(.system(size: 12.5))
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.75))
+                    .foregroundStyle(hovering ? Palette.ink : Palette.soft)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 10)

@@ -76,12 +76,7 @@ final class DesignTokensTests: XCTestCase {
     /// still typed, in files that other pull requests were rewriting when
     /// the name was given; each is one word to change once they are in.
     func testInkAStepBackIsThePalettes() throws {
-        let waiting: Set<String> = ["SplitView.swift", "BookmarksBar.swift"]
-        XCTAssertEqual(try lines(matching: #"Palette\.ink\.opacity\(0\.75?\)"#, except: waiting), [], "Palette.soft, or Palette.ink under the pointer")
-        let left = try counts(matching: #"Palette\.ink\.opacity\(0\.75?\)"#)
-        for file in waiting {
-            XCTAssertLessThanOrEqual(left[file] ?? 0, 1, "\(file): no more than the one that was there")
-        }
+        XCTAssertEqual(try lines(matching: #"Palette\.ink\.opacity\(0\.75?\)"#, ), [], "Palette.soft, or Palette.ink under the pointer")
     }
 
     /// The Mac's accent colour says one of a few things, and nothing else
