@@ -206,9 +206,9 @@ struct SettingsPanel: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    /// The white's move: the tab column's glide, a touch longer and with a
-    /// little give at the end, so the eye follows it down the rail. None
-    /// with Reduce Motion, and a plain ease in Low Power Mode, as glide.
+    /// The white's move down the rail: the tab column's glide, as every
+    /// selection that moves. None with Reduce Motion, and a plain ease in
+    /// Low Power Mode.
     private var slide: Animation? {
         Motion.glide
     }
