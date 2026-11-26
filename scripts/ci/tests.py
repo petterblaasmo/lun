@@ -210,7 +210,9 @@ def main() -> int:
                  "Failed, then passed when its class ran again: " + f["message"])
     for f in expected_seen:
         annotate("warning", f"Known failure: {f['cls']}.{f['test']}", f, f"{f['why']} (Tests/known-failures.txt)")
-    seen_expected = {f"{f['cls']}/{f['test']}" for f in expected_seen} | {f["cls"] for f in expected_seen}
+    # Failed, even if only once, is not passing.
+    failed_any = expected_seen + flaky
+    seen_expected = {f"{f['cls']}/{f['test']}" for f in failed_any} | {f["cls"] for f in failed_any}
     passing_now = [k for k in expected if k.split("/")[0] in mine and k not in seen_expected]
 
     (args.out / f"times-{args.shard}.json").write_text(json.dumps(took, indent=1, sort_keys=True))

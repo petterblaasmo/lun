@@ -18,5 +18,5 @@ VaultAndUpdaterTests/testNothingIsFetchedFromSearch  # the class never enters th
 # Fail on CI's Macs only.
 NoWindowsTests/testWindowsPanelsAndPopoversAreTransparentOnScreen  # the runner's screen moves the window 63 points
 PeekSkeletonTests/testSweepAppearsOnlyWithMotionAndStopsOutsideAWindow  # no sweep animation on the runner
-SidebarJoinTests/testCarriedPastWithoutStoppingOnlyMovesIt  # the 0.3 s hold is reached on a slow runner before the let-go
+SidebarJoinTests  # its 0.3 s hold is timed with real sleeps: on the runner a different test of it misses each run
 OptionClickTests/testOptionClickAcrossTheTopPutsTheTabBesideThePage  # fails twice in a row on the runner now and then: timing
