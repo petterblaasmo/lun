@@ -108,8 +108,8 @@ struct ThemesPage: View {
                 .onAppear { width = box.size.width }
                 .onChange(of: box.size.width) { _, now in width = now }
         })
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
         .accessibilityHidden(true)
     }
 
@@ -165,22 +165,27 @@ struct ThemesPage: View {
     }
 
     private func card(_ title: String, on: Bool, preview: some View, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                preview
-                    .frame(width: thumb.width, height: thumb.height)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-                    .padding(3)
-                    .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous)
-                        .strokeBorder(on ? Color.accentColor : .clear, lineWidth: 2.5))
-                Text(title)
-                    .font(.system(size: 12, weight: on ? .medium : .regular))
-                    .foregroundStyle(on ? Palette.ink : Palette.muted)
+        // Under the pointer its edge and its name go to ink, and it gives
+        // under the press, a little: it is large.
+        Hovered { hovering in
+            Button(action: action) {
+                VStack(spacing: 6) {
+                    preview
+                        .frame(width: thumb.width, height: thumb.height)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .strokeBorder(hovering && !on ? Palette.ring : Palette.hairline, lineWidth: 1))
+                        .padding(3)
+                        .overlay(RoundedRectangle(cornerRadius: Radius.card + 3, style: .continuous)
+                            .strokeBorder(on ? Palette.ink : .clear, lineWidth: 2.5))
+                    Text(title)
+                        .font(.system(size: 12, weight: on ? .medium : .regular))
+                        .foregroundStyle(on || hovering ? Palette.ink : Palette.muted)
+                }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
+            .buttonStyle(Gives(to: 0.98))
         }
-        .buttonStyle(.plain)
         .accessibilityLabel(title)
         .accessibilityAddTraits(on ? .isSelected : [])
     }
@@ -191,15 +196,17 @@ struct ThemesPage: View {
         let swatches = ["#E8DFD0", "#F3D9CF", "#D9E4D3", "#D3DFEA", "#E4D8EC", "#2B2B2E"]
         return HStack(spacing: 10) {
             ForEach(swatches, id: \.self) { hex in
-                Button {
-                    prefs.homeTuning.solid = hex
-                    prefs.homeTheme = .solid
-                } label: {
-                    Circle().fill(Color(hex: hex)).frame(width: 24, height: 24)
-                        .overlay(Circle().strokeBorder(prefs.homeTuning.solid == hex && prefs.homeTheme == .solid
-                                                       ? Palette.ink : Palette.hairline, lineWidth: 1.5))
+                Hovered { hovering in
+                    Button {
+                        prefs.homeTuning.solid = hex
+                        prefs.homeTheme = .solid
+                    } label: {
+                        Circle().fill(Color(hex: hex)).frame(width: 24, height: 24)
+                            .overlay(Circle().strokeBorder(prefs.homeTuning.solid == hex && prefs.homeTheme == .solid
+                                                           ? Palette.ink : hovering ? Palette.ring : Palette.hairline, lineWidth: 1.5))
+                    }
+                    .buttonStyle(Gives(to: 0.92))
                 }
-                .buttonStyle(.plain)
                 .accessibilityLabel("Colour \(hex)")
             }
             ColorPicker("Colour", selection: Binding(

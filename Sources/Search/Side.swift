@@ -2025,7 +2025,7 @@ private struct PinSquare: View, Equatable {
         .overlay {
             if selected {
                 RoundedRectangle(cornerRadius: scale * 10 / 32, style: .continuous)
-                    .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
+                    .strokeBorder(Palette.ring, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -2304,7 +2304,7 @@ private struct SideRow: View, Equatable {
         .overlay {
             if selected {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
+                    .strokeBorder(Palette.ring, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -2626,7 +2626,7 @@ struct PinCarried: ViewModifier {
             // Under the hand exactly, as a row is (see Carried).
             .transaction { if held { $0.animation = nil } }
             .zIndex(held ? 1 : 0)
-            .shadow(color: .black.opacity(held ? 0.16 : 0), radius: 10, y: 3)
+            .carriedShadow(held)
             // Measured in the grid's own space, not the square's: a square
             // that has just been moved to a new cell would otherwise report
             // the drag from where it now is, and shuttle between two cells.

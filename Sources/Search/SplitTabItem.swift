@@ -151,7 +151,7 @@ struct SplitTabItem: View {
                 .font(.system(size: 8, weight: .semibold))
                 .foregroundStyle(Palette.muted)
                 .frame(width: 15, height: 15)
-                .background(Palette.ink.opacity(0.07), in: Circle())
+                .background(Palette.fill, in: Circle())
                 .overlay {
                     CloseClick(armed: true) { browser.closeTab(tab) }
                         .frame(width: 30, height: 28)
@@ -245,7 +245,7 @@ private struct SplitTabHalf: View {
             .overlay {
                 if browser.selectedTabIDs.contains(tab.id) {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
+                        .strokeBorder(Palette.ring, lineWidth: 1)
                         .allowsHitTesting(false)
                 }
             }
@@ -366,7 +366,7 @@ private struct SplitTabHalf: View {
                 if !narrow {
                     TitleAtRest(label: title, rest: rest, shown: atRest, hovering: hovering,
                                 size: stacked ? prefs.sideTitle : 12,
-                                colour: focused ? Palette.ink : hovering ? Palette.ink.opacity(0.7) : Palette.muted,
+                                colour: focused ? Palette.ink : hovering ? Palette.ink : Palette.muted,
                                 roomy: stacked, dim: dim, record: stacked ? nil : tab.id)
                 }
             }
@@ -389,7 +389,7 @@ private struct SplitTabHalf: View {
             .font(.system(size: 8, weight: .semibold))
             .foregroundStyle(Palette.muted)
             .frame(width: 15, height: 15)
-            .background(hovering ? Palette.ink.opacity(0.07) : .clear, in: Circle())
+            .background(hovering ? Palette.fill : .clear, in: Circle())
             .opacity(hovering ? 1 : 0)
             .overlay {
                 CloseClick(armed: hovering) { browser.closeTab(tab) }

@@ -1052,7 +1052,7 @@ private struct TabPill: View, Equatable {
         .overlay {
             if selected {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
+                    .strokeBorder(Palette.ring, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -1111,7 +1111,7 @@ private struct TabPill: View, Equatable {
                         .font(.system(size: 8, weight: .semibold))
                         .foregroundStyle(Palette.muted)
                         .frame(width: 15, height: 15)
-                        .background(Palette.ink.opacity(0.07), in: Circle())
+                        .background(Palette.fill, in: Circle())
                         .help(crossHelp)
                         .transition(.opacity)
                 } else if let number = shortcutNumbers[tab.id] {
@@ -1203,7 +1203,7 @@ private struct TabPill: View, Equatable {
                             .font(.system(size: 8, weight: .semibold))
                             .foregroundStyle(Palette.muted)
                             .frame(width: 15, height: 15)
-                            .background(Palette.ink.opacity(0.07), in: Circle())
+                            .background(Palette.fill, in: Circle())
                             .help(crossHelp)
                             .transition(.opacity)
                     } else if tab.loading {
@@ -1426,7 +1426,7 @@ struct Carried: ViewModifier {
             // drifted back each time it passed one. Only the others glide.
             .transaction { if held { $0.animation = nil } }
             .zIndex(held ? 1 : 0)
-            .shadow(color: .black.opacity(held ? 0.14 : 0), radius: 12, y: 4)
+            .carriedShadow(held)
             .opacity(held && (faded || lifted) ? 0.4 : 1)
             .gesture(
                 DragGesture(minimumDistance: 5, coordinateSpace: .named(space))

@@ -100,7 +100,7 @@ struct PlayerRow: View {
                 .font(.system(size: prefs.sideTitle))
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .foregroundStyle(hovering ? Palette.ink.opacity(0.7) : Palette.muted)
+                .foregroundStyle(hovering ? Palette.ink : Palette.muted)
             Spacer(minLength: 0)
             if tab.stilled && hovering {
                 // Paused from here and not wanted again: the row goes until

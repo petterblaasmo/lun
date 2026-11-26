@@ -60,7 +60,7 @@ struct ApplePasswordsCard: View {
                         .frame(width: 70)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
-                        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                         .focused($typing)
                         .onChange(of: code) { _, typed in
                             let digits = String(typed.filter(\.isNumber).prefix(6))
@@ -128,7 +128,7 @@ struct ApplePairingCard: View {
                         .frame(width: 70)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
-                        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                         .focused($typing)
                         .disabled(apple.state == .checking)
                         .onChange(of: code) { _, typed in
@@ -147,12 +147,7 @@ struct ApplePairingCard: View {
         }
         .padding(10)
         .frame(width: max(240, min(360, pairing.spot.width)), alignment: .leading)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.14), radius: 22, y: 8)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .offset(x: pairing.spot.minX, y: pairing.spot.maxY + 6)
         .onExitCommand { browser.endApplePairing(paired: false) }
         .onAppear { if apple.state == .code { typing = true } }

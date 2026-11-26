@@ -65,7 +65,7 @@ struct FindBar: View {
             if let status = browser.findStatus {
                 Text(status)
                     .font(.system(size: 12))
-                    .foregroundStyle(browser.missed ? Color.red.opacity(0.8) : Palette.muted)
+                    .foregroundStyle(browser.missed ? Palette.danger : Palette.muted)
                     .monospacedDigit()
                     .lineLimit(1)
                     .fixedSize()
@@ -116,7 +116,7 @@ struct FindBar: View {
         .frame(height: 40)
         .elevated(.float, in: Capsule())
         .overlay {
-            if browser.missed { Capsule().strokeBorder(Color.red.opacity(0.35), lineWidth: 1) }
+            if browser.missed { Capsule().strokeBorder(Palette.dangerRing, lineWidth: 1) }
         }
         .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named("find")) }) {
             onPillFrame?($0)

@@ -516,16 +516,20 @@ struct ColourSwatches: View {
     }
 
     /// One size for every choice: the dot, and a ring round the one chosen.
+    /// A fainter ring comes under the pointer, and the dot gives under the
+    /// press: there was nothing to say which one a click would take.
     static func swatch(selected: Bool, name: String, action: @escaping () -> Void,
-                        @ViewBuilder _ fill: () -> some View) -> some View {
-        Button(action: action) {
-            fill()
-                .frame(width: Self.dot, height: Self.dot)
-                .padding(3)
-                .overlay(Circle().strokeBorder(selected ? Palette.ink.opacity(0.75) : .clear, lineWidth: 1.5))
-                .contentShape(Circle())
+                        @ViewBuilder _ fill: @escaping () -> some View) -> some View {
+        Hovered { hovering in
+            Button(action: action) {
+                fill()
+                    .frame(width: Self.dot, height: Self.dot)
+                    .padding(3)
+                    .overlay(Circle().strokeBorder(selected ? Palette.ink.opacity(0.75) : hovering ? Palette.ring : .clear, lineWidth: 1.5))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(Gives(to: 0.92))
         }
-        .buttonStyle(.plain)
         .help(name)
         .accessibilityLabel(name)
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -647,7 +651,7 @@ struct SpaceLookPicker: View {
     /// far brighter than the column turned out, above all in dark mode
     /// (idea 1040); the dots below still show the hues to pick from.
     private var preview: some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         let none = choice == .none
         return ZStack(alignment: .bottomLeading) {
             shape.fill(browser.glassy || browser.asCards || browser.standsOnCard ? Palette.frame : Palette.ground)
@@ -717,16 +721,21 @@ struct SpaceLookPicker: View {
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(ColourSwatches.dot), spacing: 10), count: 7), alignment: .leading, spacing: 10) {
                 ForEach(SpaceGradient.swatches, id: \.hex) { pick in
                     let on = gradient.colours.indices.contains(well) && gradient.colours[well] == pick.hex
-                    Button {
-                        browser.editGradient(id) { if $0.colours.indices.contains(well) { $0.colours[well] = pick.hex } }
-                    } label: {
-                        Circle().fill(colour(pick.hex))
-                            .frame(width: ColourSwatches.dot, height: ColourSwatches.dot)
-                            .overlay {
-                                if on { Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(.white) }
-                            }
+                    Hovered { hovering in
+                        Button {
+                            browser.editGradient(id) { if $0.colours.indices.contains(well) { $0.colours[well] = pick.hex } }
+                        } label: {
+                            Circle().fill(colour(pick.hex))
+                                .frame(width: ColourSwatches.dot, height: ColourSwatches.dot)
+                                .overlay {
+                                    if on { Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(.white) }
+                                }
+                                // A ring just outside the dot, in the gap
+                                // to the next, so nothing moves to make it.
+                                .overlay(Circle().strokeBorder(hovering ? Palette.ring : .clear, lineWidth: 1.5).padding(-3))
+                        }
+                        .buttonStyle(Gives(to: 0.92))
                     }
-                    .buttonStyle(.plain)
                     .help(pick.name)
                     .accessibilityLabel(pick.name)
                 }
@@ -759,16 +768,20 @@ struct SpaceLookPicker: View {
     }
 
     private func round(_ symbol: String, _ name: String, _ run: @escaping () -> Void) -> some View {
-        Button(action: run) {
-            Image(systemName: symbol)
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(Palette.muted)
-                .frame(width: ColourSwatches.dot, height: ColourSwatches.dot)
-                .background(Circle().fill(Palette.hover))
-                .padding(3)
-                .contentShape(Circle())
+        // At rest the grey a button lies on, a step darker under the
+        // pointer: it was drawn in the hover's grey whether pointed at or not.
+        Hovered { hovering in
+            Button(action: run) {
+                Image(systemName: symbol)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(hovering ? Palette.ink : Palette.muted)
+                    .frame(width: ColourSwatches.dot, height: ColourSwatches.dot)
+                    .background(Circle().fill(hovering ? Palette.fillHover : Palette.fill))
+                    .padding(3)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(Gives(to: 0.9))
         }
-        .buttonStyle(.plain)
         .help(name)
         .accessibilityLabel(name)
     }

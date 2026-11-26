@@ -140,10 +140,39 @@ private struct FixedKey: View {
             .padding(.horizontal, 10)
             .frame(minWidth: 64, minHeight: 24)
             .overlay(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
                     .strokeBorder(Palette.hairline, lineWidth: 1)
             )
             .help("Set in Settings › Tabs & Spaces")
+    }
+}
+
+/// A key that is set by pressing it, as Settings draws one: for a
+/// command's (KeyBox) and the launcher's (LauncherKeyBox), which each drew
+/// their own. Waiting for the key it is filled in under an ink edge: it was
+/// the hover's wash, and armed read the same as pointed at.
+struct KeyFace: View {
+    let label: String
+    /// It has a key: its words in ink, not the quiet "None".
+    var set = true
+    var listening = false
+    var hovering = false
+    /// Moved from where it started.
+    var changed = false
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
+        Text(label)
+            .font(.system(size: 12, weight: changed ? .semibold : .regular))
+            .foregroundStyle(listening || set ? Palette.ink : Palette.muted)
+            .lineLimit(1)
+            .padding(.horizontal, 10)
+            .frame(minWidth: 64, minHeight: 24)
+            // The wash over the box's own white, not in place of it.
+            .background(listening ? Palette.fillHover : hovering ? Palette.fill : .clear, in: shape)
+            .background(Palette.ground, in: shape)
+            .overlay(shape.strokeBorder(listening ? Palette.ink.opacity(0.4) : Palette.hairline, lineWidth: 1))
+            .contentShape(Rectangle())
     }
 }
 
@@ -165,21 +194,10 @@ private struct KeyBox: View {
 
     var body: some View {
         Button(action: listen) {
-            Text(label)
-                .font(.system(size: 12, weight: store.isChanged(id) ? .semibold : .regular))
-                .foregroundStyle(listening || store.key(for: id) != nil ? Palette.ink : Palette.muted)
-                .lineLimit(1)
-                .padding(.horizontal, 10)
-                .frame(minWidth: 64, minHeight: 24)
-                .background(listening ? Palette.hover : (hovering ? Palette.hover : Palette.ground),
-                            in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .strokeBorder(listening ? Palette.ink.opacity(0.4) : Palette.hairline, lineWidth: 1)
-                )
-                .contentShape(Rectangle())
+            KeyFace(label: label, set: store.key(for: id) != nil, listening: listening, hovering: hovering,
+                    changed: store.isChanged(id))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(Gives(to: 0.96))
         // What the Shortcuts group's line under its title used to say.
         .help("Click, then press the new shortcut")
         .hovers($hovering)

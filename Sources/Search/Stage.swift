@@ -169,10 +169,6 @@ private struct Disc: View {
         let scale: CGFloat = pull.going ? 1.08 : 0.86 + 0.14 * grown
 
         ZStack {
-            Circle()
-                .fill(Palette.ground)
-            Circle()
-                .strokeBorder(Palette.hairline, lineWidth: 1)
             // How far there is to go, wound round the edge, closed when it
             // is armed.
             Circle()
@@ -186,7 +182,7 @@ private struct Disc: View {
                 .foregroundStyle(Palette.ink.opacity(0.4 + 0.6 * grown))
         }
         .frame(width: 52, height: 52)
-        .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+        .elevated(.float, in: Circle())
         .scaleEffect(scale)
         .opacity(pull.going ? 0 : 1)
         // Whole from the first point, a little way in from the edge, drawn
@@ -229,16 +225,15 @@ private struct HistoryList: View {
                 .padding(.horizontal, 9)
                 .frame(height: 28)
                 .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    // The card's corner less the gap to it (16 − 5).
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                         .fill(Palette.ink.opacity(index == pull.picked ? 0.10 : 0))
                 )
             }
         }
         .padding(5)
         .frame(width: 240)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.16), radius: 18, y: 6)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
         .scaleEffect(pull.going ? 0.96 : 1)
         .opacity(pull.going ? 0 : 1)
         .offset(x: (pull.back ? 1 : -1) * (10 + reach * 0.2), y: slide)

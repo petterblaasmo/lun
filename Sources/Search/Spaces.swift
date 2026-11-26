@@ -907,7 +907,7 @@ struct SpaceDot: View {
                 Image(systemName: shown?.symbol ?? symbol)
                     .font(.system(size: 12, weight: .medium))
                     // Hovered and at rest as the doors beside it are (Door, idea 1034).
-                    .foregroundStyle(tint ?? (hovering ? Palette.ink.opacity(0.7) : greys.muted))
+                    .foregroundStyle(tint ?? (hovering ? Palette.ink : greys.muted))
                     .id(shown?.key ?? key)
                     // The way the tabs go: sideways in the column; in the bar
                     // across the top, up for the next space, down going back.
@@ -953,9 +953,7 @@ struct SpaceDot: View {
                     .fixedSize()
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
-                    .background(Palette.ground, in: Capsule())
-                    .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
-                    .shadow(color: .black.opacity(0.10), radius: 10, y: 3)
+                    .elevated(.lift, in: Capsule())
                     .offset(x: browser.prefs.sidebar ? 0 : SpaceDot.width + 4, y: browser.prefs.sidebar ? -30 : 0)
                     .allowsHitTesting(false)
                     .transition(.row(from: browser.prefs.sidebar ? .bottomLeading : .leading))

@@ -128,7 +128,7 @@ struct PinFolderHeading: View {
     /// High contrast text, as a tab's title is.
     private func titleColour(hovering: Bool) -> Color {
         if prefs.highContrastText { return Palette.ink }
-        return hovering ? Palette.ink.opacity(0.7) : Palette.muted
+        return hovering ? Palette.ink : Palette.muted
     }
 
     /// A live folder's feed, or that its last fetch failed: nothing louder.

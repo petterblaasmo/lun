@@ -117,7 +117,7 @@ struct UpdateNoticeRow: View {
             .font(.system(size: prefs.sideTitle))
             .lineLimit(1)
             .truncationMode(.tail)
-            .foregroundStyle(hovering ? Palette.ink.opacity(0.7) : Palette.muted)
+            .foregroundStyle(hovering ? Palette.ink : Palette.muted)
     }
 }
 

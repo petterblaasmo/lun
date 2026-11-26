@@ -161,7 +161,7 @@ struct Omnibox: View {
             .overlay {
                 if refused {
                     shape
-                        .strokeBorder(Color.red.opacity(0.35), lineWidth: 1)
+                        .strokeBorder(Palette.dangerRing, lineWidth: 1)
                         .allowsHitTesting(false)
                 }
             }
@@ -420,7 +420,7 @@ private struct SiteChip: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 22)
-        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Searching \(site.name)")
     }
@@ -443,7 +443,7 @@ private struct SiteOfferRow: View {
                 .foregroundStyle(Palette.muted)
                 .padding(.horizontal, 6)
                 .frame(height: 18)
-                .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
         }
         .padding(.horizontal, 10)
         .frame(height: 36)

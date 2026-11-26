@@ -884,7 +884,8 @@ struct SiteCard: View {
             }
             .padding(.horizontal, 12)
             .frame(height: 32)
-            .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            // The card's corner less the gap to it (16 − 6).
+            .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .contentShape(Rectangle())
         }
     }

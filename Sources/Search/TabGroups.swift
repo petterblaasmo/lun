@@ -108,7 +108,7 @@ struct GroupHeading: View {
     /// High contrast text, as a tab's title is.
     private func titleColour(hovering: Bool) -> Color {
         if browser.prefs.highContrastText { return Palette.ink }
-        return hovering ? Palette.ink.opacity(0.7) : Palette.muted
+        return hovering ? Palette.ink : Palette.muted
     }
 
     /// Its height in the column, a little under a tab's.

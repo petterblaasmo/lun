@@ -37,6 +37,35 @@ enum Palette {
     static let safe = Color(nsColor: NS.safe)           // green-700 · green-400
     static let unsafe = Color(nsColor: NS.unsafe)       // amber-700 · amber-400
 
+    // MARK: said once here, where each was written out by hand
+    //
+    // Each of these was a colour typed at several places, a shade apart
+    // from one to the next.
+
+    /// What takes something away for good, in its own words (Remove,
+    /// Delete…), and the words of a refusal: the Mac's red, eased to sit
+    /// with the greys.
+    static let danger = Color.red.opacity(0.8)
+    /// Round a field that refused what was typed: the address field, the
+    /// launcher, Find with nothing found.
+    static let dangerRing = Color.red.opacity(0.35)
+    /// Round a tab or a pin chosen along with others.
+    static let ring = ink.opacity(0.35)
+    /// The outline of where what is being dragged would land.
+    static let drop = ink.opacity(0.16)
+    /// What dims the window under a panel, and under a peek, which is a
+    /// page over the page and wants the one behind further back.
+    static let scrim = Color.black.opacity(0.10)
+    static let scrimDeep = Color.black.opacity(0.22)
+    /// A hint over a page in full screen, most often over a video: black
+    /// let through and white on it, whatever the window's appearance.
+    static let overPage = Color.black.opacity(0.72)
+    static let overPageEdge = Color.white.opacity(0.6)
+    /// A count that wants looking at: the unread badge on a pin.
+    static let badge = Color(red: 0.93, green: 0.24, blue: 0.21)
+    /// Something is recording: the Mac's own red, as its menu bar's dot.
+    static let recording = Color(nsColor: .systemRed)
+
     /// The same colours for the AppKit corners of the app — a text field's
     /// ink, a window's background — which want an NSColor and keep it.
     enum NS {
@@ -303,6 +332,20 @@ enum Metrics {
     static let sideMax: CGFloat = 440
 }
 
+/// The house's corners, all continuous: a control inside a control (a
+/// track's knob, a step, a chip), a row's wash or a door or a key, a card
+/// of rows or a field, what floats over the page from a field (the
+/// launcher, a list under it), and a panel or a question. A shape inside
+/// another takes the outer's less the gap between them, so their curves run
+/// alongside: a theme's ring is 13 round a 10 picture, 3 away.
+enum Radius {
+    static let control: CGFloat = 6
+    static let row: CGFloat = 8
+    static let card: CGFloat = 10
+    static let float: CGFloat = 14
+    static let panel: CGFloat = 16
+}
+
 /// Three heights over the ground, one shadow each: a card lying on the column
 /// (the tab you're on), one floating over the page (the address list, a
 /// question), one over everything (the tab switcher). A hairline round each
@@ -347,6 +390,25 @@ extension View {
     /// On a card at `height` over what it lies on (see Elevated).
     func elevated<S: InsettableShape>(_ height: Elevation, in shape: S, fill: Color = Palette.raised) -> some View {
         modifier(Elevated(height: height, shape: shape, fill: fill))
+    }
+}
+
+extension View {
+    /// The shadow under what the hand has lifted out of its row and is
+    /// carrying: a tab across the top, a pin, a tab's picture between
+    /// windows. One lift for the three, which each had their own; deeper
+    /// in a dark window, as the elevations are. Nothing while not `held`.
+    func carriedShadow(_ held: Bool = true) -> some View {
+        modifier(CarriedShadow(held: held))
+    }
+}
+
+private struct CarriedShadow: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    let held: Bool
+
+    func body(content: Content) -> some View {
+        content.shadow(color: .black.opacity(held ? (scheme == .dark ? 0.4 : 0.16) : 0), radius: 12, y: 4)
     }
 }
 
@@ -857,6 +919,18 @@ extension View {
     func hovers(_ hovering: Binding<Bool>) -> some View {
         onHover { hovering.wrappedValue = $0 }
             .animation(Motion.quick, value: hovering.wrappedValue)
+    }
+}
+
+/// Hands what it draws whether the pointer is over it, eased as every
+/// hover is: for one of many built in a loop (a swatch, a tile, a cell of
+/// a grid), which has nowhere of its own to keep that.
+struct Hovered<Label: View>: View {
+    @ViewBuilder let label: (Bool) -> Label
+    @State private var hovering = false
+
+    var body: some View {
+        label(hovering).hovers($hovering)
     }
 }
 

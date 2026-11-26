@@ -217,7 +217,7 @@ struct PeekLayer: View {
             // The dimming only fades. Grown and shrunk with the panel, its
             // edges travelled across the window as it came (Drice, 24 Sep 2026).
             if browser.peekInFront {
-                Color.black.opacity(0.22)
+                Palette.scrimDeep
                     .contentShape(Rectangle())
                     .onTapGesture { browser.closePeek() }
                     .transition(.opacity)
@@ -254,11 +254,7 @@ struct PeekPanel: View {
                             }
                         }
                         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: corner, style: .continuous)
-                                .strokeBorder(Palette.hairline, lineWidth: 1)
-                        )
-                        .shadow(color: .black.opacity(0.25), radius: 30, y: 10)
+                        .elevated(.overlay, in: RoundedRectangle(cornerRadius: corner, style: .continuous), fill: Palette.ground)
                     if !browser.peekFill { VStack(spacing: 8) {
                         Knob("xmark", help: "Close (esc)") { browser.closePeek() }
                         // ⌥ on it keeps the page beside this one, with Split
@@ -317,9 +313,7 @@ struct PeekBadge: View {
     var body: some View {
         Mark(icon: page.icon, letter: page.monogram, size: size * 0.7)
             .frame(width: size, height: size)
-            .background(Palette.ground, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: size * 0.3, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.12), radius: 1.5, y: 0.5)
+            .elevated(.lift, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous), fill: Palette.ground)
             .allowsHitTesting(false)
             .transition(.pop)
     }

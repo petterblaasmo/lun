@@ -108,7 +108,7 @@ private struct Lifted: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Palette.hairline, lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+            .carriedShadow()
         }
     }
 }

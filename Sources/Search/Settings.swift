@@ -166,13 +166,8 @@ struct SettingsPanel: View {
             content
         }
         .frame(width: SettingsPanel.width, height: SettingsPanel.height)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(0.16), radius: 34, y: 12)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
+        .elevated(.overlay, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous), fill: Palette.ground)
         .onChange(of: page) { _, page in Store.settings.set(page.rawValue, forKey: "settings.page") }
     }
 
@@ -290,7 +285,7 @@ struct SettingsPanel: View {
                             .fill(Palette.hover)
                     }
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             }
             .buttonStyle(.plain)
             .onHover { hovering = $0 }
@@ -1109,7 +1104,7 @@ struct SettingsPanel: View {
         ZStack(alignment: .leading) {
             if text.wrappedValue.isEmpty {
                 Text(placeholder)
-                    .foregroundStyle(Palette.muted.opacity(0.8))
+                    .foregroundStyle(Palette.muted)
             }
             TextField("", text: text)
                 .textFieldStyle(.plain)

@@ -58,7 +58,7 @@ struct ExtensionsPage: View {
                             ZStack(alignment: .leading) {
                                 if link.isEmpty {
                                     Text("Paste a link to an extension, or its id")
-                                        .foregroundStyle(Palette.muted.opacity(0.8))
+                                        .foregroundStyle(Palette.muted)
                                 }
                                 TextField("", text: $link)
                                     .textFieldStyle(.plain)
@@ -397,7 +397,7 @@ private struct SiteList: View {
                     ZStack(alignment: .leading) {
                         if typed.isEmpty {
                             Text("Add a site, like example.com")
-                                .foregroundStyle(Palette.muted.opacity(0.8))
+                                .foregroundStyle(Palette.muted)
                         }
                         TextField("", text: $typed)
                             .textFieldStyle(.plain)
@@ -408,7 +408,7 @@ private struct SiteList: View {
                     .font(.system(size: 12))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                     Pill("Add", action: add)
                         .disabled(SiteAccess.host(from: typed) == nil)
                 }
@@ -481,21 +481,13 @@ struct StoreOffer: View {
                     if extensions.busy.contains(id) {
                         Ring(size: 10)
                     } else {
-                        Button("Add") { extensions.install(from: id) }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 12))
-                            .foregroundStyle(Palette.ground)
-                            .padding(.horizontal, 11)
-                            .padding(.vertical, 5)
-                            .background(Palette.ink, in: Capsule())
+                        Pill("Add", filled: true) { extensions.install(from: id) }
                     }
                 }
                 .padding(.leading, 16)
                 .padding(.trailing, 10)
                 .padding(.vertical, 9)
-                .background(Palette.ground, in: Capsule())
-                .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
-                .shadow(color: .black.opacity(0.12), radius: 20, y: 6)
+                .elevated(.float, in: Capsule())
                 .transition(.bar(.bottom))
             }
         }

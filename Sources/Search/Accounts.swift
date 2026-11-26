@@ -84,13 +84,8 @@ struct AccountList: View {
         }
         .frame(width: max(240, min(360, asked.spot.width)), alignment: .leading)
         }
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.14), radius: 22, y: 8)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
     /// The rows in the order ↓ walks them (Suggesting.choices): the Mac's

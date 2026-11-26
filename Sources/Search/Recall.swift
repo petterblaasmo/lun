@@ -316,7 +316,7 @@ struct HistoryPanel: View {
                     .truncationMode(.middle)
                 Spacer(minLength: 8)
                 if hovering {
-                    Quick("Remove", tint: .red.opacity(0.75), act: forget)
+                    Quick("Remove", tint: Palette.danger, act: forget)
                 } else {
                     if trace.count > 1 {
                         Text("\(trace.count) visits")
@@ -860,7 +860,7 @@ struct DownloadsPanel: View {
                 Spacer(minLength: 8)
                 if hovering {
                     if keep.stillThere { Quick("Show in Finder", act: reveal) }
-                    Quick("Remove", tint: .red.opacity(0.75), act: forget)
+                    Quick("Remove", tint: Palette.danger, act: forget)
                 } else if wide {
                     HStack(spacing: 8) {
                         if !keep.from.isEmpty { SiteMark(host: keep.from, size: 14) }

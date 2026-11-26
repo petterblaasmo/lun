@@ -1205,7 +1205,7 @@ struct BookmarkCard: View {
             }
 
             HStack(spacing: 8) {
-                Quick("Remove", tint: .red.opacity(0.75)) {
+                Quick("Remove", tint: Palette.danger) {
                     close()
                     bookmarks.remove(id)
                 }

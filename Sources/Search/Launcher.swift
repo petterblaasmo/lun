@@ -530,14 +530,14 @@ private struct LauncherView: View {
             .frame(height: 22)
             .padding(.horizontal, 22)
             .padding(.vertical, 14)
-            .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            // Floating, not over everything: the panel's margin has room
+            // for that shadow and no deeper one (LauncherPanel.margin).
+            .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(refused ? Color.red.opacity(0.35) : Palette.hairline, lineWidth: 1)
+                RoundedRectangle(cornerRadius: Radius.float, style: .continuous)
+                    .strokeBorder(refused ? Palette.dangerRing : .clear, lineWidth: 1)
                     .allowsHitTesting(false)
             )
-            // Deeper than over a page: it stands over another app's window.
-            .shadow(color: .black.opacity(0.16), radius: 24, y: 8)
             .modifier(Shake(travel: shake))
             .onChange(of: launcher.refusals) { _, _ in
                 shake = 0
@@ -558,12 +558,7 @@ private struct LauncherView: View {
             }
         }
         .padding(6)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.14), radius: 20, y: 6)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
         .transition(.card(from: .top))
     }
 }
@@ -727,28 +722,16 @@ struct LauncherKeyBox: View {
             if let refusal = launcher.refusal, !listening {
                 Text(refusal)
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.red.opacity(0.8))
+                    .foregroundStyle(Palette.danger)
                     .lineLimit(1)
             }
             if prefs.launcherKey == nil, !listening {
                 Pill("Use \(LauncherKey.suggested.combo.display)") { prefs.launcherKey = .suggested }
             }
             Button(action: listen) {
-                Text(label)
-                    .font(.system(size: 12))
-                    .foregroundStyle(listening || prefs.launcherKey != nil ? Palette.ink : Palette.muted)
-                    .lineLimit(1)
-                    .padding(.horizontal, 10)
-                    .frame(minWidth: 64, minHeight: 24)
-                    .background(listening || hovering ? Palette.hover : Palette.ground,
-                                in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .strokeBorder(listening ? Palette.ink.opacity(0.4) : Palette.hairline, lineWidth: 1)
-                    )
-                    .contentShape(Rectangle())
+                KeyFace(label: label, set: prefs.launcherKey != nil, listening: listening, hovering: hovering)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(Gives(to: 0.96))
             .help("Click, then press the key. ⌫ takes it away")
             .hovers($hovering)
             .onDisappear(perform: stop)

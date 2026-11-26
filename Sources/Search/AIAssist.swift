@@ -291,9 +291,7 @@ struct AssistantPanel: View {
                 .padding(.bottom, 10)
         }
         .frame(width: 380, alignment: .leading)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.14), radius: 24, y: 8)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
         .onAppear { if !assistant.summary, !drawn { typing = true } }
     }
 
@@ -517,7 +515,7 @@ struct AISettings: View {
                         .frame(width: 130)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
-                        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                         .onSubmit { save(provider) }
                     Pill("Save") { save(provider) }
                     if provider == .openRouter {
@@ -543,7 +541,7 @@ struct AISettings: View {
                 .frame(width: 170)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 5)
-                .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             }
         }
     }
@@ -563,7 +561,7 @@ struct AISettings: View {
                 .frame(width: width, alignment: .leading)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 5)
-                .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
     }
 

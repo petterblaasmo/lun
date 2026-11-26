@@ -101,7 +101,7 @@ struct PinGhost: View {
         let shape = RoundedRectangle(cornerRadius: scale * 9 / 34, style: .continuous)
         shape
             .fill(greys.hover)
-            .overlay { shape.strokeBorder(Palette.ink.opacity(0.16), lineWidth: 1) }
+            .overlay { shape.strokeBorder(Palette.drop, lineWidth: 1) }
             .overlay {
                 Mark(icon: tab.icon, letter: tab.pin ?? tab.monogram, size: scale * 16 / 34)
                     .opacity(0.55)
@@ -135,7 +135,7 @@ struct RowGhost: View {
         .frame(height: height)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(shape.fill(greys.hover))
-        .overlay { shape.strokeBorder(Palette.ink.opacity(0.16), lineWidth: 1) }
+        .overlay { shape.strokeBorder(Palette.drop, lineWidth: 1) }
         .allowsHitTesting(false)
         .transition(.opacity)
     }

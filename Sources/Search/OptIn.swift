@@ -306,7 +306,7 @@ struct OptInForm: View {
     private var field: some View {
         ZStack(alignment: .leading) {
             if email.isEmpty {
-                Text(verbatim: "you@example.com").foregroundStyle(Palette.muted.opacity(0.75))
+                Text(verbatim: "you@example.com").foregroundStyle(Palette.muted)
             }
             TextField("", text: $email)
                 .textFieldStyle(.plain)
@@ -409,7 +409,7 @@ struct OptInBlock: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.wash.opacity(0.55), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(Palette.wash.opacity(0.55), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 }
 
