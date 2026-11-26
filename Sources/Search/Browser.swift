@@ -215,11 +215,12 @@ final class Browser: NSObject, ObservableObject {
         get { pageTab(.settings) != nil }
         set { if newValue { show(InternalPage(.settings, settingsPage.rawValue)) } else { putAway(.settings) } }
     }
-    /// Settings at its Extensions page: the menu's Extensions…, and the
-    /// puzzle's Manage Extensions….
+    /// Extensions, in a tab of their own as History and Downloads are
+    /// (search://extensions): the menu's Extensions…, and the puzzle's
+    /// Manage Extensions…. They were a page inside Settings, which nobody
+    /// looking for their extensions thought to open.
     func showExtensions() {
-        Store.settings.set("extensions", forKey: "settings.page")
-        tuning = true
+        show(InternalPage(.extensions))
     }
     /// The first-launch walk-through, over everything. Also from the menu.
     @Published var welcoming = false
