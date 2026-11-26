@@ -7534,9 +7534,18 @@ final class Browser: NSObject, ObservableObject {
     /// home then, to a window on a desktop nobody was looking at, and you
     /// were taken back to that desktop after it. It stays out until its
     /// window's desktop is the one in view (desktopChanged).
-    func appBack() {
+    ///
+    /// Nor while another of Lun's windows is the one come back to. `front`
+    /// is that one, the app's main window: coming back to a link's small
+    /// window, to Settings or to another browser window brings Lun in front
+    /// too, and the video went home to a window nobody had come back to. It
+    /// stays out until this window is the main one, which is asked again as
+    /// it becomes that (ContentView). The main window and not the one with
+    /// the keys: the little window takes the keys when it is clicked or
+    /// moved, and has them still when Lun comes back.
+    func appBack(in front: NSWindow?) {
         stopAwayWatch()
-        guard window?.isOnActiveSpace ?? true else { return }
+        guard window?.isOnActiveSpace ?? true, front === window else { return }
         defer { liftedAway = false }
         if liftedAway, let id = floating, id == activeID { land() }
         if liftedAway, let id = pictured, id == activeID { unpicture() }
@@ -7545,9 +7554,9 @@ final class Browser: NSObject, ObservableObject {
     /// Another desktop has come into view. Back on this window's own, with
     /// Lun in front, a video that left with the app goes home, as appBack
     /// would have sent it had the window been in view then.
-    func desktopChanged(active: Bool = NSApp.isActive) {
+    func desktopChanged(active: Bool = NSApp.isActive, front: NSWindow? = NSApp.mainWindow ?? NSApp.keyWindow) {
         guard liftedAway, active else { return }
-        appBack()
+        appBack(in: front)
     }
 
     /// ⌘⇧P, for lifting one out by hand.
@@ -7705,9 +7714,15 @@ final class Browser: NSObject, ObservableObject {
         // until it is in the little window or has nothing to float.
         let stage = tab.web.superview as? StageView
         stage?.keep(tab.web)
+        var went = false
         func all() {
-            guard let shot, let found, let alone else { return }
-            lifted(tab, shot: shot, alone: alone, found: found, quietly: quietly, otherwise: otherwise, spaceRequest: spaceRequest)
+            guard !went, let shot, let found else { return }
+            // A page that keeps its size out there (Float.kept) has no still
+            // over it, and no picture of the video alone to wait for.
+            let picture = Float.kept(found, in: tab.web)
+            guard picture != nil || alone != nil else { return }
+            went = true
+            lifted(tab, shot: shot, alone: alone ?? nil, picture: picture, found: found, quietly: quietly, otherwise: otherwise, spaceRequest: spaceRequest)
             stage?.letGo(tab.web)
         }
         tab.web.takeSnapshot(with: picture) { image, _ in
@@ -7739,7 +7754,7 @@ final class Browser: NSObject, ObservableObject {
 
     /// The page isolated, or not, and pictured as it was before: into the
     /// little window, or on to the other page of a pair.
-    private func lifted(_ tab: Tab, shot: NSImage?, alone: NSImage?, found answer: Any?, quietly: Bool, otherwise: Tab?, spaceRequest: UUID? = nil) {
+    private func lifted(_ tab: Tab, shot: NSImage?, alone: NSImage?, picture: NSRect?, found answer: Any?, quietly: Bool, otherwise: Tab?, spaceRequest: UUID? = nil) {
         guard let found = answer as? [String: Any], found["floating"] as? Bool == true else {
             if let otherwise { return lift(otherwise, quietly: quietly, spaceRequest: spaceRequest) }
             if let spaceRequest { _ = spaceFloat.finish(spaceRequest) }
@@ -7758,14 +7773,16 @@ final class Browser: NSObject, ObservableObject {
         floating = tab.id
         tab.floating = true
         ownFloater()
-        let still = alone.flatMap { alone in
+        // The still is for a page laid out at the little window's size: one
+        // that keeps its own shows the live video from the first.
+        let still = picture != nil ? nil : alone.flatMap { alone in
             Float.still(
                 of: alone,
                 picture: (found["alone"] as? [NSNumber] ?? []).map(\.doubleValue),
                 page: (found["page"] as? [NSNumber] ?? []).map(\.doubleValue)
             )
         }
-        floater.lift(tab.web, still: still)
+        floater.lift(tab.web, still: still, picture: picture)
     }
 
     /// The page as it was when its video went out, for covering the tab with

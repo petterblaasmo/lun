@@ -7,7 +7,9 @@ fixed elements (a transform, a filter, containment…), is drawn only when on
 screen, or is faded out. Video styles also exercise minimum sizes, spacing,
 clips and masks, across viewport resizes and return. The isolation script runs
 on an ordinary tab of a hidden probe — the floating window itself is never opened — and the video
-must then fill the page's view, as `contain` fits it, and be visible.
+must then fill the page's view, as `contain` fits it, and be visible. And be
+where the script worked out it would be: that is what lets the page keep its
+tab's size in the floating window (`kept`, Float.kept; float_kept.py).
 """
 import functools
 import json
@@ -111,6 +113,8 @@ def main():
             time.sleep(1.5)
             before = sv.cmd({"do": "eval", "id": tab, "js": styling})["value"]
             said = sv.cmd({"do": "eval", "id": tab, "js": isolate, "world": "search"}).get("value")
+            t.ok(f"{name}: the picture is where it was worked out to be, so the page can keep its size",
+                 isinstance(said, dict) and said.get("kept") is True, said)
             for width, height in [(1180, 780), (700, 500), (900, 900)]:
                 sv.cmd({"do": "resize", "width": width, "height": height, "steps": 2})
                 p = json.loads(sv.cmd({"do": "eval", "id": tab, "js": PROBE}).get("value"))
@@ -140,6 +144,37 @@ def main():
         time.sleep(1.1)
         opened = sv.cmd({"do": "eval", "id": tab, "js": CHAT_OPEN})["value"]
         t.ok("twitch-chat: returning opens the chat folded away while floating", shut is False and opened is True, (shut, opened))
+        sv.sp("close", id=tab)
+
+        # What a page keeps outside its body stays out of the window: a
+        # consent manager's banner, hung on the root beside the body in a
+        # closed shadow of its own, where it says it is visible whatever is
+        # said of its host (Vimeo's). It lay over the video.
+        tab = sv.sp("open", url=f"{base}/plain.html")["resultID"]
+        playing = "(function(){var v=document.querySelector('video');return !!v&&!v.paused&&v.readyState>=2})()"
+        for _ in range(40):
+            if sv.cmd({"do": "eval", "id": tab, "js": playing})["value"] is True: break
+            time.sleep(0.25)
+        sv.cmd({"do": "eval", "id": tab, "js": """(function () {
+          var host = document.createElement('div'); host.id = 'consent';
+          host.attachShadow({mode: 'closed'}).innerHTML =
+            '<div style="visibility:visible;position:fixed;left:0;right:0;bottom:0;height:45%;background:#fff;z-index:2147483647">We use cookies</div>';
+          document.documentElement.appendChild(host);
+          return 1;
+        })()"""})
+        under = """(function () {
+          var hit = document.elementFromPoint(innerWidth / 2, innerHeight - 30), s = getComputedStyle(document.getElementById('consent'));
+          return JSON.stringify({hit: hit ? hit.tagName + '#' + hit.id : null, opacity: s.opacity, visibility: s.visibility});
+        })()"""
+        before = json.loads(sv.cmd({"do": "eval", "id": tab, "js": under})["value"])
+        sv.cmd({"do": "eval", "id": tab, "js": isolate, "world": "search"})
+        out = json.loads(sv.cmd({"do": "eval", "id": tab, "js": under})["value"])
+        t.ok("outside the body: a banner on the root is over the page until the video floats", before == {"hit": "DIV#consent", "opacity": "1", "visibility": "visible"}, before)
+        t.ok("outside the body: floating, it is hidden and clear, and the video is what is there", out == {"hit": "VIDEO#", "opacity": "0", "visibility": "hidden"}, out)
+        sv.cmd({"do": "eval", "id": tab, "js": restore, "world": "search"})
+        time.sleep(1.5)
+        back = json.loads(sv.cmd({"do": "eval", "id": tab, "js": under})["value"])
+        t.ok("outside the body: back in its tab, the banner is as it was", back == before, back)
         sv.sp("close", id=tab)
 
         # The mark on the video is defended (Isolate.on): put back when a
