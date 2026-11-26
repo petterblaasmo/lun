@@ -144,7 +144,7 @@ struct PopupSign: View {
                 Image(systemName: "rectangle.on.rectangle.slash")
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(hovering || showing || shown ? Palette.ink : colour.opacity(0.75))
-                    .symbolEffect(.bounce, value: tab.blockedPopups.last?.id)
+                    .bumps(on: tab.blockedPopups.last?.id)
                     .frame(width: 17, height: 15)
                     .background(Palette.ink.opacity(hovering || showing || shown ? 0.07 : 0),
                                 in: RoundedRectangle(cornerRadius: 4, style: .continuous))

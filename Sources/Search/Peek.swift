@@ -464,10 +464,8 @@ struct PeekSweep: NSViewRepresentable {
             let sweep = CABasicAnimation(keyPath: "position.x")
             sweep.fromValue = bounds.width * -0.3
             sweep.toValue = bounds.width * 1.3
-            sweep.duration = 1.3
-            sweep.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            sweep.repeatCount = .infinity
-            gradient.add(sweep, forKey: "sweep")
+            // Not shown at all where nothing should move (PeekSkeleton).
+            if let sweep = Motion.loop(.sweep, sweep) { gradient.add(sweep, forKey: "sweep") }
         }
     }
 }
