@@ -697,6 +697,180 @@ enum Motion {
 
     /// That fade's length.
     static let fade: TimeInterval = 0.2
+
+    /// Motion.folding in Core Animation's terms, for the window's buttons,
+    /// which a layer carries along with the column (Fold.slide): the eased
+    /// slide where Settings asks for one, else the same spring.
+    static func folding(out: Bool, keyPath: String) -> CABasicAnimation {
+        if let slide = slide(out: out) {
+            let eased = CABasicAnimation(keyPath: keyPath)
+            eased.timingFunction = CAMediaTimingFunction(name: out ? .easeOut : .easeIn)
+            eased.duration = slide
+            return eased
+        }
+        let fold = fold(out: out)
+        let spring = CASpringAnimation(keyPath: keyPath)
+        spring.mass = 1
+        spring.stiffness = pow(2 * .pi / fold.response, 2)
+        spring.damping = 4 * .pi * fold.damping / fold.response
+        spring.duration = spring.settlingDuration
+        return spring
+    }
+
+    // MARK: lengths that are one surface's own
+    //
+    // Each was tuned where it is used and keeps its number. They are here
+    // so that no file sets a length of its own, and so the two switches
+    // reach them: nought where nothing should move.
+
+    /// A hint over the page that is read and never pressed (the pointer's
+    /// lock, "esc again" in full screen): there a little sooner than it
+    /// is gone.
+    static func hint(shown: Bool) -> TimeInterval {
+        reduced ? 0 : shown ? 0.15 : 0.2
+    }
+
+    /// The line under the address while a page loads, running on to where
+    /// the load has got to.
+    static var lineRuns: TimeInterval {
+        reduced ? 0 : 0.2
+    }
+
+    /// That line fading once the page is in. A fade, so the Mac's Reduce
+    /// Motion keeps it.
+    static var lineFades: TimeInterval {
+        instant ? 0 : 0.3
+    }
+
+    /// One space's page fading into the next while the rows slide
+    /// (PaneStage.show), on timing(.dissolve).
+    static var spaceFade: TimeInterval {
+        reduced ? 0 : 0.15
+    }
+
+    /// The Split View's pages moving to their new places, on timing(.glide):
+    /// the curve was fitted to glide's spring at this length.
+    static var panes: TimeInterval {
+        reduced ? 0 : 0.32
+    }
+
+    /// A window's frame following what it holds (the downloads card as its
+    /// list grows): tuned for a frame, which AppKit moves, not SwiftUI.
+    static var resize: TimeInterval {
+        reduced ? 0 : light ? 0.16 : 0.22
+    }
+
+    /// The floating video tucked down to a corner, and back to its size.
+    static var tuck: TimeInterval {
+        reduced ? 0 : 0.18
+    }
+
+    // MARK: what waits for a move
+    //
+    // A spring is on its place to the eye before it is at rest, and says
+    // neither. What has to follow one waits these out.
+
+    /// A glide as good as there: the page takes the room the column left
+    /// (ContentView).
+    static let glideLanded: TimeInterval = 0.42
+
+    /// A glide at rest, about half a second and a little over: what would
+    /// have cost it frames is done now (Browser.columnTurning).
+    static let glideRested: TimeInterval = 0.6
+
+    /// How long the back and forward swipe's disc is seen going with its
+    /// page before it leaves (PageView.go).
+    static let swipeGone: TimeInterval = 0.32
+
+    // MARK: what goes round, and what bumps once
+
+    /// What repeats for as long as it is there. Core Animation's, since a
+    /// SwiftUI animation that never ends lays the window out every frame.
+    enum Loop {
+        /// The ring in a tab while its page loads.
+        case spin
+        /// The light passing over a peeked page's bones.
+        case sweep
+        /// The glow under the address field.
+        case breathe
+    }
+
+    /// `animation` made to go round as `loop` does (how long, at what pace,
+    /// and for the breath its way back), or nil where it should hold still.
+    /// The ring turns whatever is asked: it says a page is still coming,
+    /// and a ring standing still says the page has stopped. The light and
+    /// the breath are only there to be looked at, and stop with the rest.
+    static func loop<Turn: CAAnimation>(_ loop: Loop, _ animation: Turn) -> Turn? {
+        switch loop {
+        case .spin:
+            animation.duration = 0.85
+        case .sweep:
+            guard !reduced else { return nil }
+            animation.duration = 1.3
+            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        case .breathe:
+            guard !reduced else { return nil }
+            animation.duration = 2.6
+            animation.autoreverses = true
+            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        }
+        animation.repeatCount = .infinity
+        return animation
+    }
+
+    /// "Something just arrived here": how far a sign swells and how long it
+    /// takes each way (the downloads door as a download starts). Under
+    /// Reduce Motion it goes nowhere, for the same length: a keyframe of no
+    /// length comes out as not a number, and AppKit stops the whole app
+    /// over a transform like that.
+    static func pulse(reduced: Bool = Motion.reduced, light: Bool = Motion.light) -> (peak: CGFloat, up: Double, down: Double) {
+        let seconds = light ? 0.16 : 0.3
+        return (reduced ? 1 : 1.35, seconds * 0.4, seconds * 0.6)
+    }
+
+    // MARK: what follows the fingers
+    //
+    // Three things are moved a frame at a time off the display, not by an
+    // Animation: each sets off at the fingers' own speed or is caught again
+    // halfway, which an Animation can't be. The arithmetic stays with each;
+    // how hard its spring pulls is here with the rest. Under Reduce Motion
+    // each is simply in its place, asked where it would start.
+
+    /// The rows carried into place when a swipe between spaces is let go
+    /// (SwipeGlide): how quickly the spring pulls, a second, critically
+    /// damped. Most of the way in a tenth of a second, within a point of
+    /// its place in a fifth. At 20, a slide took 0.4 s, and at 26 a third
+    /// of a second: it felt slow, and the next stroke often had to wait
+    /// for it.
+    static let spacePull: Double = 34
+
+    /// The Liquid Glass pane going from tab to tab (LensMotion): how hard
+    /// it is pulled, and how much of its speed it loses. Three quarters of
+    /// what would stop it without overshooting, so it overshoots a touch
+    /// and settles at once. Less, and the wobble was the thing to watch
+    /// rather than the tab.
+    static let lens: (pull: Double, damping: Double) = (320, 27)
+
+    /// The floating video flung to a corner: critically damped, quick away
+    /// and into the corner without going past it, there within `within`.
+    static let fling: (pull: CGFloat, within: CGFloat) = (15, 0.6)
+
+    /// The same let back out from a side: underdamped (`damping` is the
+    /// ratio), a little past its place and back to it.
+    static let flingBack: (pull: CGFloat, damping: CGFloat, within: CGFloat) = (16, 0.5, 0.9)
+
+    // MARK: what the system moves
+
+    /// Whether a popover comes and goes on the system's own animation:
+    /// `popover.animates = Motion.popovers` wherever an NSPopover is made.
+    /// A popover is the system's to move, and under the Mac's Reduce Motion
+    /// the system changes it itself; only Reduce animations is Lun's to
+    /// apply. One made by SwiftUI's `.popover` (PopoverSide) can't be told
+    /// either way and keeps the system's: the one exception to `instant`,
+    /// with menus, alerts and standard windows.
+    static var popovers: Bool {
+        !instant
+    }
 }
 
 /// Lun's wordmark: three letters from one round-ended stroke, drawn for Lun
@@ -857,6 +1031,14 @@ extension View {
     func hovers(_ hovering: Binding<Bool>) -> some View {
         onHover { hovering.wrappedValue = $0 }
             .animation(Motion.quick, value: hovering.wrappedValue)
+    }
+
+    /// A symbol bumped once when `value` changes, "something just arrived
+    /// here", as the downloads door pulses (Motion.pulse). The bounce is
+    /// the system's; where nothing should move the value it watches never
+    /// changes, and the symbol holds still.
+    func bumps<Value: Equatable>(on value: Value) -> some View {
+        symbolEffect(.bounce, value: Motion.reduced ? nil : value)
     }
 }
 
