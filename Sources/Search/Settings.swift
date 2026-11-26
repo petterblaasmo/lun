@@ -1737,6 +1737,8 @@ struct Switch: View {
                 .overlay(alignment: on ? .trailing : .leading) {
                     Capsule()
                         .fill(Palette.ground)
+                        // Its own, not .lift: an elevation's hairline is a
+                        // pale rim round a knob this small in a dark window.
                         .shadow(color: .black.opacity(0.18), radius: 1.5, y: 1)
                         .frame(width: pressed && !Motion.reduced ? 18 : 14, height: 14)
                         .padding(2)

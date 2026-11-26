@@ -141,9 +141,11 @@ private struct TabOffersList: View {
             }
         }
         .padding(6)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+        .background(Palette.ground, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.float, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
         .padding(8)
+        // Its own, not an elevation: the window is the 8 points above
+        // larger than the list, less than .float's shadow needs.
         .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
     }
 }
