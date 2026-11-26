@@ -133,6 +133,9 @@ struct EdgeBar: View {
                 EdgeWatch { point, size in
                     state.pointer(at: point, in: size, pressed: NSEvent.pressedMouseButtons != 0)
                 }
+                // Over the whole window, and nothing of it there to press:
+                // what lies under it takes every click, as before.
+                .allowsHitTesting(false)
             }
             if wanted, state.shown {
                 card.transition(.bar(.top))

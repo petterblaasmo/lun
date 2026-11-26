@@ -65,6 +65,13 @@ try:
     picture("folded")
     f = s["frame"]
     t.ok("in the middle of the top", abs(f[0] + f[2] / 2 - mid) <= 1 and f[1] < 12, f)
+    # What watches the pointer for it lies over the whole window and takes
+    # nothing: the page and the band the window is dragged by are pressed
+    # as before.
+    under = sv.cmd({"do": "hit", "x": mid, "y": 300})
+    t.ok("the page under its watch still takes the press", "Tracker" not in under.get("view", "") and under.get("view"), under)
+    band = sv.cmd({"do": "hit", "x": mid, "y": 4})
+    t.ok("and the top band still moves the window", band.get("view") == "Strip" and band.get("movableHovered") is True, band)
 
     s = bar(x=f[0] - 80, y=2, wait=0.5)
     t.ok("the top edge beside its place brings nothing", not s["shown"], s)
