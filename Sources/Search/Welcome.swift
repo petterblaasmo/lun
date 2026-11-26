@@ -93,18 +93,12 @@ struct WelcomePanel: View {
 
     private var welcome: some View {
         VStack(spacing: 22) {
-            Plate(size: 72)
-            VStack(spacing: 10) {
-                Text("Search")
-                    .font(.system(size: 34, weight: .medium))
-                    .foregroundStyle(Palette.ink)
-                Text("A browser with nothing in the way. Four megabytes, the engine already in your Mac, and as little around the page as we could manage.")
-                    .font(.system(size: 14.5))
-                    .foregroundStyle(Palette.muted)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(3)
-                    .frame(maxWidth: 400)
-            }
+            Plate(size: 112)
+                .accessibilityElement()
+                .accessibilityLabel("Lun")
+            Text("A small, fast, quiet browser for the Mac.")
+                .font(.system(size: 14.5))
+                .foregroundStyle(Palette.muted)
             devices
                 .padding(.top, 10)
         }
@@ -344,7 +338,7 @@ struct WelcomePanel: View {
                     .font(.system(size: 13))
                     .foregroundStyle(Palette.muted)
             }
-            Big(page < pages - 1 ? "Continue" : "Start browsing", filled: true) {
+            Big(page == 0 ? "Get Started" : page < pages - 1 ? "Continue" : "Start browsing", filled: true) {
                 if page < pages - 1 { forward = true; page += 1 } else { finish() }
             }
             .keyboardShortcut(.defaultAction)
@@ -427,7 +421,7 @@ struct WelcomePanel: View {
         let size: CGFloat
         var body: some View {
             Logomark()
-                .fill(Palette.ink, style: FillStyle(eoFill: true))
+                .fill(Palette.ink)
                 .aspectRatio(Logomark.canvas.width / Logomark.canvas.height, contentMode: .fit)
                 .frame(height: size * 0.56)
         }
