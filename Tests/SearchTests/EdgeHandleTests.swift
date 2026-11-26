@@ -62,7 +62,7 @@ final class EdgeHandleTests: XCTestCase {
     func testAPullSaysHowFarAndKeepsTheArrows() throws {
         let (edge, told, window) = makeEdge()
         var pointer: CGFloat = 500
-        edge.pointer = { pointer }
+        edge.pointer = { _ in pointer }
 
         edge.mouseDown(with: try event(.leftMouseDown, in: window))
         // Under a point: a shaky click, not a pull.
@@ -99,7 +99,7 @@ final class EdgeHandleTests: XCTestCase {
     func testHeldTheEdgeStaysLitThoughThePointerLeavesIt() throws {
         let (edge, told, window) = makeEdge()
         var pointer: CGFloat = 500
-        edge.pointer = { pointer }
+        edge.pointer = { _ in pointer }
 
         edge.mouseEntered(with: try entered(edge, .mouseEntered))
         edge.mouseExited(with: try entered(edge, .mouseExited))
@@ -120,7 +120,7 @@ final class EdgeHandleTests: XCTestCase {
 
     func testADoubleClickIsNotAPull() throws {
         let (edge, told, window) = makeEdge()
-        edge.pointer = { 500 }
+        edge.pointer = { _ in 500 }
         edge.mouseDown(with: try event(.leftMouseDown, in: window))
         edge.mouseUp(with: try event(.leftMouseUp, in: window))
         XCTAssertEqual(told.twice, 0, "one click does nothing")

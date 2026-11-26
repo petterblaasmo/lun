@@ -43,8 +43,13 @@ struct EdgeHandle: NSViewRepresentable {
 
     final class Edge: NSView {
         var handle: EdgeHandle?
-        /// Where the pointer is across the screen; a test's own stands in.
-        var pointer: () -> CGFloat = { NSEvent.mouseLocation.x }
+        /// Where the pointer is across the screen, by the event's own
+        /// place in its window (not where the mouse is by the time it is
+        /// read, which a synthesised event never moves); a test's own
+        /// stands in.
+        var pointer: (NSEvent) -> CGFloat = { event in
+            event.window.map { $0.convertPoint(toScreen: event.locationInWindow).x } ?? NSEvent.mouseLocation.x
+        }
         /// The arrows, shown; counted by a test.
         var arrows: () -> Void = { NSCursor.resizeLeftRight.set() }
 
@@ -90,13 +95,13 @@ struct EdgeHandle: NSViewRepresentable {
         }
 
         override func mouseDown(with event: NSEvent) {
-            pressed = pointer()
+            pressed = pointer(event)
             pulling = false
         }
 
         override func mouseDragged(with event: NSEvent) {
             guard let pressed else { return }
-            let across = pointer() - pressed
+            let across = pointer(event) - pressed
             if !pulling {
                 guard abs(across) >= Edge.slack else { return }
                 pulling = true
