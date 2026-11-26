@@ -455,7 +455,7 @@ enum SettingsIndex {
               keys: ["links.little.tabs"], words: ["switch to tab", "already open", "duplicate", "existing tab"]),
         .init(id: "reader.twins", group: "pages", icon: "doc.text",
               title: "Read the site's own Markdown", detail: "When a page has a Markdown copy, reading mode shows that",
-              more: "⇧⌘R shows a page's article alone, in clean type. Most docs sites publish a Markdown copy; nothing in it can run, its text is escaped.",
+              more: "⌥⌘R shows a page's article alone, in clean type. Most docs sites publish a Markdown copy; nothing in it can run, its text is escaped.",
               keys: ["reader.twins"], words: ["markdown", "reader"]),
         .init(id: "reader.follows", group: "pages", icon: "circle.righthalf.filled",
               title: "Reading mode follows light and dark", detail: "In a dark window the article is light on dark",

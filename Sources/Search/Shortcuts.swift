@@ -244,8 +244,11 @@ struct Command: Identifiable {
         Command("view.foldGroups", "Fold All Groups", .view, KeyCombo("[", option: true)) { $0.foldAllGroups(true) },
         Command("view.unfoldGroups", "Unfold All Groups", .view, KeyCombo("]", option: true)) { $0.foldAllGroups(false) },
         Command("view.reload", "Reload Page", .view, KeyCombo("r")) { $0.reload() },
-        Command("view.reloadOrigin", "Reload Page From Origin", .view, KeyCombo("r", option: true)) { $0.reload(fromOrigin: true) },
-        Command("view.reader", "Reading Mode", .view, KeyCombo("r", shift: true)) { $0.toggleReader() },
+        // ⇧⌘R is the hard refresh, as in Chrome, Arc and Firefox: it was
+        // Reading Mode, Safari's key for it, and a page reloaded from the
+        // network was on ⌥⌘R, which nobody's hand knows. The two swapped.
+        Command("view.reloadOrigin", "Reload Page From Origin", .view, KeyCombo("r", shift: true)) { $0.reload(fromOrigin: true) },
+        Command("view.reader", "Reading Mode", .view, KeyCombo("r", option: true)) { $0.toggleReader() },
         Command("view.float", "Float Video", .view, KeyCombo("p", shift: true)) { $0.toggleFloat() },
         Command("view.sitePanel", "Show Side Panel", .view, nil) { $0.toggleSitePanel() },
         Command("view.dusk", "Darken This Site", .view, KeyCombo("d", shift: true)) { $0.toggleDusk() },
