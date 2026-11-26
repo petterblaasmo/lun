@@ -876,6 +876,12 @@ final class Tab: ObservableObject, Identifiable {
     /// what you were just reading is what you are most likely to want back.
     /// Written into the session, so a tab's time away counts across quits.
     private(set) var touched = Date()
+    /// The document a look for sleep last found something typed in and not
+    /// sent (Browser.sleep). A page is only asked as it is about to be let
+    /// go, so this is what the tab's menu has to say why it stayed awake.
+    var typedIn: UInt64?
+    /// Whether that look was at the page the tab still shows.
+    var holdsTyped: Bool { built != nil && typedIn == documentGeneration }
     /// When it was last let go of: unpinned, taken out of its group, its
     /// name taken away. Kept apart from `touched`, which says when you last
     /// looked, for ⌃Tab and for where ⌘W on a pin lands; letting go of a

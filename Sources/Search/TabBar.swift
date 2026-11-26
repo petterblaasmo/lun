@@ -2150,6 +2150,12 @@ struct TabMenu: View {
             }
         }
         .disabled(browser.awake(because: tab) != nil)
+        // Why it can't be, and why it hasn't on its own: a line to read,
+        // not to choose (Browser.awakeLine).
+        if let line = browser.awakeLine(for: tab) {
+            Button(line) {}
+                .disabled(true)
+        }
         Divider()
         Button("Close Tab", action: close)
         Button("Close Other Tabs") { browser.closeOthers(but: tab) }

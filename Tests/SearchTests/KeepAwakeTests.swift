@@ -95,6 +95,48 @@ final class KeepAwakeTests: XCTestCase {
         XCTAssertNotNil(page.built)
     }
 
+    /// The tab's menu says why a tab is awake, and only when there is
+    /// something to say: not for the tab on screen, one with no page, or
+    /// one free to sleep.
+    func testTheMenuSaysWhyATabStaysAwake() {
+        let page = tab("https://example.com")
+        browser.prepare(page)
+        browser.insert(page, at: browser.tabs.count)
+        XCTAssertNil(browser.awakeLine(for: page), "no page yet: nothing is awake")
+        _ = page.web
+        XCTAssertNotEqual(browser.activeID, page.id)
+        XCTAssertNil(browser.awake(because: page))
+        XCTAssertNil(browser.awakeLine(for: page), "free to sleep")
+
+        page.noisy = true
+        XCTAssertEqual(browser.awakeLine(for: page), "Awake: playing sound")
+        page.noisy = false
+
+        browser.prefs.keepsSitesAwake = true
+        browser.keepAwake(true, for: page)
+        XCTAssertEqual(browser.awakeLine(for: page), "Awake: kept awake for this site")
+        browser.keepAwake(false, for: page)
+
+        page.pin = "P"
+        XCTAssertEqual(browser.awakeLine(for: page), "Awake: pinned")
+        page.pin = nil
+
+        // Something typed, found by the last look for sleep (PageDraftTests
+        // has the look itself): said while that page is still the tab's.
+        page.typedIn = page.documentGeneration
+        XCTAssertEqual(browser.awakeLine(for: page), "Awake: holding something typed")
+        page.typedIn = page.documentGeneration &+ 1
+        XCTAssertNil(browser.awakeLine(for: page), "another page since")
+        page.typedIn = nil
+
+        // On screen: Put to Sleep is off for a reason anyone can see.
+        page.noisy = true
+        XCTAssertEqual(browser.awakeLine(for: page), "Awake: playing sound")
+        browser.select(page)
+        XCTAssertEqual(browser.awake(because: page), "on screen")
+        XCTAssertNil(browser.awakeLine(for: page))
+    }
+
     func testExceptionPreventsSleepAndAutomaticClosureButNotManualClose() async throws {
         browser.prefs.keepsSitesAwake = true
         browser.prefs.tabLife = .halfDay
