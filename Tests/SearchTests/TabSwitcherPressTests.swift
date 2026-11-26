@@ -131,9 +131,9 @@ final class TabSwitcherPressTests: XCTestCase {
             window.close()
             browser.closeAll()
         }
-        func wait(_ what: String, until done: () -> Bool) async throws {
+        func wait(_ what: @autoclosure () -> String, until done: () -> Bool) async throws {
             for _ in 0..<150 where !done() { try await Task.sleep(for: .milliseconds(20)) }
-            XCTAssertTrue(done(), what)
+            XCTAssertTrue(done(), what())
         }
         // The monitor is in once the window's keys are watched.
         try await wait("the window watches its keys") { ContentView.keyHooks[ObjectIdentifier(browser)] != nil }
@@ -143,7 +143,12 @@ final class TabSwitcherPressTests: XCTestCase {
         browser.switchTabs(backwards: false)
         browser.switchTabs(backwards: false)
         XCTAssertTrue(switcher.visible)
-        try await wait("every card says where it is") { switcher.cardFrames.count == 3 && switcher.panelFrame != .zero }
+        // However many cards there are: a run before this one may have
+        // left pins that every window shows.
+        XCTAssertGreaterThanOrEqual(switcher.candidates.count, 3)
+        try await wait("every card says where it is: \(switcher.cardFrames.count) of \(switcher.candidates.count), panel \(switcher.panelFrame)") {
+            Set(switcher.cardFrames.keys).isSuperset(of: switcher.candidates) && switcher.panelFrame != .zero
+        }
         let target = try XCTUnwrap(switcher.candidates.first { $0 != start && $0 != switcher.selectedID })
         let frame = try XCTUnwrap(switcher.cardFrames[target])
         let height = try XCTUnwrap(window.contentView).bounds.height
