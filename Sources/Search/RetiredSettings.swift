@@ -35,6 +35,11 @@ enum RetiredSettings {
         "bookmarks.side", "arc.import", "launcher.key",
         // From before.
         "address.width", "glyph", "news.updates", "news.iphone",
+        // A link from another app opens in a tab, as in every other browser:
+        // the small window it opened in instead, on by default for a new
+        // install, was a second place for a page to be. The window itself
+        // is still there for whoever asks for it from a tab's menu.
+        "links.little",
         // Always on (see `fixed`).
         "downloads.open", "sidebar.slides", "fold.loadingLine", "sidebar.narrowIcons", "sidebar.player",
         "tabs.pinCounts", "tabs.give", "motion.light", "tabs.frontBeside", "tabs.swipeBackCloses",
@@ -86,6 +91,8 @@ enum RetiredSettings {
         // attempt over HTTPS ran out (info.cern.ch stayed blank through a
         // reload). WebKit still upgrades the hosts it knows have HTTPS.
         "privacy.httpsFirst",
+        // Links from other apps in a small window: off (see `rows`).
+        "links.little",
     ]
 
     /// What's New's switches for the same things, by the title its card

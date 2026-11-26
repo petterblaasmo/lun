@@ -75,6 +75,13 @@ final class RetiredSettingsTests: XCTestCase {
         RetiredSettings.settle(store)
         XCTAssertNil(store.object(forKey: Motion.slidesKey))
 
+        // A link from another app opens in a tab: the small window's switch
+        // is gone, and a stored "on" (a new install's default) is cleared.
+        XCTAssertNil(SettingsIndex.item("links.little"))
+        store.set(true, forKey: Preferences.littleKey)
+        RetiredSettings.settle(store)
+        XCTAssertNil(store.object(forKey: Preferences.littleKey))
+
         // Again: already as fixed, nothing more is put aside.
         RetiredSettings.settle(store)
         XCTAssertEqual(store.string(forKey: RetiredSettings.aside("downloads.open")), "tab")
