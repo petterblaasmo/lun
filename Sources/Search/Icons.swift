@@ -290,6 +290,25 @@ final class Favicons {
         return icon
     }
 
+    /// The icon a tab wears: the one kept for this look (cached), or
+    /// failing that the page's own from the other look, until this look's
+    /// comes, rather than its letter. A tab on a page seen only in the dark
+    /// kept its icon through the switch to light (relook) and then lost it
+    /// as soon as another page of its site got its light one, which sets
+    /// the icon again on every tab of the site (Tab.adoptIcon).
+    ///
+    /// Only tabs: History, bookmarks and the other lists read `cached`. A
+    /// drawing made for the dark is often pale, and on a light row it would
+    /// stay until the page is next seen in the light; a tab asks for this
+    /// look's at once.
+    func worn(for url: URL?, shy: Bool = false) -> NSImage? {
+        if let icon = cached(for: url, shy: shy) { return icon }
+        guard let url, let site = Favicons.site(url) else { return nil }
+        let page = Favicons.page(url)
+        let own = (shy ? shyPages[site]?[page] : nil) ?? pages[site]?[page]
+        return own.flatMap { image($0, dark: !Favicons.dark) }
+    }
+
     /// A site's icon, when there is no page to go by: the one its most
     /// recently seen page wore.
     func cached(_ site: String) -> NSImage? { lookup(site.lowercased(), page: nil, shy: false) }
@@ -382,9 +401,7 @@ final class Favicons {
             guard let url = tab.address else { continue }
             // One not kept for this look yet: the page's own in the other
             // stays on until it comes. Another page's would be a guess.
-            let page = Favicons.page(url)
-            let own = Favicons.site(url).flatMap { (tab.shy ? shyPages[$0]?[page] : nil) ?? pages[$0]?[page] }
-            tab.icon = cached(for: url, shy: tab.shy) ?? own.flatMap { image($0, dark: !Favicons.dark) }
+            tab.icon = worn(for: url, shy: tab.shy)
             // A page still on its way is asked when it finishes loading:
             // asked now, it answers from the document before it, or from
             // nothing yet, and is set down as having no icon.

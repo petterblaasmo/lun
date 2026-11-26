@@ -79,6 +79,38 @@ final class FloatUnseenTests: XCTestCase {
         }
     }
 
+    /// Lun made the app in front while its window is on another desktop
+    /// than the one in view, as happens on a desktop where the little
+    /// window is all there is of it: the video stays out. It went home, and
+    /// macOS went after it to the window's desktop. It goes home once that
+    /// desktop is the one in view and Lun is in front.
+    func testVideoStaysOutWhileItsWindowIsOnAnotherDesktop() async throws {
+        try await withPlayer(style: .search, audible: true) { browser, owner, tab, floating in
+            let desk = try XCTUnwrap(owner as? Desk)
+            owner.orderOut(nil)
+            browser.appLeft()
+            try await waitFor { floating() }
+            XCTAssertTrue(floating(), "leaving the app floats the video")
+
+            desk.elsewhere = true
+            browser.appBack()
+            XCTAssertTrue(floating(), "made active on another desktop, the video stays out")
+            // On to another app there, and then to the window's own desktop.
+            browser.appLeft()
+            desk.elsewhere = false
+            browser.desktopChanged(active: false)
+            XCTAssertTrue(floating(), "its desktop in view with another app in front: still out")
+            browser.desktopChanged(active: true)
+            XCTAssertFalse(floating(), "back on its window's desktop with Lun in front, it goes home")
+        }
+    }
+
+    /// A window that can be said to be on another desktop.
+    private final class Desk: NSWindow {
+        var elsewhere = false
+        override var isOnActiveSpace: Bool { !elsewhere }
+    }
+
     /// A browser whose window shows a page with a video playing, a canvas's
     /// stream, floated as `style` floats one, for `body`; `floating` says
     /// whether it is out. Muted unless `audible`, when the stream carries a
@@ -109,7 +141,7 @@ final class FloatUnseenTests: XCTestCase {
         }
         browser.prefs.floatStyle = style
         browser.prefs.floatsAway = true
-        let owner = NSWindow(contentRect: NSRect(x: -30000, y: -30000, width: 640, height: 360),
+        let owner = Desk(contentRect: NSRect(x: -30000, y: -30000, width: 640, height: 360),
                              styleMask: [.borderless], backing: .buffered, defer: false)
         owner.isReleasedWhenClosed = false
         browser.window = owner

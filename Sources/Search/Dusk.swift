@@ -291,6 +291,13 @@ final class Dusk: ObservableObject {
         // stays as it is until they are ready.
         if (shown && !paint && config.filter === false) shown = false;
         filtering = shown && !painted && config.filter !== false;
+        // The classes a page sets are watched only while the filter shows
+        // (see classes): a page in its own colours has no such observer.
+        if (filtering !== classWatch) {
+          classWatch = filtering;
+          if (filtering) classes.observe(root, { attributes: true, attributeOldValue: true, subtree: true, attributeFilter: ['class'] });
+          else classes.disconnect();
+        }
         // The filter's sheet only while it shows: a page it doesn't darken
         // has none of ours in it.
         if (filtering) attach();
@@ -520,11 +527,27 @@ final class Dusk: ObservableObject {
           // colours: another picture within it, say.
           return filtering ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
         }
-        if (filtering && light(style.backgroundColor) === false) {
+        if (filtering && darkPart(el, style)) {
           pending.push([el, 'dark']);
           return NodeFilter.FILTER_REJECT;
         }
         return NodeFilter.FILTER_SKIP;
+      };
+      // A dark part under the filter: by its own ground, or by one a
+      // ::before or ::after lays under at least half of it, as a header's
+      // is that is drawn that way. Only a part big enough to be one is
+      // asked: a small dark ::before is a bullet or an icon, and turns
+      // with the writing.
+      var darkPart = function (el, style) {
+        if (light(style.backgroundColor) === false) return true;
+        var area = el.offsetWidth * el.offsetHeight;
+        if (area < big) return false;
+        for (var i = 0; i < 2; i++) {
+          var its = getComputedStyle(el, i ? '::after' : '::before');
+          if (its.content === 'none' || its.content === 'normal' || light(its.backgroundColor) !== false) continue;
+          if (parseFloat(its.width) * parseFloat(its.height) >= area * 0.5) return true;
+        }
+        return false;
       };
       var scan = function (top) {
         if (!top || top.nodeType !== 1 || filtering && top.closest('[' + KEEP + ']')) return;
@@ -594,6 +617,54 @@ final class Dusk: ObservableObject {
         setTimeout(check, 10000);
       };
       watchKept();
+      // Under the filter, a class the page sets later can make a part dark,
+      // or light again, as a header does once it sticks to the top of the
+      // page: it turned pale there, or stayed turned back, light on a dark
+      // page. The element whose class changed is looked at again before
+      // the frame is drawn, for as long as the filter shows; it alone, not
+      // what is under it, so a page that sets a class on its body at every
+      // scroll has one element read, not the page. A mark it no longer
+      // earns goes, and only then is what it held looked at, never having
+      // been. No more than CAP in a frame: the rest wait for the next.
+      var reclassed = new Set(), reclassing = false, classWatch = false, CAP = 200;
+      var reclass = function () {
+        if (reclassing) return;
+        reclassing = true;
+        var frame = 0, timer = 0;
+        var go = function () {
+          cancelAnimationFrame(frame);
+          clearTimeout(timer);
+          if (!reclassing) return;
+          reclassing = false;
+          if (!shown || !filtering || !scanned) return reclassed.clear();
+          var t = performance.now(), n = 0;
+          reclassed.forEach(function (el) {
+            if (n >= CAP) return;
+            n++;
+            reclassed.delete(el);
+            if (!el.isConnected) return;
+            if (el.getAttribute(KEEP) === 'dark') {
+              if (darkPart(el, getComputedStyle(el))) return;
+              el.removeAttribute(KEEP);
+              return scan(el);
+            }
+            if (!el.closest('[' + KEEP + ']')) look(el);
+          });
+          settle();
+          spent += performance.now() - t;
+          if (reclassed.size) reclass();
+        };
+        frame = requestAnimationFrame(go);
+        timer = setTimeout(go, 100);
+      };
+      var classes = new MutationObserver(function (records) {
+        if (!shown || !filtering || !scanned) return;
+        records.forEach(function (r) {
+          // Set to what it already was, as classList.add of one it has.
+          if (r.oldValue !== r.target.getAttribute('class')) reclassed.add(r.target);
+        });
+        if (reclassed.size) reclass();
+      });
       // A picture that comes in late has no size until it loads, and its
       // frame is only found then.
       doc.addEventListener('load', function (e) {

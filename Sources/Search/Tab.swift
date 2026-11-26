@@ -575,7 +575,10 @@ final class Tab: ObservableObject, Identifiable {
         // Set only when it is another picture: each setting draws this tab's
         // row again, and an icon arriving for a site sets it on every tab of
         // that site in every window.
-        let new = page.map(\.glyph) ?? Favicons.shared.cached(for: address, shy: shy)
+        //
+        // `worn`, not `cached`: with nothing kept for this look, the page's
+        // own icon from the other look stays on rather than its letter.
+        let new = page.map(\.glyph) ?? Favicons.shared.worn(for: address, shy: shy)
         if icon !== new { icon = new }
     }
 
@@ -3806,19 +3809,41 @@ extension WKWebView {
     /// Mac's browser, opened a tab that stayed empty.
     func open(_ url: URL) {
         if url.isFileURL {
-            // Its folder, for the pictures and styles beside it — unless the
-            // folder is the home folder, the disk or a volume, where the
-            // file alone is what was opened.
-            let folder = url.deletingLastPathComponent().standardizedFileURL
             let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL
-            let tooWide = folder == home || ["/", "/Users", "/Volumes"].contains(folder.path)
-                || folder.deletingLastPathComponent().path == "/Volumes"
-                || WKWebView.sameItem(folder, home) || WKWebView.sameItem(folder, URL(fileURLWithPath: "/Users"))
-                || WKWebView.isVolume(folder)
-            loadFileURL(url, allowingReadAccessTo: tooWide ? url : WKWebView.readRoot(folder, home: home))
+            loadFileURL(url, allowingReadAccessTo: WKWebView.readAccess(for: url, home: home))
         } else {
             load(URLRequest(url: url))
         }
+    }
+
+    /// What a file opened from disk may read: its folder, for the pictures
+    /// and styles beside it, and up to two above (readRoot) — unless the
+    /// folder is the home folder, the disk or a volume, where the file
+    /// alone is what was opened.
+    ///
+    /// Which folder is decided by its standard path, and it is handed over
+    /// as the file's own address spells it. Standardizing drops the
+    /// /private of /private/tmp, /private/etc and /private/var, and WebKit
+    /// holds the file's path against the folder's as each is written: it
+    /// found file:///private/tmp/site/page.html outside /tmp/site and loaded
+    /// nothing, with no failure told, the tab loading for ever.
+    static func readAccess(for url: URL, home: URL) -> URL {
+        let folder = url.deletingLastPathComponent().standardizedFileURL
+        let tooWide = folder == home || ["/", "/Users", "/Volumes"].contains(folder.path)
+            || folder.deletingLastPathComponent().path == "/Volumes"
+            || sameItem(folder, home) || sameItem(folder, URL(fileURLWithPath: "/Users"))
+            || isVolume(folder)
+        guard !tooWide else { return url }
+        let root = readRoot(folder, home: home)
+        // As many folders above the file as the root is, in the address's
+        // own spelling, its dots taken out as WebKit takes them out.
+        var spelled = url.standardized.deletingLastPathComponent()
+        for _ in 0..<max(0, folder.pathComponents.count - root.pathComponents.count) {
+            spelled = spelled.deletingLastPathComponent()
+        }
+        // The folder decided on, or else that one as it stood: never a
+        // wider one.
+        return spelled.standardizedFileURL.path == root.path ? spelled : root
     }
 
     /// A static site's pages in a folder of their own reach for their

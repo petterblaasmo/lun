@@ -224,7 +224,32 @@ final class Browser: NSObject, ObservableObject {
         show(InternalPage(.extensions))
     }
     /// The first-launch walk-through, over everything. Also from the menu.
-    @Published var welcoming = false
+    /// It has the keyboard to itself (see `sole`): coming up, it puts away
+    /// what was up, and while it is up nothing else of that kind comes over
+    /// it. It is left by its own button, as Escape leaves it to be.
+    @Published var welcoming = false {
+        didSet { if welcoming, !oldValue { sole(.welcome) } }
+    }
+
+    /// What comes up over the page when asked for and holds the keyboard
+    /// while it is up: Welcome, the list of what is hidden on a site, the
+    /// bookmarks' list off its button, and ⌘K's field.
+    enum Overlay { case welcome, hiddenList, bookmarks, switcher }
+
+    /// `overlay` is coming up: whichever of the others is up goes, as its
+    /// own key would put it away. Each was a flag of its own, so two could
+    /// be up together — the hidden list drawn over Welcome, ⌘K's field left
+    /// under the bookmarks' list — one holding the keyboard under the
+    /// other, and ⌃Tab's switcher refused until both had been put away.
+    /// False while Welcome is up, which nothing comes over.
+    @discardableResult
+    private func sole(_ overlay: Overlay) -> Bool {
+        if overlay != .welcome, welcoming { return false }
+        if overlay != .hiddenList, reviewing { reviewing = false }
+        if overlay != .bookmarks, bookmarksOpen { bookmarksOpen = false }
+        if overlay != .switcher, summoning { putAway() }
+        return true
+    }
     /// What's new, once after an update (see WhatsNew.swift).
     @Published var newsShowing = false
     /// Help › Search for iPhone… (see IPhoneAsk.swift).
@@ -239,8 +264,10 @@ final class Browser: NSObject, ObservableObject {
         get { pageTab(.bookmarks) != nil }
         set { if newValue { show(InternalPage(.bookmarks)) } else { putAway(.bookmarks) } }
     }
-    /// The dropdown off the button.
-    @Published var bookmarksOpen = false
+    /// The dropdown off the button. One overlay at a time (see `sole`).
+    @Published var bookmarksOpen = false {
+        didSet { if bookmarksOpen, !oldValue, !sole(.bookmarks) { bookmarksOpen = false } }
+    }
     /// What hangs off the button instead of the list: the card for one
     /// bookmark, its name and folder, as ⇧⌘B opens it.
     @Published var bookmarkCard: Bookmark.ID?
@@ -412,6 +439,12 @@ final class Browser: NSObject, ObservableObject {
             // the next ⌘T or ⌘K came up in the line instead of over the
             // page, and with the line turned off, nowhere at all (#1374).
             if !editing, inlineEdit { inlineEdit = false }
+            // ⌘K is that field: whatever puts the field away ends the
+            // switcher too. A link from another app, a bookmark, Paste and
+            // Go or a page opening a tab took the field and left this set
+            // behind it: ⌃Tab's switcher stayed refused with nothing on
+            // screen, and the next field raised still offered only open tabs.
+            if !editing, summoning { summoning = false }
             if !editing { editingPeek = false }
         }
     }
@@ -820,7 +853,11 @@ final class Browser: NSObject, ObservableObject {
     weak var snapTab: Tab?
     /// True while the list of what is hidden here is up.
     @Published var reviewing = false {
-        didSet { if !reviewing { stopPeeking() } }
+        didSet {
+            // One overlay at a time (see `sole`).
+            if reviewing, !oldValue, !sole(.hiddenList) { reviewing = false }
+            if !reviewing { stopPeeking() }
+        }
     }
 
     /// Where the list was dragged to in this window, kept while it is open;
@@ -7426,7 +7463,9 @@ final class Browser: NSObject, ObservableObject {
     }
 
     private func liftAway() {
-        liftedAway = !floater.showing && pictured == nil
+        // One still out from a leave it has not come back from yet (appBack,
+        // on another desktop) is still to go home.
+        liftedAway = liftedAway || (!floater.showing && pictured == nil)
         lift(active, quietly: true, otherwise: otherPane)
     }
 
@@ -7436,16 +7475,34 @@ final class Browser: NSObject, ObservableObject {
     }
 
     /// Back, and still on the tab it came from: into the tab again.
+    ///
+    /// Not while this window is on another desktop than the one in view.
+    /// The little window is on every desktop, and Lun can be made the app
+    /// in front on one where that is all there is of it. The video went
+    /// home then, to a window on a desktop nobody was looking at, and you
+    /// were taken back to that desktop after it. It stays out until its
+    /// window's desktop is the one in view (desktopChanged).
     func appBack() {
         stopAwayWatch()
+        guard window?.isOnActiveSpace ?? true else { return }
         defer { liftedAway = false }
         if liftedAway, let id = floating, id == activeID { land() }
         if liftedAway, let id = pictured, id == activeID { unpicture() }
     }
 
+    /// Another desktop has come into view. Back on this window's own, with
+    /// Lun in front, a video that left with the app goes home, as appBack
+    /// would have sent it had the window been in view then.
+    func desktopChanged(active: Bool = NSApp.isActive) {
+        guard liftedAway, active else { return }
+        appBack()
+    }
+
     /// ⌘⇧P, for lifting one out by hand.
     func toggleFloat() {
         guard spaceFloat.pending == nil else { return }
+        // Out or home by hand from here on: not one to send home on its own.
+        liftedAway = false
         if floater.showing {
             land()
             return
@@ -7923,6 +7980,7 @@ final class Browser: NSObject, ObservableObject {
 
     /// ⌘K. Only what is open, nothing else.
     func summon() {
+        guard sole(.switcher) else { return }
         let words = wordsToCarry ?? ""
         reviewing = false
         cancelTabEdit()
