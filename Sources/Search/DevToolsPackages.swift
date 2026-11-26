@@ -832,12 +832,10 @@ struct DevToolsPackageList: View {
         if installed.count > 1 {
             Rule()
             Line("View › Developer uses", "Its menu and keys") {
-                Picker("", selection: Binding(get: { packages.primary?.offer.id ?? "" }, set: { packages.primaryID = $0 })) {
+                PopUp("View › Developer uses", shows: packages.primary?.offer.name ?? "None",
+                        selection: Binding(get: { packages.primary?.offer.id ?? "" }, set: { packages.primaryID = $0 })) {
                     ForEach(installed.values.map(\.offer).sorted { $0.id < $1.id }) { Text($0.name).tag($0.id) }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
             }
         }
     }
