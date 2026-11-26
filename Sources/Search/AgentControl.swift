@@ -875,16 +875,17 @@ final class AgentControl: ObservableObject {
     }
 
     /// An allowed agent drawn in a window with nothing connected, for the
-    /// offscreen pictures (AgentCardTests); nil puts it away. Test runs only.
+    /// offscreen pictures (AgentCardTests); nil puts it away. `asking`: its
+    /// question still up, unanswered. Test runs only.
     func showForTest(_ client: String?, in browser: Browser? = nil, busy: Bool = true,
-                     auto: Bool = false, justAdmitted: Bool = false) {
+                     auto: Bool = false, justAdmitted: Bool = false, asking: Bool = false) {
         guard Store.testing else { return }
         guard let client, let browser else { session = nil; shownIn = nil; return }
         let session = AgentSession(fd: -1, program: "test")
         session.client = client
         session.browser = browser
         session.consent.hello()
-        session.consent.answer(allow: true, seesTabs: false)
+        if !asking { session.consent.answer(allow: true, seesTabs: false) }
         session.busy = busy
         session.auto = auto
         session.justAdmitted = justAdmitted
