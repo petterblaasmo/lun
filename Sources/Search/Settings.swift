@@ -237,12 +237,7 @@ struct SettingsPanel: View {
                 }
                 .font(.system(size: 13))
                 if !text.isEmpty {
-                    Button { text = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Palette.muted)
-                    }
-                    .buttonStyle(.plain)
+                    IconButton("xmark.circle.fill", label: "Clear", glyph: 11, weight: .regular, size: 16, wash: nil) { text = "" }
                 }
             }
             .padding(.horizontal, 10)
@@ -501,7 +496,9 @@ struct SettingsPanel: View {
         let byGroup = Dictionary(grouping: found, by: \.group)
         ForEach(SettingsIndex.groups.filter { byGroup[$0.id] != nil }) { group in
             VStack(alignment: .leading, spacing: 8) {
-                Button {
+                // Where the rows under it live: a link, ink and underlined
+                // under the pointer, where it read as a caption.
+                TextLink("\(group.page.title) › \(group.title)", symbol: "arrow.right") {
                     let first = byGroup[group.id]?.first
                     query = ""
                     page = group.page
@@ -512,17 +509,8 @@ struct SettingsPanel: View {
                         more.insert(group.id == SettingsIndex.developer ? group.id : group.page.rawValue)
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { withAnimation(Motion.quick) { lit = nil } }
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("\(group.page.title) › \(group.title)")
-                            .font(.system(size: 12))
-                        Image(systemName: "arrow.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
-                    }
-                    .foregroundStyle(Palette.muted)
-                    .padding(.leading, 16)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .padding(.leading, 16)
                 .help("Open \(group.page.title) at \(group.title)")
                 Card { rows(byGroup[group.id] ?? [], searched: true) }
             }
@@ -1152,34 +1140,47 @@ struct SettingsPanel: View {
         }
         // The one being changed is up in the editor, not here as well.
         ForEach(prefs.keywords.filter { $0.id != draft?.id }) { entry in
+            SavedKeyword(entry: entry, change: { draft = entry }) {
+                prefs.keywords.removeAll { $0.id == entry.id }
+            }
+        }
+    }
+
+    /// A saved shortcut: pressed, it opens in the editor to be changed,
+    /// rather than deleted and written again. A button, darker under the
+    /// pointer, where only a tooltip said it could be pressed; its cross has
+    /// a name and more than its own glyph to land on.
+    private struct SavedKeyword: View {
+        let entry: Keyword
+        let change: () -> Void
+        let remove: () -> Void
+        @State private var hovering = false
+
+        var body: some View {
             HStack(spacing: 8) {
-                // Clicked, a saved shortcut opens in the editor to be
-                // changed, rather than deleted and written again.
-                HStack(spacing: 8) {
-                    Text(entry.keyword)
-                        .frame(width: 50, alignment: .leading)
-                    Text("→").foregroundStyle(Palette.muted)
-                    Text(entry.template)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                Button(action: change) {
+                    HStack(spacing: 8) {
+                        Text(entry.keyword)
+                            .frame(width: 50, alignment: .leading)
+                        Text("→").foregroundStyle(Palette.muted)
+                        Text(entry.template)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
-                .onTapGesture { draft = entry }
+                .buttonStyle(Gives(to: 0.99))
                 .help("Click to change")
-                Button {
-                    prefs.keywords.removeAll { $0.id == entry.id }
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(Palette.muted)
-                }
-                .buttonStyle(.plain)
+                .accessibilityLabel("Change \(entry.keyword), \(entry.template)")
+                IconButton("xmark.circle.fill", label: "Remove \(entry.keyword)", glyph: 12.5, weight: .regular, size: 16, wash: nil, action: remove)
             }
             .font(.system(size: 12.5))
             .foregroundStyle(Palette.ink)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(hovering ? Palette.fillHover : Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .hovers($hovering)
             .padding(.leading, SettingsPanel.textInset)
             .padding(.trailing, 14)
             .padding(.bottom, 6)
@@ -1460,11 +1461,14 @@ struct SettingRow<Control: View>: View {
                                     // was to press.
                                     .padding(7)
                                     .contentShape(Rectangle())
-                                    .padding(-7)
                             }
                             .buttonStyle(Gives(to: 0.85))
                             .help(more ?? "")
                             .accessibilityLabel("More about \(title)")
+                            // Taken back around the button, not inside
+                            // it: inside, the press still stopped at the
+                            // glyph (PressTests).
+                            .padding(-7)
                         }
                     }
                     if !detail.isEmpty {
@@ -1492,7 +1496,7 @@ struct SettingRow<Control: View>: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(lit ? Palette.fillHover : .clear)
+        .turnsItsSwitch(title, lit: lit)
     }
 }
 
@@ -1593,20 +1597,56 @@ struct Ticks: View {
 /// the press (the knob stretches toward where it is going, as the Mac's own
 /// does), and dims where it can't be changed. Its hit area is larger than
 /// it looks: 32 by 18 was small to land on.
+///
+/// In a row that answers for it (turnsItsSwitch) a click anywhere on the row
+/// turns it, and it is called what the row is.
 struct Switch: View {
     @Binding var on: Bool
     @State private var hovering = false
+    @State private var id = UUID()
+    @Environment(\.rowSwitch) private var row
+    @Environment(\.rowTitle) private var title
+    @Environment(\.isEnabled) private var enabled
 
     var body: some View {
-        Button {
-            withAnimation(Motion.settle) { on.toggle() }
-        } label: {
+        // Left with the row each time this is drawn, so it is always this
+        // binding's turn the row has, and none while it can't be turned.
+        // Not state: nothing is drawn from it but the row's wash, and that
+        // reads it when the pointer comes.
+        row?.turn = enabled ? turn : nil
+        row?.owner = id
+        return Button(action: turn) {
             Color.clear.frame(width: 32, height: 18)
         }
         .buttonStyle(Track(on: on, hovering: hovering))
         .hovers($hovering)
         .accessibilityAddTraits(.isToggle)
         .accessibilityValue(on ? "On" : "Off")
+        .modifier(Named(title: title))
+        // The six points Drawn adds to land on, taken back around the
+        // button so nothing moves for them. Taken back inside it, the
+        // press still stopped at the capsule (PressTests).
+        .padding(-Self.grown)
+        .onDisappear {
+            if row?.owner == id { row?.turn = nil }
+        }
+    }
+
+    private func turn() {
+        withAnimation(Motion.settle) { on.toggle() }
+    }
+
+    /// How much more there is to land on, every side, than is drawn.
+    static var grown: CGFloat { 6 }
+
+    /// The row's name on the switch, where it is in a row that has one.
+    /// One named by its caller keeps that name: theirs is put on after.
+    private struct Named: ViewModifier {
+        let title: String?
+
+        func body(content: Content) -> some View {
+            if let title { content.accessibilityLabel(title) } else { content }
+        }
     }
 
     private struct Track: ButtonStyle {
@@ -1636,11 +1676,9 @@ struct Switch: View {
                         .padding(2)
                 }
                 .opacity(enabled ? 1 : 0.4)
-                // Six points more on every side to land on, with nothing
-                // moved to make the room.
-                .padding(6)
+                // Six points more on every side to land on.
+                .padding(Switch.grown)
                 .contentShape(Rectangle())
-                .padding(-6)
                 .animation(Motion.settle, value: on)
                 .animation(Motion.quick, value: pressed)
         }
@@ -1662,18 +1700,9 @@ struct Steps: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Step(icon: "minus", to: below) { value = $0 }
-            Button { value = home } label: {
-                Text(label(value))
-                    .font(.system(size: 12))
-                    .monospacedDigit()
-                    .foregroundStyle(Palette.ink)
-                    .frame(minWidth: 36)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Back to \(label(home))")
-            Step(icon: "plus", to: above) { value = $0 }
+            step("minus", "Less", to: below)
+            Home(title: label(value), help: "Back to \(label(home))") { value = home }
+            step("plus", "More", to: above)
         }
         .padding(.horizontal, 2)
         .frame(height: 24)
@@ -1681,24 +1710,37 @@ struct Steps: View {
         .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
     }
 
-    private struct Step: View {
-        let icon: String
-        let to: Double?
-        let act: (Double) -> Void
+    /// One stop down or up: dimmed at the end of the stops, and as tall to
+    /// press as the capsule it is in.
+    private func step(_ icon: String, _ label: String, to: Double?) -> some View {
+        IconButton(icon, label: label, glyph: 9, weight: .semibold, size: 20, round: true, tint: Palette.ink) {
+            if let to { value = to }
+        }
+        .disabled(to == nil)
+    }
+
+    /// The value, which is a button too: a wash under the pointer as the
+    /// steps beside it have, where nothing said it could be pressed.
+    private struct Home: View {
+        let title: String
+        let help: String
+        let act: () -> Void
         @State private var hovering = false
 
         var body: some View {
-            Button { if let to { act(to) } } label: {
-                Image(systemName: icon)
-                    .font(.system(size: 9, weight: .semibold))
+            Button(action: act) {
+                Text(title)
+                    .font(.system(size: 12))
+                    .monospacedDigit()
                     .foregroundStyle(Palette.ink)
-                    .frame(width: 20, height: 20)
-                    .background(hovering && to != nil ? Palette.fillHover : .clear, in: Circle())
-                    .contentShape(Circle())
+                    .frame(minWidth: 36)
+                    .frame(height: 20)
+                    .background(hovering ? Palette.fillHover : .clear, in: Capsule())
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(Gives(to: 0.85))
-            .disabled(to == nil)
+            .buttonStyle(Gives(to: 0.94))
             .hovers($hovering)
+            .help(help)
         }
     }
 }
@@ -1714,6 +1756,7 @@ struct Pill: View {
     let action: () -> Void
 
     @State private var hovering = false
+    @Environment(\.isEnabled) private var enabled
 
     init(_ title: String, filled: Bool = false, tint: Color = Palette.ink, large: Bool = false, action: @escaping () -> Void) {
         self.title = title
@@ -1724,6 +1767,9 @@ struct Pill: View {
     }
 
     var body: some View {
+        // One that can't be pressed doesn't light under the pointer
+        // either: dimmed and lit, it still looked ready.
+        let lit = hovering && enabled
         Button(action: action) {
             Text(title)
                 .font(.system(size: 13, weight: .medium))
@@ -1731,7 +1777,7 @@ struct Pill: View {
                 .lineLimit(1)
                 .padding(.horizontal, large ? (filled ? 18 : 14) : 12)
                 .frame(height: large ? 28 : 24)
-                .background(filled ? Palette.ink.opacity(hovering ? 0.86 : 1) : (hovering ? Palette.fillHover : Palette.fill), in: Capsule())
+                .background(filled ? Palette.ink.opacity(lit ? 0.86 : 1) : (lit ? Palette.fillHover : Palette.fill), in: Capsule())
                 .contentShape(Capsule())
         }
         // Gives under the press, and dims where it can't be pressed: one

@@ -891,12 +891,7 @@ struct WhatsNewCard: View {
             }
         } foot: {
             HStack {
-                Button(action: notes) {
-                    Text("Everything that's new…")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.muted)
-                }
-                .buttonStyle(.plain)
+                TextLink("Everything that's new…", action: notes)
                 Spacer()
                 Pill("Close", filled: true, action: close)
             }
@@ -926,6 +921,7 @@ struct WhatsNewCard: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
+                .turnsItsSwitch(toggle.title)
             }
         }
     }
