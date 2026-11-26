@@ -8,8 +8,9 @@
 #   1. ./build.sh release ship — the app signed with the Developer ID, the
 #      disk image and the ZIP notarised, and the feed (appcast.json) written
 #      and signed, naming this release's own files.
-#   2. gh release create v<version> --draft, with the four files: Lun.dmg for
-#      people, and Lun.zip, appcast.json and appcast.json.zip for the updater.
+#   2. gh release create v<version> --draft, with its files: Lun.dmg for
+#      people; Lun.zip, appcast.json and appcast.json.zip for the updater;
+#      and the developer tools packages the feed offers.
 #
 # A draft is seen by nobody and changes nothing: the updater reads the
 # newest *published* release (Updater.feed), so publishing the draft on
@@ -40,9 +41,11 @@ fi
 # The feed names this release's own files, which never move; the feed
 # itself is read from the newest release.
 export SEARCH_DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG"
+# The developer tools packages beside them: a release has no folders.
+export SEARCH_DEVTOOLS_URL="$SEARCH_DOWNLOAD_URL"
 ./build.sh release "$STEP"
 
-FILES=(build/Lun.dmg build/Lun.zip build/appcast.json build/appcast.json.zip)
+FILES=(build/Lun.dmg build/Lun.zip build/appcast.json build/appcast.json.zip build/devtools/*.zip)
 for FILE in "${FILES[@]}"; do
   [ -f "$FILE" ] || { echo "$FILE is missing" >&2; exit 1; }
 done

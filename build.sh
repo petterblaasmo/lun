@@ -533,7 +533,10 @@ write_devtools() {
     case "$BUILT_DEVTOOLS" in *" $PACKAGE "*) ;; *) build_devtools "$PACKAGE" ;; esac
     ENTRY="$OUT/devtools/$PACKAGE.entry.json.feed"
     cp "$OUT/devtools/$PACKAGE.entry.json" "$ENTRY"
-    plutil -insert url -string "$BASE/devtools/$(plutil -extract file raw -o - "$ENTRY")" "$ENTRY"
+    # In devtools/ beside the other files, or wherever SEARCH_DEVTOOLS_URL
+    # says: a release on GitHub has no folders, so release.sh puts them
+    # beside the rest.
+    plutil -insert url -string "${SEARCH_DEVTOOLS_URL:-$BASE/devtools}/$(plutil -extract file raw -o - "$ENTRY")" "$ENTRY"
     plutil -remove file "$ENTRY"
     plutil -convert json -r "$ENTRY"
     ENTRIES="$ENTRIES${ENTRIES:+,}
