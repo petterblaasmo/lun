@@ -135,12 +135,18 @@ def main():
              p["folders"] == ["Home", "Travel", "Work"] and p["bookmarks"] == ["Example Domain", "Weather, West Norway"], p)
         t.ok("…and said in words", p["summary"] == "3 folders, 2 bookmarks", p["summary"])
 
+        if pictures:
+            os.makedirs(pictures, exist_ok=True)
+            for look in ("light", "dark"):
+                sv.cmd({"do": "ui", "look": look}); time.sleep(0.9)
+                sv.cmd({"do": "picture", "path": f"{pictures}/bookmarks-top-{look}.png", "page": False})
+            sv.cmd({"do": "ui", "look": "light"}); time.sleep(0.9)
+
         p = page(pick="Norway")
         t.ok("a folder picked: the way to it, its folders and its bookmarks",
              p["path"] == ["Travel", "Norway"] and p["folders"] == ["Lofoten", "Ferries"] and p["bookmarks"] == NORWAY, p)
         t.ok("…and said in words", p["summary"] == "2 folders, 7 bookmarks", p["summary"])
         if pictures:
-            os.makedirs(pictures, exist_ok=True)
             for look in ("light", "dark"):
                 sv.cmd({"do": "ui", "look": look}); time.sleep(0.9)
                 sv.cmd({"do": "picture", "path": f"{pictures}/bookmarks-list-{look}.png", "page": False})
@@ -250,7 +256,8 @@ def main():
         sv.launch()
         show()
         p = page(pick="Imported")
-        t.ok(f"a folder of {BIG}: all of them counted", p["summary"] == f"{BIG} bookmarks", p["summary"])
+        # Grouped as the Mac's region groups a number: 2,000 or 2 000.
+        t.ok(f"a folder of {BIG}: all of them counted", "".join(c for c in p["summary"] if c.isdigit()) == str(BIG), p["summary"])
         t.ok("…and only the rows in sight built", 0 < p["lines"] < 200, p["lines"])
     finally:
         t.done(); sv.finish()
