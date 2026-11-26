@@ -685,14 +685,14 @@ struct ContentView: View {
                 .padding(.leading, sideOnRight ? 0 : roomed.width)
                 .padding(.trailing, sideOnRight ? roomed.width : 0)
                 .padding(.top, roomed.height)
-                // The page is laid out once, at its new size, as the column
-                // sets off (make(room:)), and carried so that it stays in the
-                // middle of the card across, at every frame: what is in the
-                // middle of a page stays in the middle of what is seen of it,
-                // as it would were the page resized all the way. It was kept
-                // at the column's edge instead, a page still at its old size,
-                // and laid out again once the column had come: what was on it
-                // went off to one side with the column, and then jumped back.
+                // The page is laid out once for each ⌘S (make(room:)), wider
+                // or narrower than the card while the column moves, and
+                // carried so that it stays in the middle of the card across,
+                // at every frame: what is in the middle of a page stays in
+                // the middle of what is seen of it, as it would were the page
+                // resized all the way. It was kept at the column's edge
+                // instead: what was on it went off to one side with the
+                // column, and jumped back when the page was laid out again.
                 // Down, its top stays at the card's top, as before.
                 //
                 // In two: where the card is now, which moves with the column,
@@ -963,10 +963,13 @@ struct ContentView: View {
         browser.prefs.sidebar && browser.prefs.sidePosition == .right
     }
 
-    /// The column going or coming gives the page its new width at once: it
-    /// is carried in the middle of the card while the column moves. A strip
-    /// arriving from above still slides over a page at its old height, which
-    /// gives up the room once the slide is over.
+    /// Chrome going away gives the page its room at once, before it moves.
+    /// Chrome arriving slides over a page still at its old size, which gives
+    /// up the room once the slide is over: laid out again while it slid,
+    /// WebKit drew the page late and its bare ground showed (fold_flash.py).
+    /// Either way the page is carried in the middle of the card meanwhile
+    /// (see the stage's offsets), so what is in its middle stays there when
+    /// it is laid out again, where it used to jump back from one side.
     /// A column being dragged wider or narrower is followed as it goes.
     private func make(room new: CGSize, after old: CGSize) {
         let now = roomed
@@ -983,12 +986,13 @@ struct ContentView: View {
             withTransaction(still) { room = CGSize(width: max(Metrics.sideMin, new.width - 40), height: new.height) }
             return
         }
-        // Across, the page takes its new width at once, the column coming
-        // as well as going, and its far gap with it: it is carried in the
-        // card's middle while the column moves (see the stage's offsets), so
-        // nothing on it is left to jump when the column stops.
+        // The card's far gap coming back as the column does (see
+        // `edgeToEdge`): the page keeps the whole window until the slide is
+        // over, the card closing in over it.
         let far = farGap
-        if now == new {
+        let farComing = far > laidFar
+        // Given already, with the chrome itself (see `immersing`).
+        if now == new, !farComing {
             roomTicket += 1
             if farRoom != far {
                 var still = Transaction()
@@ -997,14 +1001,14 @@ struct ContentView: View {
             }
             return
         }
-        // Down, as it was: chrome arriving from above slides over a page
-        // still at its old height, which gives up the room once the slide
-        // is over. Out of nothing, or out of the card's gap (see chrome):
-        // never more than that unless something is there.
+        // Out of nothing, or out of the card's gap (see chrome): never more
+        // than that unless something is there. Edge to edge, the gap is
+        // what arrives.
         let floor = Metrics.cardGap
-        let arrivingDown = old.height <= floor && new.height > old.height
-        var at = new
-        if arrivingDown { at.height = now.height }
+        let arriving = (old.width <= floor && new.width > old.width, old.height <= floor && new.height > old.height)
+        var at = now
+        if !arriving.0 { at.width = new.width }
+        if !arriving.1 { at.height = new.height }
         roomTicket += 1
         var still = Transaction()
         still.disablesAnimations = true
@@ -1012,9 +1016,9 @@ struct ContentView: View {
         // with the chrome, not after a slide that isn't there.
         withTransaction(still) {
             room = Motion.reduced ? new : at
-            farRoom = far
+            farRoom = Motion.reduced || !farComing ? far : laidFar
         }
-        guard !Motion.reduced, arrivingDown else { return }
+        guard !Motion.reduced, arriving.0 || arriving.1 || farComing else { return }
         let ticket = roomTicket
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
             guard ticket == roomTicket else { return }
