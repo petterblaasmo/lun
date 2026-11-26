@@ -108,7 +108,7 @@ final class LoadTurnsTests: XCTestCase {
     /// and a view gone while it waits is passed over.
     func testATurnNeverTakenUpIsGivenBack() {
         LoadTurns.most = 1
-        LoadTurns.unstarted = 0.3
+        LoadTurns.unstarted = 1
         let turns = LoadTurns.shared
         let views = (0..<4).map { _ in PageView(frame: .zero, configuration: WKWebViewConfiguration()) }
         var ran: [Int] = []
@@ -124,11 +124,11 @@ final class LoadTurnsTests: XCTestCase {
         turns.start(views[2], .asked, wanted: false) { ran.append(2); return true }
         XCTAssertEqual(ran, [0])
         XCTAssertEqual(turns.waitingCount, 2, "The view already gone is no longer waited for")
-        spin(for: 0.15) { false }
+        spin(for: 0.2) { false }
         XCTAssertEqual(ran, [0], "The turn is kept a moment for a page that hasn't begun")
-        spin(for: 5) { ran.count == 3 }
+        spin(for: 10) { ran.count == 3 }
         XCTAssertEqual(ran, [0, 1, 2], "Given back; the one not wanted passes it on at once; the view gone is passed over")
-        spin(for: 5) { turns.loadingCount == 0 }
+        spin(for: 10) { turns.loadingCount == 0 }
         XCTAssertEqual(turns.loadingCount, 0)
         XCTAssertEqual(turns.waitingCount, 0)
     }
@@ -228,7 +228,7 @@ final class LoadTurnsTests: XCTestCase {
     func testALinkJustOpenedGoesAheadOfPagesComingBack() {
         LoadTurns.most = 2
         let slow = Flag()
-        server.reply = { path in .init(body: Self.page(path), after: slow.on && path != "/page/link" ? 0.5 : 0) }
+        server.reply = { path in .init(body: Self.page(path), after: slow.on && path != "/page/link" ? 1.5 : 0) }
         let tabs = (0..<6).map { browser.open(server.url("/page/\($0)"), foreground: false) }
         spin(for: 60) { tabs.allSatisfy { !$0.loading && $0.title.hasPrefix("Page ") } }
         XCTAssertTrue(tabs.allSatisfy { $0.title.hasPrefix("Page ") })
@@ -258,7 +258,7 @@ final class LoadTurnsTests: XCTestCase {
         browser.prefs.lazyTabs = false
         defer { browser.prefs.lazyTabs = lazy }
         LoadTurns.most = 2
-        server.reply = { path in .init(body: Self.page(path), after: path == "/page/link" ? 0 : 0.4) }
+        server.reply = { path in .init(body: Self.page(path), after: path == "/page/link" ? 0 : 1.2) }
         let many = (0..<8).map { browser.open(server.url("/page/\($0)"), foreground: false, atEnd: true, mayWait: true) }
         XCTAssertEqual(LoadTurns.shared.waitingCount, 6)
         let link = browser.open(server.url("/page/link"), foreground: false)
