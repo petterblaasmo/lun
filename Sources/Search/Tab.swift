@@ -922,7 +922,7 @@ final class Tab: ObservableObject, Identifiable {
     /// page being left, and the tab would come back there.
     var keepsake: Any? {
         guard let built else { return memory }
-        return built.isLoading ? nil : built.interactionState
+        return built.isLoading || unloaded ? nil : built.interactionState
     }
     /// The last picture of that page, compressed, for the moment it wakes.
     private var picture: Data?
@@ -1155,7 +1155,11 @@ final class Tab: ObservableObject, Identifiable {
                 }
             },
             web.observe(\.isLoading, options: [.new]) { [weak self] _, _ in
-                MainActor.assumeIsolated { self?.loading = self?.built?.isLoading ?? false }
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    // Or waiting its turn to (see sayLoading).
+                    self.loading = self.built?.isLoading == true || self.waitsTurn
+                }
             },
             web.observe(\.canGoBack, options: [.new]) { [weak self] _, _ in
                 MainActor.assumeIsolated { self?.steps() }
@@ -1641,7 +1645,10 @@ final class Tab: ObservableObject, Identifiable {
         return y - last
     }
 
-    func go(to url: URL) {
+    /// `batch`: one of many pages asked for together (a folder of bookmarks
+    /// opened), which a link opened on its own goes ahead of while they
+    /// wait their turn out of sight (LoadTurns).
+    func go(to url: URL, batch: Bool = false) {
         // You going somewhere: a certificate cancelled on the page before
         // may be asked for again (ClientCertificates.swift). Not the page
         // going somewhere by itself, which could ask on and on.
@@ -1695,9 +1702,12 @@ final class Tab: ObservableObject, Identifiable {
         let token = loadGeneration
         Shield.shared.whenReady { [weak self] in
             guard let self, self.loadGeneration == token else { return }
-            self.web.open(url)
-            // Back, from a page that came out of one of Search's own, goes there.
-            self.steps()
+            // Out of sight, in its turn (LoadTurns).
+            self.inTurn(batch ? .batch : .asked, token) { [weak self] view in
+                view.open(url)
+                // Back, from a page that came out of one of Search's own, goes there.
+                self?.steps()
+            }
         }
     }
 
@@ -1772,7 +1782,8 @@ final class Tab: ObservableObject, Identifiable {
     /// that can't come back, which is why the browser asks `unsaved` first.
     func sleep(picture: Data?) {
         guard let url = address, let built else { return }
-        memory = built.interactionState
+        // Woken from its address, when its first page never got its turn.
+        memory = unloaded ? nil : built.interactionState
         self.picture = picture
         pending = url
         stale = false
@@ -1786,7 +1797,7 @@ final class Tab: ObservableObject, Identifiable {
     func rehome(in space: UUID) {
         guard !shy, !bench, store !== Spaces.store(for: space) else { return }
         if let built {
-            memory = built.isLoading ? nil : built.interactionState
+            memory = built.isLoading || unloaded ? nil : built.interactionState
             pending = address ?? built.url
             picture = nil
             cover = nil
@@ -1945,7 +1956,10 @@ final class Tab: ObservableObject, Identifiable {
         return true
     }
 
-    private var loadGeneration: UInt64 = 0
+    private var loadGeneration: UInt64 = 0 {
+        // A load waiting its turn is no longer the one wanted (see awaiting).
+        didSet { if awaiting != nil { awaiting = nil; sayLoading() } }
+    }
 
     /// `web.load`, checked a moment later rather than trusted outright: a
     /// load handed to WebKit right after a process just died, or as the
@@ -1987,34 +2001,89 @@ final class Tab: ObservableObject, Identifiable {
             }
             return
         }
-        // A tab that slept has its own history to go back to — the page, its
-        // back list and its scroll position, in one. Anything else starts
-        // from the address. A file does too: its history comes back without
-        // the folder it may read, and showed nothing.
-        if let state, !url.isFileURL {
-            view.interactionState = state
-        } else {
-            view.open(url)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self, weak view] in
-            // A page that has said why it isn't there (recoverFromCrash gave
-            // up, or it never arrived) isn't asked for again behind that.
-            guard let self, let view, self.loadGeneration == token, self.built === view, self.failure == nil else { return }
-            guard self.built?.url?.absoluteString != "about:blank" else {
+        // Out of sight still (a wake with no stage), in its turn
+        // (LoadTurns): the check after it too, timed from the load itself.
+        inTurn(.batch, token) { [weak self] view in
+            // A tab that slept has its own history to go back to — the page, its
+            // back list and its scroll position, in one. Anything else starts
+            // from the address. A file does too: its history comes back without
+            // the folder it may read, and showed nothing.
+            if let state, !url.isFileURL {
+                view.interactionState = state
+            } else {
                 view.open(url)
-                return
             }
-            view.evaluateJavaScript("document.readyState") { [weak self, weak view] _, error in
-                MainActor.assumeIsolated {
-                    guard let self, let view, self.loadGeneration == token, self.built === view, self.failure == nil,
-                          let error = error as NSError? else { return }
-                    guard error.domain == WKErrorDomain,
-                          error.code == WKError.webContentProcessTerminated.rawValue
-                    else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self, weak view] in
+                // A page that has said why it isn't there (recoverFromCrash gave
+                // up, or it never arrived) isn't asked for again behind that.
+                guard let self, let view, self.loadGeneration == token, self.built === view, self.failure == nil else { return }
+                guard self.built?.url?.absoluteString != "about:blank" else {
                     view.open(url)
+                    return
+                }
+                view.evaluateJavaScript("document.readyState") { [weak self, weak view] _, error in
+                    MainActor.assumeIsolated {
+                        guard let self, let view, self.loadGeneration == token, self.built === view, self.failure == nil,
+                              let error = error as NSError? else { return }
+                        guard error.domain == WKErrorDomain,
+                              error.code == WKError.webContentProcessTerminated.rawValue
+                        else { return }
+                        view.open(url)
+                    }
                 }
             }
         }
+    }
+
+    /// Its first page still waiting its turn: the view holds nothing, and
+    /// its state is no history to keep or to wake from.
+    private var unloaded: Bool { waitsTurn && built?.url == nil }
+
+    /// The load asked for last (`loadGeneration`) while it waits its turn
+    /// out of sight (LoadTurns). Any load asked for after it ends the wait.
+    private var awaiting: UInt64?
+    private var waitsTurn: Bool { awaiting != nil && awaiting == loadGeneration }
+
+    /// The tab says it is loading from the moment its page is asked for, as
+    /// it did when every page began at once: its ring turns while it waits
+    /// its turn, an agent or an extension waiting for the page waits on, and
+    /// it isn't put to sleep as a page with nothing to load.
+    private func sayLoading() {
+        let now = built?.isLoading == true || waitsTurn
+        if loading != now { loading = now }
+    }
+
+    /// On screen in its window, or about to be: the tab in front, a page of
+    /// its split, a peek. Its page never waits a turn.
+    private var onScreen: Bool {
+        guard let browser = delegate as? Browser else { return false }
+        return browser.visibleTabIDs.contains(id) || browser.peekTab === self
+    }
+
+    /// `load` into this tab's view: now when the tab is on screen, in its
+    /// turn while it is out of sight (LoadTurns). Not at all once another
+    /// load has been asked for since `token`, or the view has gone.
+    private func inTurn(_ kind: LoadTurns.Kind, _ token: UInt64, _ load: @escaping (PageView) -> Void) {
+        let view = web
+        awaiting = token
+        LoadTurns.shared.start(view, kind, wanted: onScreen) { [weak self, weak view] in
+            guard let self else { return false }
+            if self.awaiting == token { self.awaiting = nil }
+            defer { self.sayLoading() }
+            guard let view, self.loadGeneration == token, self.built === view else { return false }
+            load(view)
+            return true
+        }
+        sayLoading()
+    }
+
+    /// The tab came to the front with its page still waiting its turn out
+    /// of sight (LoadTurns): the page now, as the view lands in the window.
+    /// True when one was waiting.
+    @discardableResult
+    func hurry() -> Bool {
+        guard waitsTurn, let built else { return false }
+        return LoadTurns.shared.hurry(built)
     }
 
     /// Coming back to a tab. A page whose process was taken away out of sight
@@ -2028,6 +2097,8 @@ final class Tab: ObservableObject, Identifiable {
             recoverFromCrash()
             return
         }
+        // Its page was waiting its turn out of sight: now.
+        if hurry() { return }
         guard isWeb, pending == nil, !loading, failure == nil else { return }
         // A view with no document behind an address: whatever emptied it, the
         // address is what to show, and reload alone would have nothing to do.
@@ -2141,7 +2212,7 @@ final class Tab: ObservableObject, Identifiable {
         // The failure stays up until that load arrives or fails again.
         if let failedAt, failure != nil, built != nil {
             loadGeneration &+= 1
-            web.open(failedAt)
+            inTurn(.batch, loadGeneration) { $0.open(failedAt) }
             return
         }
         // Try again on a page that kept crashing: its process is gone, so
@@ -2152,15 +2223,17 @@ final class Tab: ObservableObject, Identifiable {
             return
         }
         // A file is read again with the folder it may read (see open).
-        if let address, hollow || address.isFileURL {
-            loadGeneration &+= 1
-            web.open(address)
-        } else if fromOrigin {
-            loadGeneration &+= 1
-            web.reloadFromOrigin()
-        } else {
-            loadGeneration &+= 1
-            web.reload()
+        // On screen, now; out of sight, in its turn (LoadTurns).
+        let again = address.flatMap { hollow || $0.isFileURL ? $0 : nil }
+        loadGeneration &+= 1
+        inTurn(.batch, loadGeneration) { view in
+            if let again {
+                view.open(again)
+            } else if fromOrigin {
+                view.reloadFromOrigin()
+            } else {
+                view.reload()
+            }
         }
     }
     func stop() {
@@ -2330,6 +2403,8 @@ final class Tab: ObservableObject, Identifiable {
         // What the player paused went with the page: nothing to play again.
         stilled = false
         guard let web = built else { return }
+        // A turn it held out of sight goes to another page (LoadTurns).
+        LoadTurns.shared.forget(web)
         DevToolsPackages.unload(web)
         (delegate as? Browser)?.cancelDisplay(for: web)
         built = nil
@@ -3083,6 +3158,8 @@ final class PageView: WKWebView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         gateTrackingAreas()
+        // In sight now: a load waiting its turn starts (LoadTurns).
+        if window != nil { LoadTurns.shared.shown(self) }
         guard window != nil, onWindow != nil else { return }
         // Not in this very step: the stage puts the view in its window and
         // only then gives it its size, and a page asked to load before that

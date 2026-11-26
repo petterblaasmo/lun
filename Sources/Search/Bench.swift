@@ -314,6 +314,9 @@ final class Bench {
         let answer: ([String: Any]) -> Void = { reply in
             guard !answered else { return }
             answered = true
+            // A script reads session.json or windows.json the moment this
+            // answers: the row a command just saved is on disk first.
+            Disk.drainRows()
             given(reply)
         }
         let patience = (request["do"] as? String) == "wait" ? (request["seconds"] as? Double ?? 30) + 5 :

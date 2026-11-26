@@ -77,6 +77,9 @@ final class Browser: NSObject, ObservableObject {
                 DispatchQueue.main.async { held.forEach { $0.present() } }
             }
             guard oldValue != activeID else { return }
+            // In front now: its page, if it was waiting its turn out of
+            // sight, loads at once (LoadTurns).
+            if let activeID { tabs.first { $0.id == activeID }?.hurry() }
             cameFrom = (oldValue, ProcessInfo.processInfo.systemUptime)
             followPeek()
             // Going to another tab ends a page's run of links (see
@@ -3744,7 +3747,8 @@ final class Browser: NSObject, ObservableObject {
         redusk()
     }
 
-    func writeSession(now: Bool = false) {
+    /// `held`: on the calling thread, for the way out (see writeRow).
+    func writeSession(now: Bool = false, held: Bool = false) {
         guard !isPopup, !retired else { return }
         // The pins as they are here, for the other windows (see Pins.swift):
         // the space's own, and the ones every space shows (only from a row
@@ -3759,7 +3763,7 @@ final class Browser: NSObject, ObservableObject {
             for space in Array(parked.keys) { pinsChanged(in: space) }
         }
         writeRow(spaceID, session(tabs, active: activeID, groups: tabGroups, splits: splits,
-                                  aside: lifted(from: spaceID, besides: tabs)), now: now)
+                                  aside: lifted(from: spaceID, besides: tabs)), now: now, held: held)
         twinsSoon()
     }
 
@@ -4343,12 +4347,18 @@ final class Browser: NSObject, ObservableObject {
         usesFiles ? Session.read(space: space) : (record.rows[space.uuidString] ?? Session.Shape(tabs: [], active: 0))
     }
 
-    func writeRow(_ space: UUID, _ shape: Session.Shape, now: Bool) {
+    /// `now`: handed over at once, not a moment from now with whatever else
+    /// changes meanwhile (Browsers.saveSoon). Either way the row is encoded
+    /// and written off the main thread (see Disk), where a save at every tab
+    /// closed, moved or pinned used to hold the window until the file was
+    /// on disk. `held` is for the way out, when no queue may be left to
+    /// finish it: on the calling thread, on disk when this returns.
+    func writeRow(_ space: UUID, _ shape: Session.Shape, now: Bool, held: Bool = false) {
         if usesFiles {
-            Session.write(now: now, space: space, shape)
+            Session.write(now: held, space: space, shape)
         } else {
             record.rows[space.uuidString] = shape
-            if now { Browsers.save(now: true) } else { Browsers.saveSoon() }
+            if now || held { Browsers.save(now: held) } else { Browsers.saveSoon() }
         }
     }
 
@@ -4443,6 +4453,10 @@ final class Browser: NSObject, ObservableObject {
         var active = id == nil ? -1 : 0
         var indices: [Tab.ID: Int] = [:]
         let liftedIDs = Set(aside.map(\.id))
+        // Asked once, not for every tab: the pages on screen were worked
+        // out again, and the setting read again, three hundred times a save.
+        let visible = visibleTabIDs
+        let mirrors = prefs.mirrorsTabs
         for tab in tabs + aside {
             guard kept(tab), let url = tab.pending ?? tab.address ?? tab.page?.url else { continue }
             if tab.id == id { active = entries.count }
@@ -4453,7 +4467,7 @@ final class Browser: NSObject, ObservableObject {
                 pinID: tab.pin == nil ? nil : tab.pinID,
                 // A page on screen is being looked at now, not when it was
                 // arrived at: quitting on it is leaving it.
-                touched: visibleTabIDs.contains(tab.id) ? Date() : tab.touched,
+                touched: visible.contains(tab.id) ? Date() : tab.touched,
                 letGo: tab.pin == nil ? tab.letGo : nil,
                 listed: tab.pin != nil && tab.listed ? true : nil,
                 muted: tab.muted,
@@ -4462,7 +4476,7 @@ final class Browser: NSObject, ObservableObject {
                 keepsake: keeping ? tab.keepsake.map(Keepsake.init) : nil,
                 // Only with Same tabs in every window on: off, the file is
                 // what it always was.
-                twinID: prefs.mirrorsTabs && twinnable(tab) ? tab.twinID : nil,
+                twinID: mirrors && twinnable(tab) ? tab.twinID : nil,
                 lifted: liftedIDs.contains(tab.id) ? tab.id : nil
             ))
         }
@@ -4534,7 +4548,7 @@ final class Browser: NSObject, ObservableObject {
     /// stops waiting: this writes straight to disk, on the thread asking to
     /// quit, before there is a process left to finish the wait on its behalf.
     func flushSession() {
-        writeSession(now: true)
+        writeSession(now: true, held: true)
     }
 
     // MARK: - tabs
@@ -6845,7 +6859,8 @@ final class Browser: NSObject, ObservableObject {
         if mayWait, !foreground, prefs.lazyTabs, page == nil {
             tab.restore(url: url, title: "")
         } else {
-            tab.go(to: url)
+            // One of many (`mayWait`) lets a link opened on its own go first.
+            tab.go(to: url, batch: mayWait)
         }
         if foreground {
             leaving()

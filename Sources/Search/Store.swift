@@ -181,23 +181,49 @@ enum Store {
 /// same file a moment apart could land in either order, and the session
 /// written at quit could be overwritten by an older one still on its way —
 /// yesterday's tabs coming back instead of today's. Here every write joins
-/// one serial queue, and a write that a newer one of the same file has
+/// a serial queue, and a write that a newer one of the same file has
 /// overtaken is dropped, including when the newer one was written at once
 /// on the way out.
+///
+/// What holds, whichever thread asks and whichever queue writes
+/// (DiskTests):
+/// - the newest write asked for of a file is the one left on disk;
+/// - a write overtaken before its turn is never encoded;
+/// - the file is whole at every moment, the old one or the new: each write
+///   is made beside it and renamed into its place, so a crash halfway
+///   through leaves the old file as it was;
+/// - a read after `settle` finds the write this thread last asked for.
 enum Disk {
     private static let queue = DispatchQueue(label: "search.disk", qos: .utility)
+    /// The rows of tabs and the windows: small, asked for at every tab
+    /// closed or moved, and wanted on disk within the moment. A queue of
+    /// their own, so they are never behind the history or the bookmarks,
+    /// which can take a good part of a second.
+    private static let brisk = DispatchQueue(label: "search.disk.brisk", qos: .userInitiated)
     private static let lock = NSLock()
     /// The newest write asked for, by file.
     nonisolated(unsafe) private static var newest: [URL: Int] = [:]
     nonisolated(unsafe) private static var count = 0
+    /// The newest write of a file, or its removal, while it is still on a
+    /// queue: which one, and on which queue (see settle).
+    nonisolated(unsafe) private static var unwritten: [URL: (turn: Int, brisk: Bool)] = [:]
+    /// Set on both queues: a read from inside a write has nothing to wait for.
+    private static let onQueue: DispatchSpecificKey<Bool> = {
+        let key = DispatchSpecificKey<Bool>()
+        queue.setSpecific(key: key, value: true)
+        brisk.setSpecific(key: key, value: true)
+        return key
+    }()
 
     /// `encode` runs where the write does. `now` writes on the calling
-    /// thread: quitting doesn't wait for a queue.
-    static func write(_ file: URL, now: Bool = false, _ encode: @escaping @Sendable () -> Data?) {
+    /// thread: quitting doesn't wait for a queue. `brisk`, for a small file
+    /// wanted on disk within the moment (see the queue).
+    static func write(_ file: URL, now: Bool = false, brisk: Bool = false, _ encode: @escaping @Sendable () -> Data?) {
         lock.lock()
         count += 1
         let turn = count
         newest[file] = turn
+        unwritten[file] = now ? nil : (turn, brisk)
         lock.unlock()
         // Overtaken: something newer of this file was asked for since.
         let current: @Sendable () -> Bool = {
@@ -220,27 +246,60 @@ enum Disk {
             if newest[file] == turn, rename(aside.path, file.path) == 0 { return }
             try? FileManager.default.removeItem(at: aside)
         }
-        if now { put() } else { queue.async(execute: put) }
+        if now {
+            put()
+        } else {
+            (brisk ? Disk.brisk : queue).async {
+                put()
+                lock.lock()
+                if unwritten[file]?.turn == turn { unwritten[file] = nil }
+                lock.unlock()
+            }
+        }
+    }
+
+    /// Before a file is read: the newest write of it, if that one is still
+    /// on a queue, lands first, so what is read is what was last saved (or
+    /// nothing, after `remove`). With nothing of it waiting, which is nearly
+    /// always, this returns at once.
+    static func settle(_ file: URL) {
+        _ = onQueue
+        guard DispatchQueue.getSpecific(key: onQueue) == nil else { return }
+        lock.lock()
+        let waiting = unwritten[file]
+        lock.unlock()
+        guard let waiting else { return }
+        (waiting.brisk ? brisk : queue).sync {}
     }
 
     /// The file gone, after any write of it already asked for — and none
-    /// asked for before this lands it again.
-    static func remove(_ file: URL) {
+    /// asked for before this lands it again. `now`, on the calling thread.
+    static func remove(_ file: URL, now: Bool = false) {
         lock.lock()
         count += 1
         let turn = count
         newest[file] = turn
+        unwritten[file] = now ? nil : (turn, false)
         lock.unlock()
-        queue.async {
+        let take: @Sendable () -> Void = {
             lock.lock()
             defer { lock.unlock() }
+            if unwritten[file]?.turn == turn { unwritten[file] = nil }
             guard newest[file] == turn else { return }
             try? FileManager.default.removeItem(at: file)
         }
+        if now { take() } else { queue.async(execute: take) }
     }
 
     /// Everything asked for so far, written — for the way out.
     static func drain() {
         queue.sync {}
+        brisk.sync {}
+    }
+
+    /// The rows of tabs and the windows asked for so far, written: for the
+    /// bench, whose scripts read those files themselves.
+    static func drainRows() {
+        brisk.sync {}
     }
 }
