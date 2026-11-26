@@ -139,7 +139,7 @@ struct UpdateNoticePill: View {
                         .font(.system(size: 12, weight: .medium))
                         .lineLimit(1)
                 }
-                .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.75))
+                .foregroundStyle(hovering ? Palette.ink : Palette.soft)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background(Palette.ground.opacity(hovering ? 1 : 0.6), in: Capsule())

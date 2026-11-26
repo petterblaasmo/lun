@@ -2500,7 +2500,7 @@ private struct ImportProgress: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Palette.hairline)
                 if let fraction {
-                    Capsule().fill(Palette.ink.opacity(0.7)).frame(width: geo.size.width * fraction)
+                    Capsule().fill(Palette.soft).frame(width: geo.size.width * fraction)
                 }
             }
         }

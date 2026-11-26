@@ -214,7 +214,7 @@ private struct HistoryList: View {
                         .frame(width: 14, height: 14)
                     Text(stop.title.isEmpty ? (stop.url.host() ?? stop.url.absoluteString) : stop.title)
                         .font(.system(size: 12.5))
-                        .foregroundStyle(index == pull.picked ? Palette.ink : Palette.ink.opacity(0.75))
+                        .foregroundStyle(index == pull.picked ? Palette.ink : Palette.soft)
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 0)
