@@ -520,7 +520,7 @@ struct HomePageLine: View {
             if !askers.isEmpty {
                 Rule()
                 SettingRow(icon: "house", title: "Home page", detail: detail(askers, current)) {
-                    Picker("", selection: Binding(
+                    PopUp("Home page", shows: askers.first { $0.id == current }?.name ?? "Lun's own", selection: Binding(
                         get: { current ?? "" },
                         set: { extensions.setNewTabPage($0.isEmpty ? nil : $0) }
                     )) {
@@ -528,9 +528,6 @@ struct HomePageLine: View {
                         Divider()
                         ForEach(askers) { Text($0.name).tag($0.id) }
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .fixedSize()
                 }
             }
         }

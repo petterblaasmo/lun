@@ -333,7 +333,9 @@ struct ImportPanel: View {
             }
             if let choices = profiles[source.id], choices.count > 1 {
                 Line("Profile") {
-                    Picker("", selection: Binding(
+                    let picked = chosen[source.id] ?? usual[source.id] ?? ""
+                    PopUp("Profile", shows: choices.first { $0.id == picked }.map { $0.id == usual[source.id] ? "Most recent: \($0.name)" : $0.name } ?? "All profiles",
+                            selection: Binding(
                         get: { chosen[source.id] ?? usual[source.id] ?? "" },
                         set: { value in
                             chosen[source.id] = value
@@ -347,9 +349,6 @@ struct ImportPanel: View {
                         Divider()
                         Text("All profiles").tag("")
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .fixedSize()
                 }
                 Rule()
             }

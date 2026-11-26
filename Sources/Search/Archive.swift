@@ -215,12 +215,10 @@ struct ArchivePanel: View {
 
     private var tools: some View {
         HStack(spacing: 8) {
-            Picker("Put tabs away", selection: Binding(get: { browser.prefs.tabLife }, set: { browser.prefs.tabLife = $0 })) {
+            PopUp("Put tabs away", shows: browser.prefs.tabLife.title,
+                    selection: Binding(get: { browser.prefs.tabLife }, set: { browser.prefs.tabLife = $0 })) {
                 ForEach(TabLife.allCases) { Text($0.title).tag($0) }
             }
-            .pickerStyle(.menu)
-            .fixedSize()
-            .font(.system(size: 12))
             Hunt(text: $hunt, prompt: "Search", focus: $hunting).frame(width: 180)
         }
     }
