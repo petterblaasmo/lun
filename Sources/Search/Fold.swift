@@ -275,8 +275,9 @@ extension Browser {
             guard page.responds(to: ask), let imp = page.method(for: ask) else { continue }
             typealias Then = @convention(block) () -> Void
             typealias After = @convention(c) (AnyObject, Selector, Then) -> Void
-            let then: Then = {
+            let then: Then = { [page] in
                 MainActor.assumeIsolated {
+                    Web.keepPastCallback(page)
                     left -= 1
                     if left == 0 { finish() }
                 }
