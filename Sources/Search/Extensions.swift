@@ -1186,6 +1186,11 @@ final class Extensions: NSObject, ObservableObject {
         let item = Installed(
             id: id, name: name, version: found.version ?? "?", enabled: true, fromStore: fromStore,
             permissions: permissions,
+            // Its button is in the row from the start, as in Arc: behind the
+            // puzzle, a new extension looked as if nothing had been installed.
+            // One without a button has nothing to show, and the row's own
+            // room decides how many fit.
+            pinned: true,
             source: source?.path,
             fromApp: fromApp
         )
