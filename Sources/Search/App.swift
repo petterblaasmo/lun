@@ -685,10 +685,24 @@ struct ContentView: View {
                 .padding(.leading, sideOnRight ? 0 : roomed.width)
                 .padding(.trailing, sideOnRight ? roomed.width : 0)
                 .padding(.top, roomed.height)
+                // The page is laid out once, at its new size, as the column
+                // sets off (make(room:)), and carried so that it stays in the
+                // middle of the card across, at every frame: what is in the
+                // middle of a page stays in the middle of what is seen of it,
+                // as it would were the page resized all the way. It was kept
+                // at the column's edge instead, a page still at its old size,
+                // and laid out again once the column had come: what was on it
+                // went off to one side with the column, and then jumped back.
+                // Down, its top stays at the card's top, as before.
+                //
+                // In two: where the card is now, which moves with the column,
+                // and where the page was laid out, which changes at once and
+                // must not take the first one's motion with it.
                 // On whole pixels as it slides: between them, the page was
                 // drawn resampled, soft, for the length of the slide.
-                .modifier(PixelOffset(offset: CGSize(width: sideOnRight ? farGap - laidFar : chrome.width - roomed.width,
-                                                     height: chrome.height - roomed.height),
+                .modifier(PixelOffset(offset: CGSize(width: (cardLeading - cardTrailing) / 2, height: chrome.height),
+                                      scale: displayScale))
+                .modifier(PixelOffset(offset: CGSize(width: -(laidLeading - laidTrailing) / 2, height: -roomed.height),
                                       scale: displayScale))
                 .modifier(CardEdge(on: (cards && !browser.prefs.splitView) || topCard, insets: cardInsets,
                                    corner: cardCorner, scale: displayScale))
@@ -877,6 +891,14 @@ struct ContentView: View {
     /// The far gap the page is laid out to leave (see `farRoom`).
     private var laidFar: CGFloat { farRoom ?? farGap }
 
+    /// What the card leaves at each side right now, animated with the
+    /// column, and what the page was laid out to leave there: the page is
+    /// carried by half the difference, so it stays in the card's middle.
+    private var cardLeading: CGFloat { sideOnRight ? farGap : chrome.width }
+    private var cardTrailing: CGFloat { sideOnRight ? chrome.width : farGap }
+    private var laidLeading: CGFloat { sideOnRight ? laidFar : roomed.width }
+    private var laidTrailing: CGFloat { sideOnRight ? roomed.width : laidFar }
+
     /// The column's width: the setting, or where its edge is while held.
     private var sideWidth: CGFloat { edges.side ?? browser.prefs.columnWidth }
 
@@ -941,9 +963,10 @@ struct ContentView: View {
         browser.prefs.sidebar && browser.prefs.sidePosition == .right
     }
 
-    /// Chrome going away gives the page its room at once, the page sliding
-    /// out from under it at its new size. Chrome arriving slides over a page
-    /// still at its old size, which gives up the room once the slide is over.
+    /// The column going or coming gives the page its new width at once: it
+    /// is carried in the middle of the card while the column moves. A strip
+    /// arriving from above still slides over a page at its old height, which
+    /// gives up the room once the slide is over.
     /// A column being dragged wider or narrower is followed as it goes.
     private func make(room new: CGSize, after old: CGSize) {
         let now = roomed
@@ -960,13 +983,12 @@ struct ContentView: View {
             withTransaction(still) { room = CGSize(width: max(Metrics.sideMin, new.width - 40), height: new.height) }
             return
         }
-        // The card's far gap coming back as the column does (see
-        // `edgeToEdge`): the page keeps the whole window until the slide is
-        // over, the card closing in over it.
+        // Across, the page takes its new width at once, the column coming
+        // as well as going, and its far gap with it: it is carried in the
+        // card's middle while the column moves (see the stage's offsets), so
+        // nothing on it is left to jump when the column stops.
         let far = farGap
-        let farComing = far > laidFar
-        // Given already, with the chrome itself (see `immersing`).
-        if now == new, !farComing {
+        if now == new {
             roomTicket += 1
             if farRoom != far {
                 var still = Transaction()
@@ -975,14 +997,14 @@ struct ContentView: View {
             }
             return
         }
-        // Out of nothing, or out of the card's gap (see chrome): never more
-        // than that unless something is there. Edge to edge, the gap is
-        // what arrives.
+        // Down, as it was: chrome arriving from above slides over a page
+        // still at its old height, which gives up the room once the slide
+        // is over. Out of nothing, or out of the card's gap (see chrome):
+        // never more than that unless something is there.
         let floor = Metrics.cardGap
-        let arriving = (old.width <= floor && new.width > old.width, old.height <= floor && new.height > old.height)
-        var at = now
-        if !arriving.0 { at.width = new.width }
-        if !arriving.1 { at.height = new.height }
+        let arrivingDown = old.height <= floor && new.height > old.height
+        var at = new
+        if arrivingDown { at.height = now.height }
         roomTicket += 1
         var still = Transaction()
         still.disablesAnimations = true
@@ -990,9 +1012,9 @@ struct ContentView: View {
         // with the chrome, not after a slide that isn't there.
         withTransaction(still) {
             room = Motion.reduced ? new : at
-            farRoom = Motion.reduced || !farComing ? far : laidFar
+            farRoom = far
         }
-        guard !Motion.reduced, arriving.0 || arriving.1 || farComing else { return }
+        guard !Motion.reduced, arrivingDown else { return }
         let ticket = roomTicket
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
             guard ticket == roomTicket else { return }

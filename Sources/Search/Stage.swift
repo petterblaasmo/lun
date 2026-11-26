@@ -459,7 +459,11 @@ final class StageView: NSView {
             let size = CGSize(width: max(0, bounds.width - cardShort.width), height: max(0, bounds.height - cardShort.height))
             cardMask.cornerRadius = cardCorner
             cardMask.maskedCorners = roundCorners
-            cardMask.frame = CGRect(x: 0, y: isFlipped ? 0 : bounds.height - size.height, width: size.width, height: size.height)
+            // In the page's middle across: that is where the card is, the
+            // page wider than it carried to stay centred in it (ContentView's
+            // offsets). At its top down, as the page's top is the card's.
+            cardMask.frame = CGRect(x: cardShort.width / 2, y: isFlipped ? 0 : bounds.height - size.height,
+                                    width: size.width, height: size.height)
             if layer.mask !== cardMask { layer.mask = cardMask }
         }
         CATransaction.commit()
