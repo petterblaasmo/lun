@@ -575,7 +575,10 @@ final class Tab: ObservableObject, Identifiable {
         // Set only when it is another picture: each setting draws this tab's
         // row again, and an icon arriving for a site sets it on every tab of
         // that site in every window.
-        let new = page.map(\.glyph) ?? Favicons.shared.cached(for: address, shy: shy)
+        //
+        // `worn`, not `cached`: with nothing kept for this look, the page's
+        // own icon from the other look stays on rather than its letter.
+        let new = page.map(\.glyph) ?? Favicons.shared.worn(for: address, shy: shy)
         if icon !== new { icon = new }
     }
 
