@@ -22,6 +22,9 @@ final class ScriptingTests: XCTestCase {
         for (browser, _) in made {
             if Browsers.all.contains(where: { $0 === browser }) { Browsers.discard(browser) }
             browser.window = nil
+            // Nothing of these windows for the next test's to start with:
+            // a session left behind comes back as its first tabs.
+            Session.write(now: true, space: browser.spaceID, Session.Shape(tabs: [], active: 0))
         }
         made = []
     }
@@ -39,9 +42,11 @@ final class ScriptingTests: XCTestCase {
         for name in ["one", "two", "three"] {
             let tab = Tab()
             tab.restore(url: try XCTUnwrap(URL(string: "https://\(name).example/")), title: name)
-            browser.receive(tab)
+            browser.prepare(tab)
+            browser.insert(tab, at: browser.tabs.count)
             tabs.append(tab)
         }
+        browser.select(tabs[2])
         return (browser, window, tabs)
     }
 
@@ -88,7 +93,9 @@ final class ScriptingTests: XCTestCase {
         let (browser, window, tabs) = try makeWindow()
         let shy = Tab(shy: true)
         shy.restore(url: try XCTUnwrap(URL(string: "https://private.example/")), title: "private")
-        browser.receive(shy)
+        browser.prepare(shy)
+        browser.insert(shy, at: browser.tabs.count)
+        browser.select(shy)
         XCTAssertEqual(browser.activeID, shy.id)
         // In front and private: no current tab, and not among the tabs.
         XCTAssertNil(window.scriptCurrentTab)
