@@ -333,25 +333,27 @@ private struct OpenTabRow: View {
     @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            Mark(icon: tab.icon, letter: tab.monogram, size: 15)
-                .frame(width: 15, height: 15)
-            Text(tab.label.isEmpty ? "New Tab" : tab.label)
-                .font(.system(size: 12.5))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.75))
-            Spacer(minLength: 0)
+        Button(action: bring) {
+            HStack(spacing: 8) {
+                Mark(icon: tab.icon, letter: tab.monogram, size: 15)
+                    .frame(width: 15, height: 15)
+                Text(tab.label.isEmpty ? "New Tab" : tab.label)
+                    .font(.system(size: 12.5))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.75))
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.hover : .clear))
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 10)
-        .frame(height: 28)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.hover : .clear))
-        .contentShape(Rectangle())
-        .onTapGesture(perform: bring)
+        // A button, where a tap on a stack was all it had: the keyboard
+        // can press it, and it gives.
+        .buttonStyle(Gives(to: 0.98))
         .hovers($hovering)
-        .accessibilityElement(children: .ignore)
         .accessibilityLabel(tab.label)
-        .accessibilityAddTraits(.isButton)
         .accessibilityHint("Bring this tab into the split")
     }
 }
