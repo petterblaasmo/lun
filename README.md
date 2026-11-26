@@ -2,7 +2,11 @@
 
 A small, fast, quiet browser for the Mac. *Lun* is Norwegian for warm and sheltered.
 
-Early days: there is nothing to download yet.
+## Download
+
+The newest release is on the [Releases page](https://github.com/petterblaasmo/lun/releases/latest): open `Lun.dmg` and drag Lun to Applications. Apple silicon, macOS 14 or later. Lun keeps itself up to date from there.
+
+It is early: version 0.1.0. Expect rough edges, and [say what you find](https://github.com/petterblaasmo/lun/issues/new/choose).
 
 ## What it is
 
@@ -17,9 +21,8 @@ Tabs down the left or across the top, and the page. It runs on WebKit, the engin
 
 | | Needs |
 |---|---|
-| Updates | A site to serve them from |
-| Passkeys and iCloud sync | An Apple provisioning profile |
-| Developer tools packages | The update feed |
+| Intel Macs | A second build; for now, build it yourself |
+| Passkeys and iCloud sync | An Apple provisioning profile, which a build of your own does not have |
 
 ## Building it
 
@@ -32,6 +35,7 @@ macOS 14 or later, and Xcode with Swift 6.
 | `SEARCH_DEV=1 ./build.sh` | The same with a yellow icon, named for the branch |
 | `./fresh.sh` | Opens the app in a test world, apart from your own data |
 | `swift test` | Unit tests |
+| `./release.sh --try` | The release files, unnotarised, nothing uploaded |
 | `./bench` | Drives a running app from the shell |
 
 ## Where your data is
@@ -41,6 +45,10 @@ macOS 14 or later, and Xcode with Swift 6.
 | Passwords | The macOS keychain, tagged `Lun` |
 | History, bookmarks, tabs | `~/Library/Application Support/Lun/` |
 | Cookies and site data | WebKit's store for the app |
+
+## Contributing
+
+Bugs, ideas and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). For a security problem, see [SECURITY.md](SECURITY.md) instead of opening an issue.
 
 ## License
 

@@ -1,0 +1,29 @@
+name: Bug
+description: Something does not work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Lun version
+      description: From Lun › About, with the build number.
+      placeholder: 0.1.0 (202611261239)
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "15.5"
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: A picture or a recording helps. Leave out anything private.

@@ -1,0 +1,16 @@
+name: Idea
+description: Something Lun could do, or do better
+labels: [idea]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: The idea
+      description: What you would like, and what you do today instead.
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Where you have seen it
+      description: Another browser or app that does this, if any.
