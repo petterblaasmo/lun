@@ -48,7 +48,16 @@ jobs:
       - name: List the tests
         run: swift test list --skip-build > tests.txt && wc -l < tests.txt
       - name: Pack what the tests need
-        run: tar -czf products.tgz tests.txt .build/debug/SearchTests.xctest .build/debug/*.dylib .build/debug/Search
+        # The bundle's name is the toolchain's to choose (SearchTests or
+        # SearchPackageTests): whichever was made, as tests.xctest.
+        run: |
+          bin=$(swift build --show-bin-path)
+          bundle=$(find "$bin/" -maxdepth 1 -name "*.xctest" | head -1)
+          echo "$bundle"
+          test -n "$bundle"
+          ln -s "$(basename "$bundle")" "$bin/tests.xctest"
+          tar -czf products.tgz tests.txt "$bin/tests.xctest" "$bundle" "$bin"/*.dylib "$bin/Search"
+          ls -la products.tgz
       - uses: actions/upload-artifact@v4
         with:
           name: products
@@ -72,7 +81,7 @@ jobs:
           name: products
       - run: tar -xzf products.tgz
       - name: Unit tests, one class at a time
-        run: python3 scripts/ci/tests.py --list tests.txt --shard ${{ matrix.shard }} --of 4
+        run: python3 scripts/ci/tests.py --list tests.txt --bundle "$(swift build --show-bin-path)/tests.xctest" --shard ${{ matrix.shard }} --of 4
       - uses: actions/upload-artifact@v4
         if: always()
         with:
