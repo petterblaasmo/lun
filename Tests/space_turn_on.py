@@ -5,9 +5,9 @@ probe with Spaces off brings over a made-up Arc profile with one space,
 "School" (a synthetic StorableSidebar.json, never anyone's real Arc data):
 its page comes into the one space there is, which takes Arc's name and icon.
 Spaces turned on then shows that one space, School, renamable. A stroke over
-the tabs toward a next space, with only one, gives a little and comes back:
-no nameless card for a new space that looks like a second one. New Space…
-still brings the card.
+the tabs toward a next space, with only one, brings the card for a new one,
+as it does past the last of several (in Lun: it did nothing there before);
+a stroke back puts it away. New Space… brings the card too.
 
 Nothing here makes, shows or brings forward a window.
 """
@@ -53,16 +53,20 @@ def main():
         menu = [m["title"] for m in st["menu"]]
         t.ok("and it can be renamed", "Rename “School”…" in menu, menu)
 
-        for dx in (-150, -400):
-            sv.cmd({"do": "space", "action": "swipe", "dx": dx})
-            time.sleep(1)
-            st = sv.cmd({"do": "space"})
-            t.ok(f"a stroke of {-dx} points toward a next space: no card, still School",
-                 not st["making"] and st["current"] == "School" and len(st["spaces"]) == 1, (st["making"], st["current"]))
+        sv.cmd({"do": "space", "action": "swipe", "dx": -400})
+        time.sleep(1)
+        st = sv.cmd({"do": "space"})
+        t.ok("a stroke toward a next space, with one: the card for a new one, still School",
+             st["making"] and st["current"] == "School" and len(st["spaces"]) == 1, (st["making"], st["current"]))
+        sv.cmd({"do": "space", "action": "swipe", "dx": 400})
+        time.sleep(1)
+        st = sv.cmd({"do": "space"})
+        t.ok("a stroke back puts the card away, and nothing was made",
+             not st["making"] and st["current"] == "School" and len(st["spaces"]) == 1, (st["making"], st["current"]))
 
         sv.cmd({"do": "space", "action": "menu", "title": "New Space…"})
         time.sleep(1)
-        t.ok("New Space… still brings the card", sv.cmd({"do": "space"})["making"], sv.cmd({"do": "space"})["making"])
+        t.ok("New Space… brings the card too", sv.cmd({"do": "space"})["making"], sv.cmd({"do": "space"})["making"])
     finally:
         t.done()
         sv.finish()
