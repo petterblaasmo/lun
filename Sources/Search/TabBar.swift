@@ -839,7 +839,7 @@ struct Helm: View {
                 }
                 .disabled(!tab.isWeb)
                 .opacity(tab.isWeb ? 1 : 0.3)
-                // The menu's second item is the reason for it: ⌥⌘R has no
+                // The menu's second item is the reason for it: ⇧⌘R has no
                 // button. Nothing to offer while the door is Stop.
                 .contextMenu {
                     if !tab.loading && tab.isWeb {
