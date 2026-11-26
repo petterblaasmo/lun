@@ -6287,6 +6287,7 @@ final class Bench {
             reply()
         case "swap": browser.swapSplit(); reply()
         case "even": browser.evenSplit(); reply()
+        case "scrollTogether": browser.toggleScrollTogether(); reply()
         case "closeBoth": browser.closeSplit(); reply()
         case "dismiss": browser.dismiss(); reply()
         case "side":
@@ -6379,6 +6380,7 @@ final class Bench {
                     "sizes": pair.sizes,
                     "axis": pair.axis.rawValue,
                     "focused": short(pair.focused),
+                    "together": pair.scrollsTogether,
                 ] as [String: Any]
             },
             "activeID": short(browser.activeID),

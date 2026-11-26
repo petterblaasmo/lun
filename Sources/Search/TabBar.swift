@@ -2081,6 +2081,14 @@ struct TabMenu: View {
                     browser.focusPane(tab)
                     browser.closeSplit()
                 }
+                // The divider's line, here too: the divider is three points
+                // wide, and not everyone thinks to click it.
+                Toggle("Scroll Together", isOn: Binding(
+                    get: { pair.scrollsTogether },
+                    set: { _ in
+                        browser.focusPane(tab)
+                        browser.toggleScrollTogether()
+                    }))
             } else {
                 // Beside the page on screen; on that page itself, an empty
                 // page beside it. On a split with room, one more page in it.

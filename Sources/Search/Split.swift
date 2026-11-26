@@ -27,12 +27,17 @@ struct TabSplit: Identifiable, Equatable {
     var sizes: [Double]
     /// The page last focused, to come back to.
     var focused: Tab.ID?
+    /// The divider's menu › Scroll Together: one page scrolled, the others
+    /// go by as much (see Browser.scrollTogether). Off until asked for, and
+    /// this split's alone.
+    var scrollsTogether: Bool
 
     init(id: UUID = UUID(), tabs: [Tab.ID], axis: Axis = .horizontal,
-         sizes: [Double]? = nil, focused: Tab.ID? = nil) {
+         sizes: [Double]? = nil, focused: Tab.ID? = nil, scrollsTogether: Bool = false) {
         self.id = id
         self.tabs = tabs
         self.axis = axis
+        self.scrollsTogether = scrollsTogether
         self.sizes = TabSplit.even(tabs.count)
         self.focused = focused.flatMap { tabs.contains($0) ? $0 : nil }
         if let sizes, sizes.count == tabs.count { self.sizes = TabSplit.clamp(sizes) }

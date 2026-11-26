@@ -4485,7 +4485,8 @@ final class Browser: NSObject, ObservableObject {
             let sizes = written.count == pair.tabs.count || pair.sizes.count != pair.tabs.count
                 ? pair.sizes : TabSplit.clamp(written.map { pair.sizes[$0] })
             return Session.Split(tabs: places, axis: pair.axis, sizes: sizes,
-                                 focused: pair.focused.flatMap { indices[$0] })
+                                 focused: pair.focused.flatMap { indices[$0] },
+                                 together: pair.scrollsTogether ? true : nil)
         }
         return .init(tabs: entries, active: active, groups: keptGroups, splits: savedSplits)
     }
@@ -4884,6 +4885,33 @@ final class Browser: NSObject, ObservableObject {
     func evenSplit() {
         guard let pair = activeSplit else { return }
         setSplitSizes(pair.id, TabSplit.even(pair.tabs.count))
+    }
+
+    /// The divider's menu › Scroll Together, and the same line in a split
+    /// tab's own menu: on, a page of this split scrolled takes the others
+    /// with it (see scrollTogether). Decided per split and off until asked
+    /// for, not a setting: it is for two versions of one page side by side,
+    /// and wrong for any other two.
+    func toggleScrollTogether() {
+        guard let pair = activeSplit, let index = splits.firstIndex(where: { $0.id == pair.id }) else { return }
+        splits[index].scrollsTogether.toggle()
+        rememberSession()
+    }
+
+    /// One page of a split with Scroll Together on went down (or up) by
+    /// `dy` under your hand: the others go by as much, each as far as it
+    /// can, so pages lined up before it was turned on stay lined up. Each
+    /// marks where it was put, and its own word of that scroll is then known
+    /// as an echo and goes no further (see ScrollRelay.script): the pages
+    /// never push one another back and forth.
+    func scrollTogether(from tab: Tab, by dy: Double) {
+        guard prefs.splitView, dy.isFinite, dy != 0,
+              let pair = split(for: tab), pair.scrollsTogether else { return }
+        let script = ScrollRelay.follow(by: dy)
+        for id in pair.others(than: tab.id) {
+            guard let web = tabs.first(where: { $0.id == id })?.built else { continue }
+            web.evaluateInSearch(script)
+        }
     }
 
     /// The divider's menu › Close Both. Remembered as one, as Close Tabs
@@ -7279,7 +7307,8 @@ final class Browser: NSObject, ObservableObject {
             guard members.count == saved.tabs.count, members.count <= TabSplit.most,
                   !members.contains(where: { taken.contains($0.id) }) else { continue }
             let pair = TabSplit(tabs: members.map(\.id), axis: saved.axis, sizes: saved.sizes,
-                                focused: saved.focused.flatMap { bySavedIndex[$0]?.id })
+                                focused: saved.focused.flatMap { bySavedIndex[$0]?.id },
+                                scrollsTogether: saved.together ?? false)
             guard Browser.holds(pair, in: row) else { continue }
             restoredSplits.append(pair)
             taken.formUnion(pair.tabs)
@@ -7881,6 +7910,8 @@ final class Browser: NSObject, ObservableObject {
         tab.onPickTrouble = { [weak self] _, reason in
             self?.announce("Couldn't hide that — \(reason)")
         }
+
+        tab.onScrollBy = { [weak self] tab, dy in self?.scrollTogether(from: tab, by: dy) }
 
         // The line at the bottom doubles as the zoom read-out: it keeps being
         // rewritten while you pinch and fades a moment after you stop.

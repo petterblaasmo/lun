@@ -647,6 +647,13 @@ final class Tab: ObservableObject, Identifiable {
     @Published private(set) var zoom: CGFloat = 1
 
     var onZoom: ((Tab, CGFloat) -> Void)?
+    /// The page went up or down by this much under your hand, or by itself:
+    /// never as the page beside it in a split took it along (see
+    /// Browser.scrollTogether).
+    var onScrollBy: ((Tab, Double) -> Void)?
+    /// Where the page last said it was scrolled to; nil until this
+    /// document's first word.
+    private var lastScroll: Double?
     /// The resolved address under the pointer, or nil when it leaves a link.
     var onLink: ((Tab, String?) -> Void)?
     /// The page took the keys (see PageView.onKeys).
@@ -1603,7 +1610,13 @@ final class Tab: ObservableObject, Identifiable {
 
     /// Called from the page, a few dozen times a second at most — the script
     /// already waits for a frame before it says anything.
-    func scrolled(to y: Double, of ceiling: Double, screens: Double? = nil) {
+    func scrolled(to y: Double, of ceiling: Double, screens: Double? = nil,
+                  first: Bool = false, echo: Bool = false) {
+        // A new document's first word is where it starts, not a move, nor
+        // is any before a hand has been on it (ScrollRelay.script); an echo
+        // is a move the page beside it made here.
+        if let step = Tab.step(from: lastScroll, to: y, first: first, echo: echo) { onScrollBy?(self, step) }
+        lastScroll = y
         if let screens { self.screens = (max(1, screens) * 10).rounded() / 10 }
         // In hundredths, and only when that changes. The page reports once a
         // frame while it scrolls — 120 times a second on a 120 Hz screen — and
@@ -1611,6 +1624,14 @@ final class Tab: ObservableObject, Identifiable {
         // core on the thread WebKit needs to put the scrolled page on screen.
         let fraction = ceiling > 0 ? (min(1, max(0, y / ceiling)) * 100).rounded() / 100 : 0
         if fraction != reading { reading = fraction }
+    }
+
+    /// How far a page's word of its scroll says it went by its own: nothing
+    /// for a document's first word, for an echo of Scroll Together, or for a
+    /// word that says it stayed where it was.
+    nonisolated static func step(from last: Double?, to y: Double, first: Bool, echo: Bool) -> Double? {
+        guard !first, !echo, let last, y.isFinite, y != last else { return nil }
+        return y - last
     }
 
     func go(to url: URL) {
@@ -2198,6 +2219,7 @@ final class Tab: ObservableObject, Identifiable {
     /// whatever the page left behind — timers, video, sockets.
     func close() {
         onZoom = nil
+        onScrollBy = nil
         onLink = nil
         onPick = nil
         onPickEnd = nil
@@ -3775,27 +3797,69 @@ final class ScrollRelay: NSObject, WKScriptMessageHandler {
               let ceiling = body["max"] as? Double
         else { return }
         let screens = body["screens"] as? Double
-        MainActor.assumeIsolated { tab?.scrolled(to: y, of: ceiling, screens: screens) }
+        let first = body["first"] as? Bool ?? false
+        let echo = body["echo"] as? Bool ?? false
+        MainActor.assumeIsolated { tab?.scrolled(to: y, of: ceiling, screens: screens, first: first, echo: echo) }
     }
+
+    /// Run in a page that follows the one beside it (Browser.scrollTogether):
+    /// down by `dy` at once, whatever the page's own scroll-behavior, and
+    /// marked where that left it, for the page's next word to be known as
+    /// an echo. Not marked when it could go no further: nothing will be
+    /// said of a scroll that didn't happen, and a mark left standing would
+    /// swallow your own next one that ended there.
+    static func follow(by dy: Double) -> String {
+        """
+        (function () {
+          var was = window.scrollY;
+          window.scrollBy({ top: \(dy), left: 0, behavior: 'instant' });
+          if (window.scrollY !== was) window.\(mark) = window.scrollY;
+        })(); 0
+        """
+    }
+
+    /// Where Scroll Together last put a page, kept on its window in
+    /// Search's own world, out of the page's sight.
+    static let mark = "__officeTogether"
 
     /// Reports at most once a frame, and passively, so a page that scrolls
     /// smoothly without us keeps scrolling smoothly with us.
     static let script = """
     (function () {
       var waiting = false;
-      function tell() {
+      // Whether a hand has been on this document: a wheel, a key, a press.
+      // Until one has, what moves it is the page settling in — its place
+      // put back after a reload or Back, a #place gone to, its own script —
+      // and its word of that says where it is, not that it was moved (see
+      // Tab.step). Asked only until the first.
+      var hand = false;
+      var hands = ['wheel', 'keydown', 'mousedown', 'touchstart'];
+      function touched() {
+        hand = true;
+        hands.forEach(function (kind) { window.removeEventListener(kind, touched, true); });
+      }
+      hands.forEach(function (kind) { window.addEventListener(kind, touched, { capture: true, passive: true }); });
+      function tell(first) {
         var root = document.documentElement;
         var y = window.scrollY || root.scrollTop || 0;
         var ceiling = Math.max(1, (root.scrollHeight || 0) - window.innerHeight);
         var screens = (root.scrollHeight || 0) / Math.max(1, window.innerHeight);
-        window.webkit.messageHandlers.\(name).postMessage({ y: y, max: ceiling, screens: screens });
+        // Where Scroll Together last put this page (see follow): still
+        // there, this scroll was that one, not yours.
+        var put = window.\(mark);
+        window.\(mark) = null;
+        var echo = put != null && Math.abs(y - put) < 1;
+        window.webkit.messageHandlers.\(name).postMessage({ y: y, max: ceiling, screens: screens,
+                                                             first: !!first || !hand, echo: echo });
       }
       window.addEventListener('scroll', function () {
         if (waiting) return;
         waiting = true;
-        requestAnimationFrame(function () { waiting = false; tell(); });
+        requestAnimationFrame(function () { waiting = false; tell(false); });
       }, { passive: true });
-      tell();
+      // Back from the back-forward cache, the page starts over where it is.
+      window.addEventListener('pageshow', function (e) { if (e.persisted) tell(true); });
+      tell(true);
     })();
     """
 }
