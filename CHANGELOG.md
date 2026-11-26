@@ -11,6 +11,7 @@
 - The floating video shows the live picture straight away, small swipes place it exactly, and a pinch sizes it.
 - Tabs opened behind the page load a few at a time, and the session is saved off the main thread.
 - A tab is no longer closed by a download, by its page calling close, or by a page handed off from an iPhone.
+- A rare crash when a tab closed just after its page drew is fixed.
 - The screen-sharing pill can be dragged aside. The column's edge keeps its resize pointer. Add Image to Photos. AppleScript can switch tabs. A short note when a link opens behind a hidden column. A tab's menu says why it stays awake.
 - Every control gives under a press and answers the pointer. The last of the Mac's own checkboxes, sliders and pickers are Lun's.
 - Settings › Privacy can clear History, Cookies and Cache. Site permissions list the sites you have answered.
