@@ -364,7 +364,7 @@ struct SideBookmarks: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .foregroundStyle(prefs.highContrastText || hovering ? Palette.ink : Palette.ink.opacity(0.75))
+            .foregroundStyle(prefs.highContrastText || hovering ? Palette.ink : Palette.soft)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hovering ? greys.hover : .clear))
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .pressed {
