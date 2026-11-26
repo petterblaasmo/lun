@@ -328,7 +328,10 @@ final class SpeedBenchTests: XCTestCase {
     /// it has the window back, with 20, 100 and 300 tabs in the row.
     func testSessionSave() throws {
         for count in [20, 100, 300] {
+            // No row from the size before: the window opens on these tabs only.
+            Session.write(now: true, Session.Shape(tabs: [], active: 0))
             let browser = makeBrowser(tabs: count, record: nil)
+            XCTAssertEqual(browser.tabs.count, count)
             // Once, so the folder is there and the pins are settled.
             browser.writeSession(now: true)
             Disk.drain()
@@ -347,6 +350,84 @@ final class SpeedBenchTests: XCTestCase {
                            "and the row is on disk")
             browser.closeAll()
             browsers.removeAll { $0 === browser }
+        }
+    }
+
+    /// Twenty links opened behind the page being read, each a page of its
+    /// own site that runs a second and a half of script as it loads: what
+    /// the window's thread gets done meanwhile. Once with every page loading
+    /// at once, as they did, and once a few at a time (LoadTurns). A timer
+    /// due every 5 ms says how late the thread came to it; each pass of the
+    /// run loop, with the column drawn, says how long it took and how much
+    /// of that it was waiting for a processor.
+    ///
+    /// Not `async`: an async test's body is a block on the main queue, and
+    /// the pages' own blocks would wait behind it for as long as it ran.
+    func testBackgroundTabsLoading() throws {
+        let turns = LoadTurns.most
+        defer { LoadTurns.most = turns }
+        let script = "<script>const end = performance.now() + 1500; while (performance.now() < end) {}</script>"
+        // A server each: on one, WebKit's few connections to a site would
+        // make them take turns whatever Search did.
+        let servers = try (0..<20).map { _ in try TurnsServer() }
+        defer { servers.forEach { $0.stop() } }
+        for (n, server) in servers.enumerated() {
+            server.reply = { _ in .init(body: "<!doctype html><title>Loading</title><p>Page \(n)</p>\(script)<script>document.title = 'Page \(n)'</script>") }
+        }
+        for (name, most) in [("atOnce", 1000), ("inTurns", turns)] {
+            LoadTurns.most = most
+            let browser = makeBrowser(tabs: 40)
+            let window = host(browser)
+            let settled = Date().addingTimeInterval(0.5)
+            while Date() < settled { drain() }
+
+            var late: [Double] = []
+            var due = CACurrentMediaTime() + 0.005
+            let tick = Timer(timeInterval: 0.005, repeats: true) { _ in
+                let now = CACurrentMediaTime()
+                late.append((now - due) * 1000)
+                due = now + 0.005
+            }
+            RunLoop.main.add(tick, forMode: .common)
+
+            let start = CACurrentMediaTime()
+            let tabs = servers.map { browser.open($0.url("/"), foreground: false) }
+            var passes: [Double] = []
+            var waits: [Double] = []
+            var first: Double?
+            while !tabs.allSatisfy({ !$0.loading && $0.title.hasPrefix("Page ") }), CACurrentMediaTime() - start < 120 {
+                let began = CACurrentMediaTime()
+                let cpu = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+                RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.004))
+                for window in windows {
+                    window.contentView?.layoutSubtreeIfNeeded()
+                    window.displayIfNeeded()
+                }
+                let took = (CACurrentMediaTime() - began) * 1000
+                passes.append(took)
+                // Asleep in the run loop for up to 4 ms of it by choice.
+                waits.append(max(0, took - Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - cpu) / 1e6 - 4))
+                if first == nil, tabs.contains(where: { !$0.loading && $0.title.hasPrefix("Page ") }) {
+                    first = (CACurrentMediaTime() - start) * 1000
+                }
+            }
+            tick.invalidate()
+            XCTAssertTrue(tabs.allSatisfy { $0.title.hasPrefix("Page ") }, "Every page loaded (\(name))")
+            record("backgroundTabs.\(name)", [
+                "atOnce": Double(most),
+                "worstLateMs": late.max() ?? 0,
+                "lateOver16": Double(late.filter { $0 > 16.7 }.count),
+                "worstPassMs": passes.max() ?? 0,
+                "worstWaitMs": waits.max() ?? 0,
+                "passesOver16": Double(passes.filter { $0 > 16.7 }.count),
+                "firstLoadedMs": first ?? 0,
+                "allLoadedMs": (CACurrentMediaTime() - start) * 1000,
+            ])
+            _ = window
+            browser.closeAll()
+            browsers.removeAll { $0 === browser }
+            let rested = Date().addingTimeInterval(1)
+            while Date() < rested { drain() }
         }
     }
 
