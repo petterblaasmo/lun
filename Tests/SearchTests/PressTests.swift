@@ -221,7 +221,7 @@ final class PressTests: XCTestCase {
     func testTheListsRowsAreButtons() throws {
         let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Sources/Search", isDirectory: true)
-        for name in ["Recall.swift", "Bookmarks.swift", "ImportPanel.swift", "Archive.swift"] {
+        for name in ["Recall.swift", "Bookmarks.swift", "BookmarksPage.swift", "ImportPanel.swift", "Archive.swift"] {
             let text = try String(contentsOf: sources.appendingPathComponent(name), encoding: .utf8)
             let taps = text.components(separatedBy: "\n").filter {
                 !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") && $0.contains(".onTapGesture")
