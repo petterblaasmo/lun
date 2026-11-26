@@ -1297,9 +1297,9 @@ final class Preferences: ObservableObject {
         // writes a line that would make it look like one from before.
         SyncDefault.settle(store, ranBefore: SidebarDefault.ranBefore(in: Store.folder))
         Preferences.settleLittleLinks(in: store)
-        // The switches Lun took out of Settings read as their defaults. Not
-        // in a test run: the tests of what those switches do set them first.
-        if !Store.testing { RetiredSettings.settle(store) }
+        // The switches Lun took out of Settings read as what they are fixed
+        // at (RetiredSettings).
+        if RetiredSettings.applies { RetiredSettings.settle(store) }
         navigationLeft = store.bool(forKey: "toolbar.left")
         compactStrip = store.bool(forKey: "tabs.compact")
         // Carried over from when there were four ways of holding the browser
