@@ -1,5 +1,6 @@
 import Combine
 import ImageIO
+import MachO
 import SwiftUI
 import WebKit
 
@@ -22,6 +23,62 @@ enum Web {
     /// secure" (24 Sep 2026). Only Search's passkey patch has to stand in
     /// the page's own world, and nothing there leads back to it.
     @MainActor static let world = WKContentWorld.world(name: "Search")
+
+    /// One copy of an extension's content script, and of its stylesheet,
+    /// however many sites and tabs it runs in. WebKit hands both to every
+    /// tab once for each site the extension was granted, and kept the whole
+    /// text each time: an extension with a 2 MB script and a 1 MB
+    /// stylesheet for 32 sites took 408 MiB of the app's own memory with
+    /// four tabs open, and takes 18 MiB shared (Tests/extension_memory.py).
+    ///
+    /// WebKit shares them only for an app that says it takes every current
+    /// WebKit behaviour, as Safari does. It comes with no SDK: WebKit holds
+    /// this one back from every other app, because with it a script made
+    /// off the main thread stops the app on the spot. Every script Lun makes
+    /// is made on the main thread.
+    ///
+    /// The one call there is says it for every behaviour WebKit holds back
+    /// from an app built before that behaviour came. Built with this
+    /// macOS's SDK or a later one, Lun has all of those already, and by
+    /// WebKit's source the sharing is all the call adds. On a macOS newer
+    /// than the SDK Lun was built with it would also switch on behaviours
+    /// nobody has run Lun with, so there it is not made (see
+    /// `takesCurrentBehaviours`) and the copies stay until the next build.
+    /// Called before anything of WebKit's is made.
+    @MainActor static func shareScriptText() {
+        let system = ProcessInfo.processInfo.operatingSystemVersion
+        guard takesCurrentBehaviours(macOS: (system.majorVersion, system.minorVersion), sdk: builtWith) else { return }
+        let say = NSSelectorFromString("_setLinkedOnOrAfterEverything")
+        guard let pool = NSClassFromString("WKProcessPool") as? NSObject.Type, pool.responds(to: say) else { return }
+        pool.perform(say)
+    }
+
+    /// Whether saying so changes nothing but what `shareScriptText` is for:
+    /// only on a macOS no newer than the SDK the app was built with (its
+    /// version to the minor, which is how WebKit dates its behaviours).
+    /// Not knowing the SDK is a no.
+    nonisolated static func takesCurrentBehaviours(macOS: (major: Int, minor: Int), sdk: (major: Int, minor: Int)?) -> Bool {
+        guard let sdk else { return false }
+        return macOS <= sdk
+    }
+
+    /// The macOS SDK this app was built with, as its own header says it.
+    nonisolated static let builtWith: (major: Int, minor: Int)? = {
+        guard let header = _dyld_get_image_header(0) else { return nil }
+        let start = UnsafeRawPointer(header)
+        var at = start + MemoryLayout<mach_header_64>.size
+        for _ in 0..<header.pointee.ncmds {
+            let command = at.loadUnaligned(as: load_command.self)
+            if command.cmd == UInt32(LC_BUILD_VERSION) {
+                // Packed as major in the top sixteen bits, then minor and patch.
+                let sdk = at.loadUnaligned(as: build_version_command.self).sdk
+                return (Int(sdk >> 16), Int((sdk >> 8) & 0xff))
+            }
+            guard command.cmdsize > 0 else { return nil }
+            at += Int(command.cmdsize)
+        }
+        return nil
+    }()
 
     /// Every handler of Search's taken off a controller: in its own world,
     /// and in the page's, where they all were before 24 Sep 2026 — a tab
