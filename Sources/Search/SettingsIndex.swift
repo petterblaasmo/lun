@@ -563,9 +563,9 @@ enum SettingsIndex {
               more: "Off, the page stays dimmed behind the field and shows through. Escape or a click outside the field brings it back, as before.",
               keys: ["field.hidesPage"], words: ["command bar", "cmd t", "cmd l", "dim", "blur", "cluttered", "busy", "background", "behind"]),
         .init(id: "newtab.recent", group: "opening", icon: "clock.arrow.circlepath",
-              title: "Recent places in the new tab", detail: "Before you type, ⌘T's field lists the last three places you went",
+              title: "Recent places in the new tab", detail: "Before you type, a new tab's field lists the last five places you went",
               more: "From History on this Mac, leaving out pages already open, which ⌘K finds. Nothing is picked until an arrow key picks it, and a private tab lists nothing.",
-              keys: ["newtab.recent"], words: ["recent", "history", "suggestions", "cmd t", "last visited"], parent: "newtab.floating"),
+              keys: ["newtab.recent"], words: ["recent", "history", "suggestions", "cmd t", "last visited"]),
         .init(id: "newtab.arc", group: "opening", icon: "rectangle.stack",
               title: "⌘T finds your open tabs", detail: "As you type, an open tab or a pin that matches is picked, and Return goes to it",
               more: "As you type, an open tab that matches is picked, else a pin, else the place from history the field completes to, so Return switches to a page you have instead of opening it again. ↑ lets go of the tab, and Return opens what you typed.",
@@ -848,7 +848,7 @@ enum SettingsIndex {
         case "profiles.oneWindow": return Profiles.shared.several
         case "spaces.links", "links.ask", "spaces.buttons": return prefs.usesSpaces
         case "tabs.frontBeside": return prefs.newTabPlace == .next
-        case "newtab.recent", "newtab.arc": return prefs.floatingNewTab
+        case "newtab.arc": return prefs.floatingNewTab
         case "mail.default": return prefs.webmail != .none
         case "links.peek.stays": return prefs.peeksLinks || prefs.pinsPeek
         case "launcher.key": return prefs.launcher
@@ -875,7 +875,7 @@ enum SettingsIndex {
         case "spaces.links", "links.ask", "spaces.buttons": return "Only with Spaces on"
         case "sidebar.player": return "Only with titles in the sidebar"
         case "tabs.frontBeside": return "Only with New tab position on After current"
-        case "newtab.recent", "newtab.arc": return "Only with the new tab in a floating field"
+        case "newtab.arc": return "Only with the new tab in a floating field"
         case "mail.default": return "Only with a webmail chosen for email links"
         case "links.peek.stays": return "Only when links or pins open peeks"
         case "launcher.key": return "Only with the address field from any app on"

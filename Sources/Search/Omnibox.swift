@@ -19,16 +19,33 @@ final class FieldState: ObservableObject {
 /// addresses and only addresses: type something that isn't a place and it
 /// shivers and says so, rather than quietly handing your keystrokes to a
 /// search engine.
+///
+/// The field and its list are one card, as a command bar is: large type, a
+/// rule under it, and the places under that, the last few you went before
+/// anything is typed (Browser.recentPlaces). Its top edge stays where it is
+/// and the card grows down, so a list that arrives never moves the field out
+/// from under what is being typed.
 struct Omnibox: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var typing: FieldState
     /// Raised over a page by ⌘L, rather than standing on an empty tab.
     let over: Bool
 
-    /// The field's own height — the 22 of text and 13 of air above and below it
-    /// that `field` lays out — so the list can sit below it without being
-    /// stacked with it.
-    private static let fieldHeight: CGFloat = 22 + 13 * 2
+    /// The field's own height: the 28 of text and 16 of air above and below
+    /// it that `field` lays out.
+    static let fieldHeight: CGFloat = 28 + 16 * 2
+    /// As wide as it gets: wider than the address bar's card, which opens
+    /// from a line in the column.
+    static let width: CGFloat = 640
+
+    /// How wide it is on a page this size.
+    static func width(in page: CGSize) -> CGFloat { min(width, max(0, page.width - 28)) }
+    /// How far down a page this size its top edge is: in the upper part, as
+    /// Spotlight's, with room under it for the list.
+    static func top(in page: CGSize) -> CGFloat { max(20, page.height * 0.24) }
+    /// Where the field ends, for what hangs under it on an empty tab
+    /// (HomeGrid, a pair's open tabs).
+    static func under(in page: CGSize) -> CGFloat { top(in: page) + fieldHeight }
 
     @State private var shake: CGFloat = 0
     @State private var refused = false
@@ -41,8 +58,8 @@ struct Omnibox: View {
     /// (AddressLine.swift), which stands where the line is.
     var listOnly: CGFloat?
 
-    /// Centred on the window and nearer its top, as Spotlight's, for
-    /// Settings › The field in the middle of the window (idea 753).
+    /// Drawn by the window, centred on all of it, for Settings › The field
+    /// in the middle of the window (idea 753).
     var high = false
 
     init(browser: Browser, over: Bool, fitted: Bool = false, tab: Tab.ID? = nil, listOnly: CGFloat? = nil, high: Bool = false) {
@@ -59,30 +76,25 @@ struct Omnibox: View {
         Group {
             if let width = listOnly {
                 if browser.fieldShowing, !browser.offers.isEmpty || browser.siteOffer != nil || browser.switcherNote != nil {
-                    rows
+                    rows()
                         .padding(6)
                         .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1).padding(.horizontal, 16) }
                         .frame(width: width)
                 }
-            } else if fitted {
-                GeometryReader { geometry in
-                    content(width: min(Metrics.fieldWidth, max(0, geometry.size.width - 28)))
-                }
-            } else if high {
-                GeometryReader { geometry in
-                    content(width: min(Metrics.fieldWidth, max(0, geometry.size.width - 28)), top: geometry.size.height * 0.24)
-                }
             } else {
-                content(width: Metrics.fieldWidth)
+                GeometryReader { geometry in
+                    content(width: Omnibox.width(in: geometry.size), top: Omnibox.top(in: geometry.size))
+                }
             }
         }
         .allowsHitTesting(browser.fieldShowing)
     }
 
-    /// `top`: the field that far down from the top, rather than a little
-    /// above the middle.
-    private func content(width: CGFloat, top: CGFloat? = nil) -> some View {
-        ZStack(alignment: top == nil ? .center : .top) {
+    private var listed: Bool { !browser.offers.isEmpty || browser.siteOffer != nil || browser.switcherNote != nil }
+
+    /// `top`: the card that far down from the top.
+    private func content(width: CGFloat, top: CGFloat) -> some View {
+        ZStack(alignment: .top) {
             // Keep the container mounted: only the field scales, while the
             // page's cover fades without pulling its edges into view. Not
             // while the address line has the field (AddressLine.swift), nor
@@ -102,57 +114,37 @@ struct Omnibox: View {
                         .transition(.opacity)
                 }
 
-                field
+                card
                     .frame(width: width)
-                // The list hangs below the field rather than stacking with it,
-                // so a list that grows never lifts the field out from under
-                // what is being typed.
-                .overlay(alignment: .top) {
-                    // Present or gone, not always-on-and-hidden: the list keeps
-                    // the appear and disappear it had, and the overlay is what
-                    // keeps that from moving the field.
-                    if !browser.offers.isEmpty || browser.siteOffer != nil || browser.switcherNote != nil {
-                        list
-                            .frame(width: width)
-                            .offset(y: Self.fieldHeight + 8)
-                    }
-                }
-                // Lifted a little above centre: dead centre reads as low,
-                // because the strip at the top isn't part of what the eye is
-                // measuring.
-                .padding(.bottom, top == nil ? 60 : 0)
-                .padding(.top, top ?? 0)
-                .transition(.scale(scale: 0.97).combined(with: .opacity))
-                // The list's arrival and its leaving are animated from here,
-                // briefly: nothing that changes the suggestions does it inside
-                // an animation of its own. Its rows follow what was typed or
-                // pasted at once — sliding into place on a spring between
-                // keystrokes, they trailed behind the field.
-                .animation(Motion.quick, value: browser.offers.isEmpty && browser.siteOffer == nil && browser.switcherNote == nil)
-                .animation(Motion.settle, value: refused)
+                    .padding(.top, top)
+                    .transition(.scale(scale: 0.97, anchor: .top).combined(with: .opacity))
+                    // The list's arrival and its leaving are animated from here,
+                    // briefly: nothing that changes the suggestions does it inside
+                    // an animation of its own. Its rows follow what was typed or
+                    // pasted at once — sliding into place on a spring between
+                    // keystrokes, they trailed behind the field.
+                    .animation(Motion.quick, value: listed)
+                    .animation(Motion.settle, value: refused)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    private var field: some View {
-        HStack(spacing: 8) {
-            if let site = browser.siteChip {
-                SiteChip(site: site)
-                    .transition(.scale(scale: 0.9, anchor: .leading).combined(with: .opacity))
-            } else {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Palette.muted)
-                    .frame(width: 18)
-                    .accessibilityHidden(true)
+    /// The field, and under a rule the places it thinks you mean, on one
+    /// ground.
+    private var card: some View {
+        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        return VStack(spacing: 0) {
+            field
+            // Present or gone, not always-on-and-hidden: the rows keep the
+            // appear and disappear they had.
+            if listed {
+                Rectangle().fill(Palette.hairline).frame(height: 1).padding(.horizontal, 20)
+                rows(large: true)
+                    .padding(8)
+                    .transition(.opacity)
             }
-            AddressField(browser: browser, tab: tab)
         }
-            .animation(Motion.quick, value: browser.siteChip)
-            .frame(height: 22)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 13)
             .background {
                 ZStack {
                     // A slow, almost invisible breath under the field. It is
@@ -163,12 +155,12 @@ struct Omnibox: View {
                     // picture as a white or dark smudge (idea 952).
                     UnlessThemed(over: over) { Breath() }
 
-                    Color.clear.elevated(.float, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    Color.clear.elevated(.float, in: shape)
                 }
             }
             .overlay {
                 if refused {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    shape
                         .strokeBorder(Color.red.opacity(0.35), lineWidth: 1)
                         .allowsHitTesting(false)
                 }
@@ -188,23 +180,33 @@ struct Omnibox: View {
             }
     }
 
-    /// What it thinks you mean. Places you have been come with their titles;
-    /// the handful of well-known addresses it starts life knowing come without
-    /// the weight of one.
-    ///
-    /// It lives below the field, in an overlay, so arriving or leaving never
-    /// moves the field — and the transition that carried it in and out before
-    /// is kept, only anchored to its own top edge.
-    private var list: some View {
-        rows
-        .padding(6)
-        .elevated(.float, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .transition(.scale(scale: 0.98, anchor: .top).combined(with: .opacity))
+    private var field: some View {
+        HStack(spacing: 12) {
+            if let site = browser.siteChip {
+                SiteChip(site: site)
+                    .transition(.scale(scale: 0.9, anchor: .leading).combined(with: .opacity))
+            } else {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Palette.muted)
+                    .frame(width: 20)
+                    .accessibilityHidden(true)
+            }
+            AddressField(browser: browser, tab: tab, size: 19)
+        }
+        .animation(Motion.quick, value: browser.siteChip)
+        .frame(height: 28)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
 
-    /// The rows alone. Under the address bar (AddressLine.swift) they are the
-    /// lower part of the card the bar opens into, so the bar draws the card.
-    private var rows: some View {
+    /// What it thinks you mean: the rows alone. Places you have been come
+    /// with their titles; the handful of well-known addresses it starts life
+    /// knowing come without the weight of one. Under the address bar
+    /// (AddressLine.swift) they are the lower part of the card the bar opens
+    /// into, so the bar draws the card; in the middle of the window they are
+    /// `large`, as the field over them is.
+    private func rows(large: Bool = false) -> some View {
         VStack(spacing: 0) {
             if let site = browser.siteOffer {
                 SiteOfferRow(site: site)
@@ -214,19 +216,19 @@ struct Omnibox: View {
             ForEach(Array(browser.offers.enumerated()), id: \.element.id) { index, offer in
                 // A line between the places and the words to search for.
                 if index > 0, offer.kind.isWords != browser.offers[index - 1].kind.isWords {
-                    Rectangle().fill(Palette.hairline).frame(height: 1).padding(.horizontal, 10).padding(.vertical, 6)
+                    Rectangle().fill(Palette.hairline).frame(height: 1).padding(.horizontal, large ? 12 : 10).padding(.vertical, 6)
                 }
-                Row(offer: offer, picked: browser.picked == index, typed: browser.typed)
+                Row(offer: offer, picked: browser.picked == index, typed: browser.typed, large: large)
                     .contentShape(Rectangle())
                     .onTapGesture { browser.take(offer) }
             }
             if let note = browser.switcherNote {
                 Text(note)
-                    .font(.system(size: 13))
+                    .font(.system(size: large ? 14 : 13))
                     .foregroundStyle(Palette.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
+                    .padding(.horizontal, large ? 14 : 12)
+                    .padding(.vertical, large ? 11 : 9)
             }
         }
         // The arrow over the rows: from the field's caret the pointer kept
@@ -242,6 +244,8 @@ struct Omnibox: View {
         let picked: Bool
         /// What is in the field, for the words an engine suggested.
         var typed = ""
+        /// In the middle of the window, under its larger field.
+        var large = false
 
         @State private var hovering = false
 
@@ -269,7 +273,7 @@ struct Omnibox: View {
             switch offer.kind {
             case .search, .suggested:
                 if let icon = Favicons.shared.cached(for: offer.url) {
-                    Mark(icon: icon, letter: "", size: 16)
+                    Mark(icon: icon, letter: "", size: mark)
                 } else {
                     symbol("magnifyingglass")
                 }
@@ -278,15 +282,17 @@ struct Omnibox: View {
             case .searched:
                 symbol("clock.arrow.circlepath")
             default:
-                Mark(icon: Favicons.shared.cached(for: offer.url), letter: letter, size: 16)
+                Mark(icon: Favicons.shared.cached(for: offer.url), letter: letter, size: mark)
             }
         }
+
+        private var mark: CGFloat { large ? 18 : 16 }
 
         /// Kept, on another device, or pinned.
         @ViewBuilder private var marks: some View {
             if case .command(let command) = offer.kind, let key = command.key {
                 Text(key)
-                    .font(.system(size: 12))
+                    .font(.system(size: large ? 13 : 12))
                     .foregroundStyle(Palette.muted)
             }
             if offer.kind == .elsewhere {
@@ -297,17 +303,17 @@ struct Omnibox: View {
         }
 
         private var lineBody: some View {
-            HStack(spacing: 10) {
+            HStack(spacing: large ? 12 : 10) {
                 // Every row has the same column before its words, so the
                 // words line up whatever stands in it.
-                icon.frame(width: 16, height: 16)
+                icon.frame(width: large ? 20 : 16, height: large ? 20 : 16)
                 words
-                    .font(.system(size: 13))
+                    .font(.system(size: large ? 15 : 13))
                     .lineLimit(1)
                     .layoutPriority(1)
                 if let subline {
                     Text(subline)
-                        .font(.system(size: 11))
+                        .font(.system(size: large ? 13 : 11))
                         .foregroundStyle(Palette.muted)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -316,20 +322,20 @@ struct Omnibox: View {
                 marks
                 if let says {
                     Text(says)
-                        .font(.system(size: 12))
+                        .font(.system(size: large ? 13 : 12))
                         .foregroundStyle(Palette.muted)
                         .lineLimit(1)
                         .fixedSize()
                 }
             }
-            .padding(.horizontal, 10)
-            .frame(height: 36)
+            .padding(.horizontal, large ? 12 : 10)
+            .frame(height: large ? 44 : 36)
             .background {
                 if picked {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: large ? 12 : 10, style: .continuous)
                         .fill(Palette.wash)
                 } else if hovering {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: large ? 12 : 10, style: .continuous)
                         .fill(Palette.hover)
                 }
             }
@@ -362,7 +368,7 @@ struct Omnibox: View {
 
         private func symbol(_ name: String) -> some View {
             Image(systemName: name)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: large ? 12 : 10, weight: .medium))
                 .foregroundStyle(Palette.muted)
         }
 
@@ -620,8 +626,8 @@ struct AddressField: NSViewRepresentable {
         if browser.editingInline { return "Search or enter address" }
         switch browser.fieldMode {
         case .blank: return "Search or enter address"
-        case .newTab: return "New tab: enter a web address"
-        case .thisTab: return "This tab: enter a web address"
+        case .newTab: return "New tab: search or enter address"
+        case .thisTab: return "This tab: search or enter address"
         case .switcher: return "Switch to an open tab"
         }
     }
