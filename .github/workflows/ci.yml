@@ -52,6 +52,7 @@ jobs:
         # SearchPackageTests): whichever was made, as tests.xctest.
         run: |
           bin=$(swift build --show-bin-path)
+          bin=${bin#"$PWD/"}
           bundle=$(find "$bin/" -maxdepth 1 -name "*.xctest" | head -1)
           echo "$bundle"
           test -n "$bundle"
@@ -81,7 +82,7 @@ jobs:
           name: products
       - run: tar -xzf products.tgz
       - name: Unit tests, one class at a time
-        run: python3 scripts/ci/tests.py --list tests.txt --bundle "$(swift build --show-bin-path)/tests.xctest" --shard ${{ matrix.shard }} --of 4
+        run: python3 scripts/ci/tests.py --list tests.txt --bundle "$(find .build -maxdepth 4 -name tests.xctest | head -1)" --shard ${{ matrix.shard }} --of 4
       - uses: actions/upload-artifact@v4
         if: always()
         with:
