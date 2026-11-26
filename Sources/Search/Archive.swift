@@ -172,52 +172,38 @@ struct ArchivePanel: View {
 
     var body: some View {
         let listed = self.listed
-        Plate("Archived Tabs", width: 600, close: { browser.archiving = false }) {
-            VStack(alignment: .leading, spacing: 14) {
-                Hunt(text: $hunt, prompt: "Search the tabs Lun closed", focus: $hunting)
-                if listed.isEmpty {
-                    Card { Nothing(hunt.isEmpty ? empty : "Nothing matches.") }
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(lines(listed)) { line in
-                                switch line.kind {
-                                case .day(let day):
-                                    Caption(day)
-                                        .padding(.top, line.first ? 0 : 14)
-                                        .padding(.bottom, 6)
-                                case .tab(let tab, let first, let last):
-                                    VStack(spacing: 0) {
-                                        if !first { Rule() }
-                                        Row(tab: tab,
-                                            go: { browser.reopen(tab) },
-                                            remove: { archive.remove(tab.id) })
+        Plate("Archived Tabs", line: "Tabs Lun put away because you left them alone. Each stays here for 30 days.", width: 600,
+              tools: AnyView(tools), close: { browser.archiving = false }) {
+            if listed.isEmpty {
+                Card { Nothing(hunt.isEmpty ? empty : "Nothing matches.") }
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 24) {
+                        ForEach(days(listed)) { day in
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                    Text(day.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.ink)
+                                    Text(day.tabs.count == 1 ? "1 tab" : "\(day.tabs.count) tabs").font(.system(size: 12)).foregroundStyle(Palette.muted)
+                                    Spacer()
+                                    Pill("Reopen All") { day.tabs.forEach { browser.reopen($0) } }
+                                }
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 12)], alignment: .leading, spacing: 12) {
+                                    ForEach(day.tabs) { tab in
+                                        Tile(tab: tab, go: { browser.reopen(tab) }, remove: { archive.remove(tab.id) })
                                     }
-                                    .background(Palette.ground)
-                                    .clipShape(HistoryPanel.Slice(first: first, last: last))
-                                    .overlay(
-                                        HistoryPanel.Slice(first: first, last: last)
-                                            .strokeBorder(Palette.hairline, lineWidth: 1)
-                                            .padding(.top, first ? 0 : -1)
-                                            .padding(.bottom, last ? 0 : -1)
-                                            .clipped()
-                                    )
                                 }
                             }
                         }
-                        .padding(.bottom, 2)
                     }
-                    .listHeight(420)
+                    .padding(.bottom, 2)
                 }
+                .listHeight(420)
             }
         } foot: {
             HStack {
                 Text(listed.count == 1 ? "1 tab" : "\(listed.count) tabs")
                     .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
-                Text("· kept for 30 days")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.faint)
                 Spacer()
                 if !archive.tabs.isEmpty {
                     Pill("Clear") { archive.clear() }
@@ -227,82 +213,83 @@ struct ArchivePanel: View {
         .onAppear { hunting = true }
     }
 
+    private var tools: some View {
+        HStack(spacing: 8) {
+            Picker("Put tabs away", selection: Binding(get: { browser.prefs.tabLife }, set: { browser.prefs.tabLife = $0 })) {
+                ForEach(TabLife.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.menu)
+            .fixedSize()
+            .font(.system(size: 12))
+            Hunt(text: $hunt, prompt: "Search", focus: $hunting).frame(width: 180)
+        }
+    }
+
     private var empty: String {
         browser.prefs.tabLife.interval == nil
             ? "Tabs never close by themselves (Settings › Tabs)."
             : "Nothing yet. Tabs Lun closes for you land here."
     }
 
-    private struct Line: Identifiable {
-        enum Kind {
-            case day(String)
-            case tab(Archived, first: Bool, last: Bool)
-        }
-        let id: String
-        let kind: Kind
-        var first = false
+    private struct Day: Identifiable {
+        let id: Date
+        let title: String
+        let tabs: [Archived]
     }
 
-    /// Each day's name, then its tabs, newest first.
-    private func lines(_ listed: [Archived]) -> [Line] {
+    /// Each day and the tabs put away on it, newest first.
+    private func days(_ listed: [Archived]) -> [Day] {
         let calendar = Calendar.current
-        var made: [Line] = []
-        var at = 0
-        while at < listed.count {
-            let day = calendar.startOfDay(for: listed[at].closed)
-            var end = at
-            while end < listed.count, calendar.startOfDay(for: listed[end].closed) == day { end += 1 }
-            made.append(Line(id: "day \(day.timeIntervalSince1970)", kind: .day(When.day(day)), first: made.isEmpty))
-            for index in at..<end {
-                made.append(Line(id: listed[index].id.uuidString,
-                                 kind: .tab(listed[index], first: index == at, last: index == end - 1)))
-            }
-            at = end
-        }
-        return made
+        return Dictionary(grouping: listed) { calendar.startOfDay(for: $0.closed) }
+            .sorted { $0.key > $1.key }
+            .map { Day(id: $0.key, title: When.day($0.key), tabs: $0.value) }
     }
 
-    /// A title, its site, and when it closed: History's row.
-    private struct Row: View {
+    /// A tab put away: its icon, its title, its site, and how long it stays.
+    private struct Tile: View {
         let tab: Archived
         let go: () -> Void
         let remove: () -> Void
 
         @State private var hovering = false
 
+        private var left: String {
+            let days = max(0, Int((Archive.lasts - Date().timeIntervalSince(tab.closed)) / 86_400))
+            return days == 1 ? "1 day left" : "\(days) days left"
+        }
+
         var body: some View {
-            HStack(spacing: 12) {
-                Mark(icon: Favicons.shared.cached(for: tab.url),
-                     letter: tab.site.first.map { String($0).uppercased() } ?? "•", size: 16)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(tab.label)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(1)
-                    Text(tab.site)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(Palette.muted)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top) {
+                    Mark(icon: Favicons.shared.cached(for: tab.url), letter: "", size: 24, globe: true)
+                    Spacer()
+                    if hovering {
+                        Button(action: remove) {
+                            Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(Palette.muted)
+                                .frame(width: 22, height: 22).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Remove")
+                    }
                 }
-                Spacer(minLength: 8)
-                if hovering {
-                    Quick("Remove", tint: .red.opacity(0.75), act: remove)
-                } else {
-                    Text(When.clock(tab.closed))
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(Palette.muted)
-                        .monospacedDigit()
+                FadingLine(text: tab.label).font(.system(size: 13)).foregroundStyle(Palette.ink)
+                HStack(spacing: 4) {
+                    Text("\(tab.site) · \(When.clock(tab.closed))").lineLimit(1).truncationMode(.middle)
+                    Spacer(minLength: 4)
+                    Text(left).fixedSize()
                 }
+                .font(.system(size: 11))
+                .foregroundStyle(Palette.muted)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(hovering ? Palette.hover : .clear)
-            .contentShape(Rectangle())
+            .padding(12)
+            .background(hovering ? Palette.fillHover : Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .onTapGesture(perform: go)
             .onHover { hovering = $0 }
             .animation(Motion.quick, value: hovering)
             .help("Open again in this space")
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
         }
     }
 }

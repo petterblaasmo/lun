@@ -7,48 +7,55 @@ struct PasswordsPanel: View {
     @ObservedObject var browser: Browser
 
     @FocusState private var hunting: Bool
-    @State private var open: String?
+    /// The account on show.
+    @State private var picked: Kept.ID?
     @State private var adding = false
+    @State private var width: CGFloat = 900
+
+    private var accounts: [Kept] { browser.shownSites.flatMap(\.logins) }
 
     var body: some View {
-        Plate("Passwords", width: 620, close: { browser.managing = false }) {
+        let accounts = self.accounts
+        let shown = accounts.first { $0.id == picked } ?? accounts.first
+        Plate("Passwords", width: 620, tools: AnyView(Pill(adding ? "Cancel" : "Add…") { adding.toggle() }), close: { browser.managing = false }) {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 10) {
-                    Hunt(text: $browser.hunting, prompt: "Search sites and accounts", focus: $hunting)
-                    Pill(adding ? "Cancel" : "Add", filled: !adding) { adding.toggle() }
-                }
-
                 if adding {
                     Card { AddForm(browser: browser) { adding = false } }
                         .transition(.opacity)
                 }
-
-                if browser.shownSites.isEmpty {
-                    Card {
-                        Nothing(browser.saved.isEmpty
-                                ? "Nothing kept yet. Sign in somewhere and say yes, or bring yours in below."
-                                : "Nothing matches.")
-                    }
-                } else {
-                    ScrollView {
-                        Card {
-                            ForEach(Array(browser.shownSites.enumerated()), id: \.element.host) { index, site in
-                                if index > 0 { Rule() }
-                                Site(
-                                    host: site.host,
-                                    logins: site.logins,
-                                    open: open == site.host,
-                                    toggle: { open = open == site.host ? nil : site.host },
-                                    copy: { browser.copy($0) },
-                                    forget: { browser.forget($0) }
-                                )
+                HStack(alignment: .top, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Hunt(text: $browser.hunting, prompt: accounts.count == 1 ? "Search 1 account" : "Search \(browser.saved.count) accounts", focus: $hunting)
+                        if accounts.isEmpty {
+                            Card {
+                                Nothing(browser.saved.isEmpty
+                                        ? "Nothing kept yet. Sign in somewhere and say yes, or bring yours in below."
+                                        : "Nothing matches.")
                             }
+                        } else {
+                            ScrollView {
+                                LazyVStack(spacing: 2) {
+                                    ForEach(accounts) { login in
+                                        AccountRow(login: login, on: login.id == shown?.id) { picked = login.id }
+                                    }
+                                }
+                                .padding(.bottom, 2)
+                            }
+                            .listHeight(400)
                         }
-                        .padding(.bottom, 2)
                     }
-                    .listHeight(400)
+                    .frame(width: min(280, max(180, width * 0.36)))
+                    if let shown {
+                        Account(login: shown, copy: { browser.copy(shown) }, forget: { browser.forget(shown) })
+                            .id(shown.id)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    } else {
+                        Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                    }
                 }
+                .frame(maxHeight: .infinity, alignment: .topLeading)
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         } foot: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
@@ -73,83 +80,58 @@ struct PasswordsPanel: View {
                         .foregroundStyle(Palette.muted)
                 }
                 Text("macOS asks once for that browser's keychain key. Nothing is changed there; everything lands in your own keychain, under Lun.")
-                    .font(.system(size: 11.5))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .animation(Motion.settle, value: adding)
-        .animation(Motion.settle, value: open)
         .onAppear { hunting = true }
     }
 
-    /// A site, and under it its accounts once opened.
-    private struct Site: View {
-        let host: String
-        let logins: [Kept]
-        let open: Bool
-        let toggle: () -> Void
-        let copy: (Kept) -> Void
-        let forget: (Kept) -> Void
+    /// One account in the list: its site, and whose it is.
+    private struct AccountRow: View {
+        let login: Kept
+        let on: Bool
+        let act: () -> Void
 
         @State private var hovering = false
 
         var body: some View {
-            VStack(spacing: 0) {
+            Button(action: act) {
                 HStack(spacing: 10) {
-                    Mark(icon: Favicons.shared.cached(host), letter: host.first.map { String($0).uppercased() } ?? "•", size: 16)
-                    Text(host)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(1)
-                    if logins.count > 1 {
-                        Text("\(logins.count) accounts")
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(Palette.muted)
-                    } else if let only = logins.first, !only.user.isEmpty, !open {
-                        Text(only.user)
-                            .font(.system(size: 11.5))
+                    SiteMark(host: login.host, size: 16)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(login.host)
+                            .font(.system(size: 13, weight: on ? .medium : .regular))
+                            .foregroundStyle(Palette.ink)
+                            .lineLimit(1)
+                        Text(login.user.isEmpty ? "No username" : login.user)
+                            .font(.system(size: 11))
                             .foregroundStyle(Palette.muted)
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(Palette.muted)
-                        .rotationEffect(.degrees(open ? 90 : 0))
+                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(open ? Palette.wash.opacity(0.6) : (hovering ? Palette.hover : .clear))
-                .contentShape(Rectangle())
-                .onTapGesture(perform: toggle)
-                .onHover { hovering = $0 }
-                .animation(Motion.quick, value: hovering)
-
-                if open {
-                    VStack(spacing: 0) {
-                        ForEach(logins) { login in
-                            Account(login: login, copy: { copy(login) }, forget: { forget(login) })
-                        }
-                    }
-                    .padding(.leading, 30)
-                    .padding(.trailing, 6)
-                    .padding(.vertical, 4)
-                    .transition(.opacity)
-                }
+                .padding(.horizontal, 10)
+                .frame(height: 44)
+                .background(on ? Palette.fill : hovering ? Palette.hover : .clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
+            .buttonStyle(.plain)
+            .onHover { hovering = $0 }
+            .accessibilityAddTraits(on ? .isSelected : [])
         }
     }
 
-    /// One account: the name, the password as dots, and the three things to
-    /// do with it. Show asks the Mac who you are first.
+    /// One account: the name, the password as dots, and the things to do with
+    /// it. Show asks the Mac who you are first.
     private struct Account: View {
         let login: Kept
         let copy: () -> Void
         let forget: () -> Void
 
-        @State private var hovering = false
         @State private var shown = false
         /// The secret, from the moment it is shown to the moment it is hidden
         /// again. Read on that click rather than with the list: see `Kept`.
@@ -157,43 +139,60 @@ struct PasswordsPanel: View {
         @State private var hide: DispatchWorkItem?
 
         var body: some View {
-            HStack(spacing: 10) {
-                Text(login.user.isEmpty ? "No username" : login.user)
-                    .font(.system(size: 12))
-                    .foregroundStyle(login.user.isEmpty ? Palette.faint : Palette.ink)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(minWidth: 120, alignment: .leading)
-                    // Selectable, as the password beside it is: a username is
-                    // not a secret, and it is the half of a sign-in you are
-                    // most often asked to type somewhere else.
-                    .textSelection(.enabled)
-
-                // Ten dots whatever it is: the row does not know the length
-                // until the secret is read, and a count that changed with it
-                // told anyone looking over a shoulder how long it was.
-                Text(shown ? (secret ?? "") : String(repeating: "•", count: 10))
-                    .font(.system(size: shown ? 12.5 : 10, design: .monospaced))
-                    .foregroundStyle(shown ? Palette.ink : Palette.muted)
-                    .lineLimit(1)
-                    .textSelection(.enabled)
-
-                Spacer(minLength: 8)
-
-                if hovering || shown {
-                    Quick(shown ? "Hide" : "Show") { shown ? conceal() : reveal() }
-                    Quick("Copy", act: copy)
-                    Quick("Remove", tint: .red.opacity(0.75), act: forget)
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) {
+                    SiteMark(host: login.host, size: 32)
+                    Text(login.host)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Palette.ink)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                }
+                Card {
+                    line("Username") {
+                        Text(login.user.isEmpty ? "No username" : login.user)
+                            .foregroundStyle(login.user.isEmpty ? Palette.muted : Palette.ink)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            // Selectable, as the password is: a username is
+                            // not a secret, and it is the half of a sign-in you are
+                            // most often asked to type somewhere else.
+                            .textSelection(.enabled)
+                    } control: { EmptyView() }
+                    Rule()
+                    line("Password") {
+                        // Ten dots whatever it is: the row does not know the length
+                        // until the secret is read, and a count that changed with it
+                        // told anyone looking over a shoulder how long it was.
+                        Text(shown ? (secret ?? "") : String(repeating: "•", count: 10))
+                            .font(.system(size: 13, design: shown ? .monospaced : .default))
+                            .foregroundStyle(shown ? Palette.ink : Palette.muted)
+                            .lineLimit(1)
+                            .textSelection(.enabled)
+                    } control: {
+                        Pill(shown ? "Hide" : "Show") { shown ? conceal() : reveal() }
+                        Pill("Copy", action: copy)
+                    }
+                }
+                HStack {
+                    Spacer()
+                    Pill("Remove…", tint: .red.opacity(0.8), action: forget)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(hovering ? Palette.hover : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .contentShape(Rectangle())
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
-            .animation(Motion.quick, value: shown)
             .onDisappear { conceal() }
+        }
+
+        private func line<Value: View, Control: View>(_ name: String, @ViewBuilder value: () -> Value, @ViewBuilder control: () -> Control) -> some View {
+            HStack(spacing: 8) {
+                Text(name).foregroundStyle(Palette.muted).frame(width: 90, alignment: .leading)
+                value()
+                Spacer(minLength: 8)
+                control()
+            }
+            .font(.system(size: 13))
+            .padding(.horizontal, 16)
+            .frame(height: 44)
         }
 
         private func reveal() {
@@ -239,7 +238,7 @@ struct PasswordsPanel: View {
                 HStack(spacing: 8) {
                     ZStack(alignment: .leading) {
                         if password.isEmpty {
-                            Text("Password").foregroundStyle(Palette.ink.opacity(0.3))
+                            Text("Password").foregroundStyle(Palette.muted)
                                 .padding(.leading, 10)
                         }
                         SecureField("", text: $password)
@@ -251,7 +250,7 @@ struct PasswordsPanel: View {
                             .padding(.horizontal, 10)
                             .padding(.vertical, 7)
                     }
-                    .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .background(Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     Pill("Save", filled: true, action: keep)
                         .disabled(Vault.host(of: site).isEmpty || password.isEmpty)
                 }
@@ -263,7 +262,7 @@ struct PasswordsPanel: View {
         private func field(_ name: String, text: Binding<String>, tag: Int) -> some View {
             ZStack(alignment: .leading) {
                 if text.wrappedValue.isEmpty {
-                    Text(name).foregroundStyle(Palette.ink.opacity(0.3)).padding(.leading, 10)
+                    Text(name).foregroundStyle(Palette.muted).padding(.leading, 10)
                 }
                 TextField("", text: text)
                     .textFieldStyle(.plain)
@@ -273,7 +272,7 @@ struct PasswordsPanel: View {
                     .padding(.vertical, 7)
             }
             .font(.system(size: 12.5))
-            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
 
         private func keep() {

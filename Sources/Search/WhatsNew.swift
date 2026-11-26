@@ -929,64 +929,100 @@ struct WhatsNewCard: View {
     }
 }
 
-/// Every version's notes, newest first: Settings › About › What's New…
+/// Lun's own notes: Settings › About › What's New… What came before Lun isn't
+/// listed; the app it is now is.
 struct ReleaseNotesPanel: View {
     let close: () -> Void
+    @ObservedObject private var prefs = Shared.prefs
+
+    private static let notes: [(String, String)] = [
+        ("New", "The column, the tabs across the top, Settings and every page have a new look, light and dark."),
+        ("New", "The address opens where it stands, as one card with its suggestions."),
+        ("New", "A page that doesn’t load says how far it got."),
+        ("Changed", "Lun has its own name, icon, bundle ID, signing, data folder and keychain items."),
+        ("Removed", "The update feed, the mailing list and the iPhone waitlist. Updates come back when Lun has somewhere to get them from."),
+        ("Changed", "Send Feedback opens a draft issue with the version already in it."),
+    ]
 
     var body: some View {
-        Plate("What's New", width: 560, close: close) {
+        Plate("What’s New", width: 560, across: 720, close: close) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    ForEach(WhatsNew.notes, id: \.version) { note in
-                        version(note)
+                VStack(alignment: .leading, spacing: 32) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Version \(Updater.version)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Palette.muted)
+                        Text("Lun is its own browser now")
+                            .font(.system(size: 22, weight: .semibold))
+                            .kerning(-0.3)
+                            .foregroundStyle(Palette.ink)
+                        Text("Here are three things in it worth a try.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Palette.muted)
+                    }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12, alignment: .top)], spacing: 12) {
+                        Try(title: "The page gets the whole window", detail: "The column hides until the pointer reaches the window’s edge.",
+                            symbol: "sidebar.left", on: Binding(get: { prefs.sideHides }, set: { prefs.sideHides = $0 }))
+                        Try(title: "Peek at a link", detail: "⇧-click a link and its page opens in a panel over the one you’re reading.",
+                            symbol: "rectangle.on.rectangle", on: Binding(get: { prefs.peeksLinks }, set: { prefs.peeksLinks = $0 }))
+                        Try(title: "The address field from any app", detail: "A key of your own raises it over whatever you’re in, as Spotlight does.",
+                            symbol: "magnifyingglass", on: Binding(get: { prefs.launcher }, set: { prefs.launcher = $0 }))
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Also in \(Updater.version)")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.ink)
+                        Card {
+                            ForEach(Array(Self.notes.enumerated()), id: \.offset) { index, note in
+                                if index > 0 { Rule() }
+                                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                    Text(note.0).foregroundStyle(Palette.muted).frame(width: 72, alignment: .leading)
+                                    Text(note.1).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                                    Spacer(minLength: 0)
+                                }
+                                .font(.system(size: 13))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                            }
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
+                .padding(.bottom, 12)
             }
             .listHeight(480)
         }
     }
 
-    private func version(_ note: WhatsNew.Notes) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("Lun \(note.version)")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
-                if !note.date.isEmpty {
-                    Text(note.date)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.faint)
-                }
-            }
-            Text(note.headline)
-                .font(.system(size: 13))
-                .foregroundStyle(Palette.ink)
-                .fixedSize(horizontal: false, vertical: true)
-            list("New", note.new)
-            list("Better", note.better)
-            list("Fixed", note.fixed)
-        }
-    }
+    /// Something to switch on, and what it looks like it is.
+    private struct Try: View {
+        let title: String
+        let detail: String
+        let symbol: String
+        @Binding var on: Bool
 
-    @ViewBuilder
-    private func list(_ title: String, _ lines: [String]) -> some View {
-        if !lines.isEmpty {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title)
-                    .font(.system(size: 11.5, weight: .medium))
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.system(size: 22, weight: .light))
                     .foregroundStyle(Palette.muted)
-                ForEach(lines, id: \.self) { line in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("•").foregroundStyle(Palette.faint)
-                        Text(line)
-                            .foregroundStyle(Palette.ink)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .font(.system(size: 12.5))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 84)
+                    .elevated(.lift, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .padding(.bottom, 6)
+                    .accessibilityHidden(true)
+                Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(Palette.ink)
+                Text(detail).font(.system(size: 12)).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                HStack {
+                    Text("Try it").font(.system(size: 12)).foregroundStyle(Palette.muted)
+                    Spacer()
+                    Switch(on: $on)
                 }
             }
+            .padding(12)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(Palette.fill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 }

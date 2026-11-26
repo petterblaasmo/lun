@@ -64,11 +64,31 @@ struct ImportPanel: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Nothing in the other browser changes. Passwords go into your keychain.")
-                .font(.system(size: 12.5))
-                .foregroundStyle(Palette.muted)
+        // Which browser, and beside it what to bring from it, where there is
+        // room for the two.
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 14) { from }.frame(width: 280)
+                if let source = pick {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Caption("What to bring from \(source.name)")
+                        options(for: source)
+                    }
+                    .frame(minWidth: 420, maxWidth: .infinity, alignment: .topLeading)
+                } else {
+                    Spacer(minLength: 420)
+                }
+            }
+            VStack(alignment: .leading, spacing: 14) {
+                from
+                if let source = pick { options(for: source) }
+            }
+        }
+    }
 
+    @ViewBuilder
+    private var from: some View {
+        Group {
             if looking {
                 HStack(spacing: 8) {
                     Ring(size: 10)
@@ -77,7 +97,7 @@ struct ImportPanel: View {
             } else if sources.isEmpty {
                 Card { Nothing(unreadable.isEmpty ? "No other browser found on this Mac." : "Choose a browser's data folder below to allow Lun to read it.") }
             } else {
-                Caption("On this Mac")
+                Caption("From")
                 Card {
                     ForEach(Array(sources.enumerated()), id: \.element.id) { index, source in
                         if index > 0 { Rule() }
@@ -93,15 +113,11 @@ struct ImportPanel: View {
             }
 
             notes
-
-            if let source = pick {
-                options(for: source)
-            }
         }
     }
 
     var body: some View {
-        Plate("Bring things over", width: 580, close: { browser.bringingIn = nil }) {
+        Plate("Bring Things Over", line: "Nothing in the other browser changes. Passwords go into your Mac’s keychain.", width: 580, close: { browser.bringingIn = nil }) {
             // As tall as it needs to be, and scrolling past what the window
             // can hold: many browsers, or a small window.
             ViewThatFits(in: .vertical) {
@@ -258,10 +274,10 @@ struct ImportPanel: View {
                         .foregroundStyle(Palette.muted)
                 }
             }
-            .font(.system(size: 11.5))
-            .foregroundStyle(Palette.faint)
+            .font(.system(size: 12))
+            .foregroundStyle(Palette.muted)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.leading, 2)
+            .padding(.leading, 16)
         }
     }
 

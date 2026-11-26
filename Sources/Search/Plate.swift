@@ -10,20 +10,32 @@ import SwiftUI
 /// about, and — when there is one — a foot below a hairline.
 struct Plate<Content: View, Foot: View>: View {
     let title: String
+    /// A line under the title, in a tab of its own.
+    var line: String? = nil
     var width: CGFloat = 560
+    /// How wide it is in a tab of its own: as wide as a list wants to be.
+    var across: CGFloat = 960
+    /// What is done with all of it, beside its title.
+    var tools: AnyView? = nil
     let close: () -> Void
     @ViewBuilder let content: () -> Content
     @ViewBuilder let foot: () -> Foot
 
     init(
         _ title: String,
+        line: String? = nil,
         width: CGFloat = 560,
+        across: CGFloat = 960,
+        tools: AnyView? = nil,
         close: @escaping () -> Void,
         @ViewBuilder content: @escaping () -> Content,
         @ViewBuilder foot: @escaping () -> Foot
     ) {
         self.title = title
+        self.line = line
         self.width = width
+        self.across = across
+        self.tools = tools
         self.close = close
         self.content = content
         self.foot = foot
@@ -35,29 +47,40 @@ struct Plate<Content: View, Foot: View>: View {
         if asTab { page } else { card }
     }
 
-    /// In a tab of its own (see InternalPages.swift): the same title and
-    /// content, as wide as the card was, down the middle of the page. No
+    /// In a tab of its own (see InternalPages.swift): the title with what is
+    /// done with all of it beside it, then the content, the page's width. No
     /// card, no shadow, no cross — the tab is what closes.
     private var page: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(Palette.ink)
-                .padding(.top, 44)
-                .padding(.bottom, 20)
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Palette.ink)
+                        .accessibilityAddTraits(.isHeader)
+                    if let line {
+                        Text(line)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Palette.muted)
+                    }
+                }
+                Spacer(minLength: 16)
+                if let tools { tools }
+            }
+            .frame(minHeight: 32)
+            .padding(.top, 28)
+            .padding(.bottom, 20)
 
             content()
 
             if Foot.self != EmptyView.self {
-                Rectangle().fill(Palette.hairline).frame(height: 1)
-                    .padding(.top, 18)
                 foot()
                     .padding(.vertical, 14)
             }
             Color.clear.frame(height: 12)
         }
-        .padding(.horizontal, 22)
-        .frame(maxWidth: width, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 32)
+        .frame(maxWidth: across + 64, maxHeight: .infinity, alignment: .topLeading)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
@@ -68,6 +91,7 @@ struct Plate<Content: View, Foot: View>: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Palette.ink)
                 Spacer(minLength: 0)
+                if let tools { tools }
                 Door(icon: "xmark", help: "Done   esc", act: close)
             }
             .padding(.horizontal, 22)
@@ -101,11 +125,14 @@ struct Plate<Content: View, Foot: View>: View {
 extension Plate where Foot == EmptyView {
     init(
         _ title: String,
+        line: String? = nil,
         width: CGFloat = 560,
+        across: CGFloat = 960,
+        tools: AnyView? = nil,
         close: @escaping () -> Void,
         @ViewBuilder content: @escaping () -> Content
     ) {
-        self.init(title, width: width, close: close, content: content, foot: { EmptyView() })
+        self.init(title, line: line, width: width, across: across, tools: tools, close: close, content: content, foot: { EmptyView() })
     }
 }
 
@@ -225,6 +252,46 @@ struct Hunt: View {
     }
 }
 
+/// A list's narrower choices, down the side of a page: what each one is
+/// called and how many there are.
+struct SideChoice: View {
+    let title: String
+    var icon: NSImage?
+    var globe = false
+    let count: Int?
+    let on: Bool
+    let act: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: act) {
+            HStack(spacing: 8) {
+                if globe || icon != nil { Mark(icon: icon, letter: "", size: 16, globe: true) }
+                Text(title)
+                    .font(.system(size: 13, weight: on ? .medium : .regular))
+                    .foregroundStyle(on || hovering ? Palette.ink : Palette.muted)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 8)
+                if let count {
+                    Text(count.formatted())
+                        .font(.system(size: 12))
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.muted)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .background(on ? Palette.fill : hovering ? Palette.hover : .clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
 /// What a panel says when its list is empty.
 struct Nothing: View {
     let text: String
@@ -256,13 +323,13 @@ struct Quick: View {
             // On one line, whatever room is left: in the narrow downloads
             // card, Resume, Retry and Remove broke in the middle of a word.
             Text(title)
-                .font(.system(size: 11.5))
+                .font(.system(size: 12))
                 .foregroundStyle(tint)
                 .lineLimit(1)
                 .fixedSize()
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Palette.wash, in: Capsule())
+                .padding(.horizontal, 10)
+                .frame(height: 22)
+                .background(Palette.fill, in: Capsule())
         }
         .buttonStyle(.plain)
     }
