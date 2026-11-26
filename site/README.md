@@ -11,11 +11,15 @@ The landing page for Lun. One static file, no build step and nothing to install.
 
 Serve this folder from any static host and point `lunbrowser.com` at it.
 
-## Before it goes live
+## With each release
 
-- **Download.** Every Download button links to `https://github.com/petterblaasmo/lun/releases/latest`. Publish a release there first, or change the links (search for `data-download`).
-- **Repository links.** The page links to the repository, its changelog, licence and README. They only work for visitors if the repository is public.
-- **Latest changes.** The three rows under Open source are copied from `CHANGELOG.md` by hand. Update them when it changes.
+The page states a few facts by hand. Update them when they change:
+
+- **Version and size**: the pill above the headline, the line under the hero buttons, the "8 MB" in the hero and in the Fast and light section, and the footer card.
+- **Latest releases**: the rows under Open source, shortened from `CHANGELOG.md`.
+- **Requirements**: "Apple silicon" and "macOS 14 or later", in the hero, the questions and the footer.
+
+The Download buttons need no change: they link to `releases/latest/download/Lun.dmg`, which always serves the newest release.
 
 ## Editing
 
