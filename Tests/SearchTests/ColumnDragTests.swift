@@ -117,6 +117,8 @@ final class ColumnDragTests: XCTestCase {
         let browser = Browser(record: WindowRecord())
         browsers.append(browser)
         browser.prefs.sidebar = true
+        // The address bar above the rows would move every row this presses.
+        browser.prefs.addressLine = false
         browser.prefs.splitView = false
         browser.prefs.sideHides = false
         browser.folded = false
