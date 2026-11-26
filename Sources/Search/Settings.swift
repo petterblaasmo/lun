@@ -381,8 +381,9 @@ struct SettingsPanel: View {
         let groups = every.filter { $0.id != SettingsIndex.developer }
         let all = groups.flatMap { SettingsIndex.items(in: $0.id).filter(shown) }
         let rest = all.filter { !SettingsIndex.essential.contains($0.id) }
-        // Nothing to open, or nothing to open on: every row, as before.
-        if rest.isEmpty || rest.count == all.count {
+        // Nothing to open on, or one row at most to open: every row, as
+        // before. A line that hides a single row takes the room it saves.
+        if rest.count < 2 || rest.count == all.count {
             blocks(groups) { _ in true }
             trailing(page)
         } else {
