@@ -914,7 +914,17 @@ struct SwipeShift: ViewModifier {
 
     private var parked: Bool {
         guard let park else { return false }
-        return offset.value == 0 || abs(offset.value + by) >= park
+        return SwipeShift.parks(offset: offset.value, by: by, park: park)
+    }
+
+    /// Whether a page of the map stands out of the way: while nothing
+    /// moves, or while it is more than a page off. Not at exactly a page
+    /// off: that is where the rows end as they are carried to the card for
+    /// a new space, in an animation of SwiftUI's (SpaceSwipe.carry), which
+    /// went from where they were to where they would be parked, far off to
+    /// the right, so they left that way while the card came from it.
+    static func parks(offset: CGFloat, by: CGFloat, park: CGFloat) -> Bool {
+        offset == 0 || abs(offset + by) > park
     }
 
     private var place: CGFloat {
