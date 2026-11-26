@@ -45,6 +45,9 @@ struct SettingsPanel: View {
     static let moreKey = "settings.more"
     /// What Set Up Like Arc changed, for Undo.
     @ObservedObject private var likeArc = LikeArc.shared
+    /// Privacy › Show Sites…: the list of what each site was answered, let
+    /// down under its row. Shut again each time Settings opens.
+    @State private var showsSites = false
 
     /// Eight entries in the rail, where there were eleven: Themes is part
     /// of Appearance, Spaces & Pins of Tabs, Passwords of Privacy, and the
@@ -434,10 +437,14 @@ struct SettingsPanel: View {
     /// Every site's answer about the camera, the microphone, where you are
     /// and notifications, forgotten at once: asked first, since it can't be
     /// undone and one press did it. A site's own answers are reset one by
-    /// one in the list under this row.
+    /// one in the list Show Sites… lets down, where this is Forget All….
     private func forgetChoices() {
         ask(.choices) { browser.forgetCaptureChoices() }
     }
+
+    /// What the row's pill says: the board's "Show Sites…" until the list
+    /// is down, then what puts it away.
+    static func sitesPill(shown: Bool) -> String { shown ? "Hide Sites" : "Show Sites…" }
 
     /// Asks before something that can't be undone, and does it on a yes.
     /// At once in a test run, which has nobody to answer.
@@ -988,7 +995,11 @@ struct SettingsPanel: View {
         case "privacy.gpc": Switch(on: $prefs.sendsPrivacySignal)
         case "privacy.httpsFirst": Switch(on: $prefs.triesHTTPSFirst)
         case "notifications.ask": Switch(on: $prefs.siteNotifications)
-        case "privacy.forget": Pill("Forget Choices…") { forgetChoices() }
+        // "Show Sites…", as the board has it: the list is asked for, where
+        // it hung under the row as soon as one site had been answered, and
+        // the pill forgot every answer at once. That is in the list now.
+        case "privacy.forget":
+            Pill(SettingsPanel.sitesPill(shown: showsSites)) { withAnimation(Motion.settle) { showsSites.toggle() } }
         // "Clear…" on each, as the board has it, and asked first: History
         // and Cookies went at the press, with no way back.
         case "clear.history": Pill("Clear…") { ask(.history) { browser.clearHistory() } }
@@ -1065,12 +1076,15 @@ struct SettingsPanel: View {
                 .under()
             }
         case "privacy.forget":
-            if !searched {
-                Group {
-                    PermissionSites(browser: browser, prefs: prefs)
+            // Under a found row too: the pill is there, and has to do
+            // what it says.
+            if showsSites {
+                VStack(spacing: 0) {
+                    PermissionSites(browser: browser, prefs: prefs, forgetAll: forgetChoices)
                     PopupSiteList(prefs: prefs)
                 }
                 .under()
+                .transition(.row(from: .top))
             }
         case "passwords.save":
             if !searched, !Vault.never.isEmpty {
@@ -1839,23 +1853,43 @@ struct Pill: View {
     }
 }
 
-/// Settings › Privacy: saved choices, reset one permission at a time.
-private struct PermissionSites: View {
+/// Settings › Privacy › Show Sites…: what each site was answered, reset one
+/// permission at a time, or all of them at once with Forget All…. Read from
+/// the answers themselves (CaptureChoices.saved); nothing else is kept.
+struct PermissionSites: View {
     let browser: Browser
     @ObservedObject var prefs: Preferences
+    /// Forget All…: every site's answers, asked first (SettingsPanel.Wiping).
+    let forgetAll: () -> Void
     @ObservedObject private var notifications = SiteNotifications.shared
     @State private var query = ""
     @FocusState private var searching: Bool
     @State private var kind: CaptureChoices.Kind?
 
-    var body: some View {
-        let saved = CaptureChoices.saved()
+    /// The sites to list, by name, each with its answers: those of one
+    /// permission where one is picked, and those whose address holds what
+    /// was typed.
+    static func listed(_ saved: [CaptureChoices.Saved], kind: CaptureChoices.Kind?, matching query: String)
+        -> [(origin: String, entries: [CaptureChoices.Saved])] {
         let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let sites = Dictionary(grouping: saved.filter {
             (kind == nil || $0.kind == kind) &&
             (search.isEmpty || $0.origin.localizedCaseInsensitiveContains(search))
         }, by: \.origin)
-        if !saved.isEmpty {
+        return sites.keys.sorted().map { ($0, sites[$0, default: []]) }
+    }
+
+    var body: some View {
+        let saved = CaptureChoices.saved()
+        if saved.isEmpty {
+            // Asked for and empty says so: nothing let down read as a pill
+            // that did nothing. The sites allowed pop-ups follow, if any.
+            if prefs.popupSites.isEmpty {
+                Rule()
+                Nothing("No site has been allowed or refused anything yet.")
+            }
+        } else {
+            let sites = PermissionSites.listed(saved, kind: kind, matching: query)
             Rule()
             VStack(alignment: .leading, spacing: 10) {
                 Text("Reset asks again next time. Devices already in use keep running.")
@@ -1870,13 +1904,15 @@ private struct PermissionSites: View {
                             Text(permission.title).tag(Optional(permission))
                         }
                     }
+                    Pill("Forget All…", action: forgetAll)
+                        .help("Every site asks again")
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
             if sites.isEmpty { Nothing("No matching sites") }
-            ForEach(sites.keys.sorted(), id: \.self) { origin in
+            ForEach(sites, id: \.origin) { site in
                 Rule()
-                PermissionSiteRow(origin: origin, entries: sites[origin, default: []],
+                PermissionSiteRow(origin: site.origin, entries: site.entries,
                                   notificationsEnabled: prefs.siteNotifications) { entry in
                     browser.setSitePermission(nil, kind: entry.kind, origin: entry.origin)
                 }
