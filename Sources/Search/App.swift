@@ -698,7 +698,12 @@ struct ContentView: View {
 
             // An extension's side panel, on the side away from the column
             // (see SidePanel.swift); two pages in Split View share what's left.
-            if panelRoom > 0 { sidePanel }
+            // Faded in and out by itself: on the stack, the page beside it
+            // would be resized through every frame of the fade.
+            Group {
+                if panelRoom > 0 { sidePanel }
+            }
+            .animation(Motion.dissolve, value: panelRoom > 0)
 
             // The column of tabs is Fold's, in its place beside the page or
             // folded away (see Fold.swift).
@@ -1195,16 +1200,20 @@ struct ContentView: View {
             // for its name and field, it comes over the page, beside the
             // column, as wide as it is anywhere else (idea 835).
             .overlay(alignment: sideOnRight ? .topTrailing : .topLeading) {
-                if browser.makingSpace, sidebar, browser.prefs.iconColumn {
-                    NewSpaceCard(browser: browser)
-                        .frame(width: 260)
-                        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-                        .shadow(color: .black.opacity(0.12), radius: 18, y: 6)
-                        .padding(sideOnRight ? .trailing : .leading, sideWidth + 12)
-                        .padding(.top, 60)
-                        .transition(.opacity)
+                Group {
+                    if browser.makingSpace, sidebar, browser.prefs.iconColumn {
+                        NewSpaceCard(browser: browser)
+                            .frame(width: 260)
+                            .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+                            .shadow(color: .black.opacity(0.12), radius: 18, y: 6)
+                            .padding(sideOnRight ? .trailing : .leading, sideWidth + 12)
+                            .padding(.top, 60)
+                            .transition(.card(from: sideOnRight ? .topTrailing : .topLeading))
+                    }
                 }
+                // As every other card comes: it appeared in a frame.
+                .animation(Motion.settle, value: browser.makingSpace)
             }
             .overlay { panels }
             .overlay { switcherOverlay }

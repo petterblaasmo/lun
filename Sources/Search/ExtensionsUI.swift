@@ -455,11 +455,24 @@ struct StoreOffer: View {
         @ObservedObject var tab: Tab
         @ObservedObject var extensions: Extensions
 
+        /// The extension the offer is for, while there is one to make.
+        private var offered: String? {
+            guard let url = tab.address, let id = Crx.storeID(of: url),
+                  tab.storePlaced != id, !extensions.installed.contains(where: { $0.id == id }) else { return nil }
+            return id
+        }
+
         var body: some View {
+            Group { offer }
+                // Outside the `if`: on the pill itself nothing carried it in.
+                .animation(Motion.settle, value: offered)
+        }
+
+        @ViewBuilder
+        private var offer: some View {
             // Only where the page's own "Add to Search" isn't in place — a
             // store that has changed its markup still gets a way in.
-            if let url = tab.address, let id = Crx.storeID(of: url),
-               tab.storePlaced != id, !extensions.installed.contains(where: { $0.id == id }) {
+            if let id = offered {
                 HStack(spacing: 12) {
                     Image(systemName: "puzzlepiece.extension")
                         .font(.system(size: 11, weight: .medium))
