@@ -37,9 +37,6 @@ struct SearchApp: App {
     }
 
     init() {
-        // First, before a web view or an extension is made: what it says
-        // is read as they are.
-        Web.shareScriptText()
         // AppKit's guess at password fields (#1458): every time a native
         // field takes the keyboard (the address field, ⌘L, ⌘T…), it walks
         // the window's key views back from it, and through SwiftUI that is
