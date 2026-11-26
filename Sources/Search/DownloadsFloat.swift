@@ -117,7 +117,8 @@ enum DownloadsFloat {
                 panel.ignoresMouseEvents = true
                 leaving = panel
                 withAnimation(out) { presence.shown = false }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+                // As long as the fade it waits for, whatever that is set to.
+                DispatchQueue.main.asyncAfter(deadline: .now() + Motion.duration(.quick)) {
                     guard leaving === panel else { return }
                     take(panel)
                     leaving = nil
@@ -199,11 +200,7 @@ enum DownloadsFloat {
             panel.setFrame(frame, display: true)
             return
         }
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = Motion.light ? 0.16 : 0.22
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            panel.animator().setFrame(frame, display: true)
-        }
+        Motion.run(.settle) { panel.animator().setFrame(frame, display: true) }
     }
 
     /// How tall the card would be to show all it lists, at `width`.

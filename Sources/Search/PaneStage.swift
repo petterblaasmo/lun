@@ -885,8 +885,8 @@ final class PaneDivider: NSView {
         let still = pill.actions
         pill.actions = nil
         CATransaction.begin()
-        CATransaction.setAnimationDuration(Motion.reduced ? 0 : 0.14)
-        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeOut))
+        CATransaction.setAnimationDuration(Motion.duration(.quick))
+        CATransaction.setAnimationTimingFunction(Motion.timing(.quick))
         place()
         paint()
         CATransaction.commit()
