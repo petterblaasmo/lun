@@ -46,22 +46,24 @@ struct SettingsPanel: View {
     /// What Set Up Like Arc changed, for Undo.
     @ObservedObject private var likeArc = LikeArc.shared
 
+    /// Eight entries in the rail, where there were eleven: Themes is part
+    /// of Appearance, Spaces & Pins of Tabs, Passwords of Privacy, and the
+    /// mouse's rows went to Browsing, which leaves Keyboard & Mouse as the
+    /// list of shortcuts it mostly was. The raw values are the ones kept
+    /// in addresses and in the settings file, so they stay as they were.
     enum Page: String, CaseIterable, Identifiable {
-        case general, appearance, themes, tabs, browsing, spaces, passwords, privacy, ai, extensions, keyboard, about
+        case general, appearance, tabs, browsing, privacy, ai, extensions, keyboard, about
         var id: String { rawValue }
         var title: String {
             switch self {
             case .general: return "General"
             case .appearance: return "Appearance"
-            case .themes: return "Themes"
-            case .tabs: return "Tabs"
+            case .tabs: return "Tabs & Spaces"
             case .browsing: return "Browsing"
-            case .spaces: return "Spaces & Pins"
-            case .passwords: return "Passwords"
-            case .privacy: return "Privacy"
+            case .privacy: return "Privacy & Passwords"
             case .ai: return "AI"
             case .extensions: return "Extensions"
-            case .keyboard: return "Keyboard & Mouse"
+            case .keyboard: return "Shortcuts"
             case .about: return "About"
             }
         }
@@ -69,11 +71,8 @@ struct SettingsPanel: View {
             switch self {
             case .general: return "gearshape"
             case .appearance: return "paintbrush"
-            case .themes: return "photo.artframe"
             case .tabs: return "square.on.square"
             case .browsing: return "globe"
-            case .spaces: return "square.stack"
-            case .passwords: return "key"
             case .privacy: return "hand.raised"
             case .ai: return "sparkles"
             case .extensions: return "puzzlepiece.extension"
@@ -82,19 +81,33 @@ struct SettingsPanel: View {
             }
         }
         /// A section by its name in an address or in the settings file,
-        /// the old names included: Downloads is in General now, Shortcuts
-        /// is Keyboard & Mouse.
+        /// the old names included: each opens the page its rows are on now.
         static func named(_ name: String) -> Page? {
             switch name.lowercased() {
             case "downloads": return .general
-            case "shortcuts", "mouse": return .keyboard
+            case "themes": return .appearance
+            case "spaces", "pins": return .tabs
+            case "passwords": return .privacy
+            case "shortcuts": return .keyboard
+            case "mouse": return .browsing
             default: return Page(rawValue: name.lowercased())
+            }
+        }
+        /// What the pages folded into this one were called, for whoever
+        /// still types them (AddressCommands).
+        var former: [String] {
+            switch self {
+            case .appearance: return ["Themes"]
+            case .tabs: return ["Tabs", "Spaces & Pins"]
+            case .privacy: return ["Privacy", "Passwords"]
+            case .keyboard: return ["Keyboard & Mouse"]
+            default: return []
             }
         }
         /// The rail's three blocks: the browser, your data and tools, About.
         static var blocks: [[Page]] {
-            [[.general, .appearance, .themes, .tabs, .browsing, .spaces],
-             [.passwords, .privacy] + (AI.shipped ? [.ai] : []) + [.extensions, .keyboard],
+            [[.general, .appearance, .tabs, .browsing],
+             [.privacy] + (AI.shipped ? [.ai] : []) + [.extensions, .keyboard],
              [.about]]
         }
     }
@@ -165,7 +178,11 @@ struct SettingsPanel: View {
 
     // MARK: - the rail
 
-    private var hits: [SettingsItem] { SettingsIndex.find(query) }
+    /// The folder sync is only for whoever has it on (SettingsIndex.applies):
+    /// not found by anyone else either.
+    private var hits: [SettingsItem] {
+        SettingsIndex.find(query).filter { $0.id != "sync" || SettingsIndex.applies($0, prefs) }
+    }
     private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
 
     private var pages: some View {
@@ -341,15 +358,7 @@ struct SettingsPanel: View {
             aboutHeader
             groups(of: page)
         case .keyboard:
-            groups(of: page)
-            GroupBlock(title: "Shortcuts", icon: "command") {
-                ShortcutsPage(browser: browser, store: .shared, prefs: prefs)
-            }
-        case .privacy:
-            groups(of: page)
-            GroupBlock(title: "Proxy", icon: "network") {
-                ProxySettings()
-            }
+            ShortcutsPage(browser: browser, store: .shared, prefs: prefs)
         case .extensions:
             ExtensionsPage(browser: browser)
         case .ai:
@@ -362,31 +371,60 @@ struct SettingsPanel: View {
     /// A page's rows: the few most people come for (SettingsIndex.essential),
     /// then one line that opens the rest under it, group by group. The page
     /// was every row it had, up to thirty-nine of them, and what was looked
-    /// for was somewhere among them.
+    /// for was somewhere among them. Developer's rows are behind a line of
+    /// their own, so More options never opens them on anyone.
     @ViewBuilder
     private func groups(of page: Page) -> some View {
         // A group whose every row is left out (SettingsIndex.offered) has
         // no heading either.
-        let groups = SettingsIndex.groups(of: page).filter { !SettingsIndex.items(in: $0.id).isEmpty }
+        let every = SettingsIndex.groups(of: page).filter { !SettingsIndex.items(in: $0.id).isEmpty }
+        let groups = every.filter { $0.id != SettingsIndex.developer }
         let all = groups.flatMap { SettingsIndex.items(in: $0.id).filter(shown) }
         let rest = all.filter { !SettingsIndex.essential.contains($0.id) }
         // Nothing to open, or nothing to open on: every row, as before.
         if rest.isEmpty || rest.count == all.count {
             blocks(groups) { _ in true }
+            trailing(page)
         } else {
             let open = more.contains(page.rawValue)
             blocks(groups) { SettingsIndex.essential.contains($0.id) }
-            MoreOptions(count: rest.count, open: open) {
-                withAnimation(Motion.settle) {
-                    if open { more.remove(page.rawValue) } else { more.insert(page.rawValue) }
-                }
-                Store.settings.set(Array(more).sorted(), forKey: SettingsPanel.moreKey)
-            }
+            MoreOptions(count: rest.count, open: open) { toggle(page.rawValue) }
             if open {
-                blocks(groups) { !SettingsIndex.essential.contains($0.id) }
+                Group {
+                    blocks(groups) { !SettingsIndex.essential.contains($0.id) }
+                    trailing(page)
+                }
+                .transition(.opacity)
+            }
+        }
+        let developer = SettingsIndex.items(in: SettingsIndex.developer).filter(shown)
+        if every.contains(where: { $0.id == SettingsIndex.developer }), !developer.isEmpty {
+            let open = more.contains(SettingsIndex.developer)
+            MoreOptions(count: developer.count, open: open, title: "Developer") { toggle(SettingsIndex.developer) }
+            if open {
+                Card { rows(developer, searched: false) }
                     .transition(.opacity)
             }
         }
+    }
+
+    /// What a page has after its rows, with the rest of them: the proxy,
+    /// which is a form of its own and not a row of the index.
+    @ViewBuilder
+    private func trailing(_ page: Page) -> some View {
+        if page == .privacy {
+            GroupBlock(title: "Proxy", icon: "network") {
+                ProxySettings()
+            }
+        }
+    }
+
+    /// Opens or closes a page's More options, or Developer, and keeps it so.
+    private func toggle(_ name: String) {
+        withAnimation(Motion.settle) {
+            if more.contains(name) { more.remove(name) } else { more.insert(name) }
+        }
+        Store.settings.set(Array(more).sorted(), forKey: SettingsPanel.moreKey)
     }
 
     /// The groups, each with those of its rows that `keep` keeps; one left
@@ -469,7 +507,9 @@ struct SettingsPanel: View {
                     lit = first?.findOnly == false ? first?.id : nil
                     // One under More options: opened, or there is no row
                     // to light.
-                    if let lit, !SettingsIndex.essential.contains(lit) { more.insert(group.page.rawValue) }
+                    if let lit, !SettingsIndex.essential.contains(lit) {
+                        more.insert(group.id == SettingsIndex.developer ? group.id : group.page.rawValue)
+                    }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { withAnimation(Motion.quick) { lit = nil } }
                 } label: {
                     HStack(spacing: 6) {
@@ -541,18 +581,20 @@ struct SettingsPanel: View {
 
     // MARK: - controls
 
+    /// Each of these draws the rows it knows and nothing for any other,
+    /// so a row keeps its control whichever page it is moved to.
     @ViewBuilder
     private func control(_ item: SettingsItem) -> some View {
-        switch item.page {
-        case .general: generalControl(item.id)
-        case .appearance: appearanceControl(item.id)
-        case .themes: ThemesPage(prefs: prefs)
-        case .tabs: tabsControl(item.id)
-        case .browsing: browsingControl(item.id)
-        case .spaces: spacesControl(item.id)
-        case .passwords, .privacy: keptControl(item.id)
-        case .keyboard, .about: otherControl(item.id)
-        default: EmptyView()
+        if item.id == "home.theme" {
+            ThemesPage(prefs: prefs)
+        } else {
+            generalControl(item.id)
+            appearanceControl(item.id)
+            tabsControl(item.id)
+            browsingControl(item.id)
+            spacesControl(item.id)
+            keptControl(item.id)
+            otherControl(item.id)
         }
     }
 
@@ -711,7 +753,20 @@ struct SettingsPanel: View {
         case "tabs.pinCounts": Switch(on: $prefs.showsPinCounts)
         case "fold.loadingLine": Switch(on: $prefs.showsLoadingLine)
         case "tabs.give": Switch(on: $prefs.tabsGive)
-        case "bookmarks.bar": Switch(on: $prefs.bookmarksBar)
+        case "bookmarks.bar":
+            // Off, above the page, or (with the tabs down a side) in the
+            // sidebar: one choice where there were two switches.
+            Segmented(options: BookmarksPlace.choices(sidebar: prefs.sidebar).map { ($0, $0.title) },
+                      selection: Binding(
+                        get: { prefs.bookmarksPlace },
+                        set: { place in withAnimation(Motion.glide) { prefs.bookmarksPlace = place } }
+                      ))
+        case "space.colour":
+            Pill("Colour…") {
+                // Hung from here, not from where the space's menu last was.
+                SpaceLookPopover.anchor = NSEvent.mouseLocation
+                SpaceLookPopover.show(for: browser)
+            }
         case "bookmarks.iconsOnly": Switch(on: $prefs.bookmarksIconsOnly)
         case "bookmarks.newTabOnly": Switch(on: $prefs.bookmarksNewTabOnly)
         case "bookmarks.side":
@@ -947,7 +1002,12 @@ struct SettingsPanel: View {
         case "wheel.smooth": Switch(on: $prefs.wheelGlides)
         case "pages.bounce": Switch(on: $prefs.bounces)
         case "swipe.history": Switch(on: $prefs.holdsHistory)
-        case "launcher.on": Switch(on: $prefs.launcher)
+        case "launcher.on":
+            // The key beside its switch, while it is on: one row for both.
+            HStack(spacing: 10) {
+                if prefs.launcher { LauncherKeyBox(prefs: prefs) }
+                Switch(on: $prefs.launcher)
+            }
         case "launcher.key": LauncherKeyBox(prefs: prefs)
         case "launcher.little": Switch(on: $prefs.launcherLittle)
         case "note.switcher": Always()
@@ -1000,7 +1060,7 @@ struct SettingsPanel: View {
                 }
                 .under()
             }
-        case "passkeys":
+        case "passwords.save":
             if !searched, !Vault.never.isEmpty {
                 Rule()
                 SettingRow(icon: "hand.raised.slash", title: "Sites never asked",
@@ -1315,6 +1375,8 @@ private extension View {
 struct MoreOptions: View {
     let count: Int
     let open: Bool
+    /// A name of its own (Developer), said open and closed alike.
+    var title: String? = nil
     let act: () -> Void
     @State private var hovering = false
 
@@ -1324,7 +1386,7 @@ struct MoreOptions: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .semibold))
                     .rotationEffect(.degrees(open ? 90 : 0))
-                Text(open ? "Fewer options" : "More options")
+                Text(label)
                     .font(.system(size: 13, weight: .medium))
                 if !open {
                     Text("\(count)")
@@ -1344,8 +1406,10 @@ struct MoreOptions: View {
         .onHover { hovering = $0 }
         .animation(Motion.quick, value: hovering)
         .animation(Motion.settle, value: open)
-        .accessibilityLabel(open ? "Fewer options" : "More options, \(count)")
+        .accessibilityLabel(open ? label : "\(label), \(count)")
     }
+
+    private var label: String { title ?? (open ? "Fewer options" : "More options") }
 
     /// Gives a little under the press, and comes back.
     private struct Pressed: ButtonStyle {

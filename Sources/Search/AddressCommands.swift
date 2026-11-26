@@ -47,7 +47,8 @@ enum AddressCommand: Equatable {
         case .passwords: return ["passwords"]
         case .toggleSidebar: return ["toggle sidebar", "sidebar"]
         case .menu(let id): return [Command.named(id)?.title ?? id]
-        case .page(let page): return ["\(page.title) Settings"]
+        // By the names its parts had as pages of their own, too.
+        case .page(let page): return ([page.title] + page.former).map { "\($0) Settings" }
         }
     }
 

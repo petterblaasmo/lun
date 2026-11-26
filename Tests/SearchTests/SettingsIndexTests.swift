@@ -155,7 +155,8 @@ final class SettingsIndexTests: XCTestCase {
         XCTAssertTrue(SettingsIndex.find("autoplay").contains { $0.id == "media.click" })
         XCTAssertTrue(SettingsIndex.find("spelling").contains { $0.id == "autocorrect" })
         XCTAssertTrue(SettingsIndex.find("split").contains { $0.id == "note.split" })
-        XCTAssertTrue(SettingsIndex.find("shift enter").contains { $0.id == "search.shift" })
+        // Taken out of Settings in Lun (RetiredSettings): not found either.
+        XCTAssertFalse(SettingsIndex.find("shift enter").contains { $0.id == "search.shift" })
         XCTAssertTrue(SettingsIndex.find("").isEmpty)
         XCTAssertTrue(SettingsIndex.find("zzzz nothing").isEmpty)
     }
