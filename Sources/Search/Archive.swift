@@ -256,16 +256,21 @@ struct ArchivePanel: View {
     }
 
     /// A tab put away: its icon, its title, its site, and how long it stays.
-    private struct Tile: View {
+    struct Tile: View {
         let tab: Archived
         let go: () -> Void
         let remove: () -> Void
 
         @State private var hovering = false
 
-        private var left: String {
-            let days = max(0, Int((Archive.lasts - Date().timeIntervalSince(tab.closed)) / 86_400))
-            return days == 1 ? "1 day left" : "\(days) days left"
+        /// How long it still stays, as the board has it: the page's own
+        /// line says what the days are, and "29 days left" beside a site
+        /// and a time left the site three letters at 12 points.
+        private var left: String { Tile.left(closed: tab.closed, now: Date()) }
+
+        static func left(closed: Date, now: Date) -> String {
+            let days = max(0, Int((Archive.lasts - now.timeIntervalSince(closed)) / 86_400))
+            return days == 1 ? "1 day" : "\(days) days"
         }
 
         var body: some View {
@@ -278,12 +283,17 @@ struct ArchivePanel: View {
                         Spacer()
                     }
                     FadingLine(text: tab.label).font(.system(size: 13)).foregroundStyle(Palette.ink)
+                    // The site gives way first, at its end: cut in the
+                    // middle with its time, it lost its last letters and
+                    // the dot between them.
                     HStack(spacing: 4) {
-                        Text("\(tab.site) · \(When.clock(tab.closed))").lineLimit(1).truncationMode(.middle)
+                        Text(tab.site).lineLimit(1).truncationMode(.tail)
+                        Text("· \(When.clock(tab.closed))").fixedSize()
                         Spacer(minLength: 4)
                         Text(left).fixedSize()
+                            .accessibilityLabel("\(left) left")
                     }
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
                 }
                 .padding(12)
