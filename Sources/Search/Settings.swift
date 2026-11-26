@@ -1301,10 +1301,14 @@ struct SettingRow<Control: View>: View {
                             Button { withAnimation(Motion.quick) { open.toggle() } } label: {
                                 Image(systemName: open ? "info.circle.fill" : "info.circle")
                                     .font(.system(size: 10.5))
-                                    .foregroundStyle(Palette.muted.opacity(0.8))
+                                    .foregroundStyle(open ? Palette.ink : Palette.muted)
+                                    // Its own eleven points were all there
+                                    // was to press.
+                                    .padding(7)
                                     .contentShape(Rectangle())
+                                    .padding(-7)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(Gives(to: 0.85))
                             .help(more ?? "")
                             .accessibilityLabel("More about \(title)")
                         }
@@ -1365,31 +1369,50 @@ struct Segmented<Option: Hashable>: View {
     var body: some View {
         HStack(spacing: 2) {
             ForEach(options, id: \.0) { option, title in
+                Choice(title: title, chosen: option == selection, wide: wide, slide: slide) {
+                    withAnimation(Motion.settle) { selection = option }
+                }
+            }
+        }
+        .padding(2)
+        .background(Palette.fill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .animation(Motion.settle, value: selection)
+    }
+
+    /// One of the choices: a button, so the keyboard can press it; its
+    /// words go to ink under the pointer where it isn't the chosen one,
+    /// and it gives under the press.
+    private struct Choice: View {
+        let title: String
+        let chosen: Bool
+        let wide: Bool
+        let slide: Namespace.ID
+        let pick: () -> Void
+        @State private var hovering = false
+
+        var body: some View {
+            Button(action: pick) {
                 Text(title)
-                    .font(.system(size: 13, weight: option == selection ? .medium : .regular))
-                    .foregroundStyle(option == selection ? Palette.ink : Palette.muted)
+                    .font(.system(size: 13, weight: chosen ? .medium : .regular))
+                    .foregroundStyle(chosen || hovering ? Palette.ink : Palette.muted)
                     .lineLimit(1)
                     .fixedSize(horizontal: !wide, vertical: false)
                     .frame(maxWidth: wide ? .infinity : nil)
                     .padding(.horizontal, wide ? 4 : 10)
                     .frame(height: wide ? 26 : 22)
                     .background {
-                        if option == selection {
+                        if chosen {
                             Color.clear
                                 .elevated(.lift, in: RoundedRectangle(cornerRadius: 6, style: .continuous), fill: Palette.knob)
                                 .matchedGeometryEffect(id: "chosen", in: slide)
                         }
                     }
                     .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .onTapGesture {
-                        withAnimation(Motion.settle) { selection = option }
-                    }
-                    .accessibilityAddTraits(option == selection ? [.isButton, .isSelected] : .isButton)
             }
+            .buttonStyle(Gives(to: 0.96))
+            .hovers($hovering)
+            .accessibilityAddTraits(chosen ? .isSelected : [])
         }
-        .padding(2)
-        .background(Palette.fill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .animation(Motion.settle, value: selection)
     }
 }
 
@@ -1410,22 +1433,63 @@ struct Ticks: View {
     }
 }
 
+///
+/// A button, so the keyboard and VoiceOver can press it and it says whether
+/// it is on. It answers the pointer (the track a shade darker), gives under
+/// the press (the knob stretches toward where it is going, as the Mac's own
+/// does), and dims where it can't be changed. Its hit area is larger than
+/// it looks: 32 by 18 was small to land on.
 struct Switch: View {
     @Binding var on: Bool
+    @State private var hovering = false
 
     var body: some View {
-        Capsule()
-            .fill(on ? Palette.ink : Palette.faint)
-            .frame(width: 32, height: 18)
-            .overlay(alignment: on ? .trailing : .leading) {
-                Circle()
-                    .fill(Palette.ground)
-                    .shadow(color: .black.opacity(0.18), radius: 1.5, y: 1)
-                    .padding(2)
-            }
-            .contentShape(Capsule())
-            .onTapGesture { withAnimation(Motion.settle) { on.toggle() } }
-            .animation(Motion.settle, value: on)
+        Button {
+            withAnimation(Motion.settle) { on.toggle() }
+        } label: {
+            Color.clear.frame(width: 32, height: 18)
+        }
+        .buttonStyle(Track(on: on, hovering: hovering))
+        .hovers($hovering)
+        .accessibilityAddTraits(.isToggle)
+        .accessibilityValue(on ? "On" : "Off")
+    }
+
+    private struct Track: ButtonStyle {
+        let on: Bool
+        let hovering: Bool
+
+        func makeBody(configuration: Configuration) -> some View {
+            Drawn(on: on, hovering: hovering, pressed: configuration.isPressed)
+        }
+    }
+
+    private struct Drawn: View {
+        let on: Bool
+        let hovering: Bool
+        let pressed: Bool
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            Capsule()
+                .fill(on ? Palette.ink.opacity(hovering ? 0.86 : 1) : (hovering ? Palette.muted.opacity(0.55) : Palette.faint))
+                .frame(width: 32, height: 18)
+                .overlay(alignment: on ? .trailing : .leading) {
+                    Capsule()
+                        .fill(Palette.ground)
+                        .shadow(color: .black.opacity(0.18), radius: 1.5, y: 1)
+                        .frame(width: pressed && !Motion.reduced ? 18 : 14, height: 14)
+                        .padding(2)
+                }
+                .opacity(enabled ? 1 : 0.4)
+                // Six points more on every side to land on, with nothing
+                // moved to make the room.
+                .padding(6)
+                .contentShape(Rectangle())
+                .padding(-6)
+                .animation(Motion.settle, value: on)
+                .animation(Motion.quick, value: pressed)
+        }
     }
 }
 
@@ -1473,15 +1537,14 @@ struct Steps: View {
             Button { if let to { act(to) } } label: {
                 Image(systemName: icon)
                     .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(to == nil ? Palette.faint : Palette.ink)
+                    .foregroundStyle(Palette.ink)
                     .frame(width: 20, height: 20)
-                    .background(hovering && to != nil ? Palette.hover : .clear, in: Circle())
+                    .background(hovering && to != nil ? Palette.fillHover : .clear, in: Circle())
                     .contentShape(Circle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(Gives(to: 0.85))
             .disabled(to == nil)
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
+            .hovers($hovering)
         }
     }
 }
@@ -1517,9 +1580,10 @@ struct Pill: View {
                 .background(filled ? Palette.ink.opacity(hovering ? 0.86 : 1) : (hovering ? Palette.fillHover : Palette.fill), in: Capsule())
                 .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .animation(Motion.quick, value: hovering)
+        // Gives under the press, and dims where it can't be pressed: one
+        // that was disabled looked the same as one that wasn't.
+        .buttonStyle(Gives(to: 0.96))
+        .hovers($hovering)
     }
 }
 
@@ -1581,21 +1645,27 @@ private struct PermissionSiteRow: View {
 
     var body: some View {
         let count = entries.count == 1 ? "1 permission" : "\(entries.count) permissions"
-        Button { expanded.toggle() } label: {
+        // The row opens what the site was answered: it turns its arrow,
+        // gives under the press and lets the answers down, where it swapped
+        // one arrow for another and the rows were there in a frame.
+        Button { withAnimation(Motion.settle) { expanded.toggle() } } label: {
             HStack(spacing: 8) {
                 Text(origin).font(.system(size: 13)).foregroundStyle(Palette.ink)
                 Spacer(minLength: 8)
-                Text(count).font(.system(size: 11.5)).foregroundStyle(Palette.muted)
-                Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                Text(count).font(.system(size: 12)).foregroundStyle(Palette.muted)
+                Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .semibold)).foregroundStyle(Palette.muted)
+                    .rotationEffect(.degrees(expanded ? 90 : 0))
             }
             .padding(.leading, 16)
             .padding(.trailing, 14).frame(minHeight: 44)
             .contentShape(Rectangle())
-            .background(hovering ? Palette.hover : .clear)
+            // Darker under the pointer on the card's grey; Palette.hover
+            // was lighter than the card in the light and read as a hole.
+            .background(hovering ? Palette.fillHover : .clear)
         }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
+        .buttonStyle(Gives(to: 0.99))
+        .hovers($hovering)
         .accessibilityLabel("\(origin), \(count)")
         .accessibilityValue(expanded ? "Expanded" : "Collapsed")
 
@@ -1606,6 +1676,7 @@ private struct PermissionSiteRow: View {
                     Pill(action) { reset(entry) }
                         .accessibilityLabel("\(action): \(entry.kind.title) for \(entry.origin)")
                 }
+                .transition(.row(from: .top))
             }
         }
     }

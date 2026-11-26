@@ -791,6 +791,13 @@ extension AnyTransition {
         .scale(scale: 0.94, anchor: anchor).combined(with: .opacity)
     }
 
+    /// A card's other face: the one a step in comes from the trailing side
+    /// and goes back to it, the one it came from waits on the leading side.
+    /// A short way, and faded: the card stays where it is.
+    static func face(_ edge: HorizontalEdge) -> AnyTransition {
+        .offset(x: edge == .leading ? -24 : 24).combined(with: .opacity)
+    }
+
     /// A small sign: a badge, a tick, a count.
     static var pop: AnyTransition {
         .scale(scale: 0.6).combined(with: .opacity)
@@ -805,19 +812,23 @@ extension AnyTransition {
 struct Gives: ButtonStyle {
     /// How far it gives; a large thing less, or it looks to jump.
     var to: CGFloat = Motion.give
+    /// Whether it dims itself where it can't be pressed; not for one that
+    /// already says so its own way.
+    var dims = true
 
     func makeBody(configuration: Configuration) -> some View {
-        Pressed(configuration: configuration, to: to)
+        Pressed(configuration: configuration, to: to, dims: dims)
     }
 
     private struct Pressed: View {
         let configuration: Configuration
         let to: CGFloat
+        let dims: Bool
         @Environment(\.isEnabled) private var enabled
 
         var body: some View {
             configuration.label
-                .opacity(enabled ? 1 : 0.4)
+                .opacity(enabled || !dims ? 1 : 0.4)
                 .modifier(Give(pressed: configuration.isPressed, to: to))
         }
     }

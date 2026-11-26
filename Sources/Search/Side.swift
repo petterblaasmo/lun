@@ -2415,7 +2415,7 @@ struct Quiet: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(Gives(to: 0.98))
         .onHover { hovering = $0 }
         .animation(Motion.quick, value: hovering)
     }
@@ -2534,7 +2534,11 @@ struct Door: View {
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        .buttonStyle(.plain)
+        // Its callers dim the ones that can't be pressed (Back with nowhere
+        // to go back to).
+        .buttonStyle(Gives(to: 0.88, dims: false))
+        // What it does, for VoiceOver: it was the tooltip alone.
+        .accessibilityLabel(help)
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.35).onEnded { _ in
                 guard let menu = held?() else { return }
