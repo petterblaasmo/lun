@@ -1082,7 +1082,7 @@ struct BookmarkOutline: View {
                 .padding(.leading, CGFloat(depth) * 18 + 10)
                 .padding(.trailing, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(wash))
+                .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(wash))
                 .overlay(alignment: aim == .before ? .top : .bottom) {
                     if aim == .before || aim == .after {
                         // Below an open folder is its first child's place.

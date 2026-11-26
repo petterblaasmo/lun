@@ -389,7 +389,7 @@ struct SiteCard: View {
                             .lineLimit(1)
                             .truncationMode(.head)
                         if let safety {
-                            Said(words: safety.title + " ›", tint: safety.tint) { deeper = true }
+                            Said(words: safety.title, tint: safety.tint) { deeper = true }
                         }
                     }
                     Spacer(minLength: 0)
@@ -906,14 +906,22 @@ struct SiteCard: View {
 
         var body: some View {
             Button(action: act) {
-                Text(words)
-                    .font(.system(size: 12))
-                    .underline(hovering)
-                    .foregroundStyle(tint)
-                    .contentShape(Rectangle())
+                // The arrow is a symbol, as a row's is: it was a "›" typed
+                // after the words, and underlined with them.
+                HStack(spacing: 4) {
+                    Text(words)
+                        .font(.system(size: 12))
+                        .underline(hovering)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .semibold))
+                }
+                .foregroundStyle(tint)
+                .contentShape(Rectangle())
             }
             .buttonStyle(Gives(to: 0.97))
             .hovers($hovering)
+            .pointingHand()
+            .accessibilityLabel(words)
         }
     }
 
