@@ -624,6 +624,23 @@ enum Motion {
         }, completionHandler: done.map { done in { MainActor.assumeIsolated { done() } } })
     }
 
+    /// A panel of AppKit's coming on, once it is placed and in order: faded
+    /// in, as a card SwiftUI draws arrives, where it was simply there. A
+    /// fade, so the Mac's Reduce Motion keeps it. Not on a test run, which
+    /// reads what a window shows the moment it is up.
+    @MainActor static func arrive(_ window: NSWindow) {
+        guard duration(.reveal) > 0, !Store.testing else { return }
+        window.alphaValue = 0
+        run(.reveal) { window.animator().alphaValue = 1 }
+    }
+
+    /// The same panel going: faded out, then `gone` (which takes it out of
+    /// order). At once where nothing should move.
+    @MainActor static func leave(_ window: NSWindow, then gone: @escaping @MainActor () -> Void) {
+        guard duration(.reveal) > 0, !Store.testing, window.isVisible else { return gone() }
+        run(.reveal, { window.animator().alphaValue = 0 }, then: gone)
+    }
+
     /// How far a tab gives while it is pressed (see Give): enough to feel
     /// under the pointer, about 3 points on a pill and 7 on a column row.
     static let give: CGFloat = 0.97

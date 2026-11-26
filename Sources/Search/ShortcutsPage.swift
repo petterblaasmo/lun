@@ -182,7 +182,7 @@ private struct KeyBox: View {
         .buttonStyle(.plain)
         // What the Shortcuts group's line under its title used to say.
         .help("Click, then press the new shortcut")
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .onDisappear(perform: stop)
     }
 

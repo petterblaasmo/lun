@@ -347,7 +347,7 @@ private struct OpenTabRow: View {
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.hover : .clear))
         .contentShape(Rectangle())
         .onTapGesture(perform: bring)
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(tab.label)
         .accessibilityAddTraits(.isButton)

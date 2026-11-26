@@ -156,7 +156,7 @@ struct GroupHeading: View {
         .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .onTapGesture { browser.toggleTabGroup(group.id) }
         .modifier(GroupHeadingShared(browser: browser, group: group, dragSpace: dragSpace, dropping: $dropping))
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .help(group.collapsed ? "\(group.name) — folded" : group.name)
         .accessibilityLabel(group.name)
         // Rename Group: no room for the name here, so it is typed beside.
@@ -219,7 +219,7 @@ struct GroupHeading: View {
         .onTapGesture { if !editing { browser.toggleTabGroup(group.id) } }
         .modifier(GroupHeadingShared(browser: browser, group: group, dragSpace: dragSpace, dropping: $dropping,
                                      horizontal: horizontal))
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .onChange(of: editing) { _, now in
             if now {
                 draft = group.name

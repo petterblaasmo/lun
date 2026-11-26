@@ -191,7 +191,7 @@ struct AddressLine: View {
             .animation(Motion.quick, value: lit)
             .background(ViewAnchor(box: line))
             .contentShape(Rectangle())
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .onTapGesture {
                 // An empty tab's field is the one in the middle of the window.
                 if tab.isBlank {

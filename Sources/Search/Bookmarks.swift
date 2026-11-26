@@ -1089,7 +1089,7 @@ struct BookmarkOutline: View {
             .contentShape(Rectangle())
             .opacity(dragging ? 0.35 : 1)
             .onTapGesture { open?() ?? toggle?() }
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .contextMenu {
                 if let open {
                     Button("Open", action: open)
@@ -1413,7 +1413,7 @@ struct BookmarksDropdown: View {
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
             .contentShape(Rectangle())
             .onTapGesture(perform: act)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
         }
     }
 }
@@ -1571,7 +1571,7 @@ struct BookmarksPanel: View {
             .background(hovering ? Palette.hover : .clear)
             .contentShape(Rectangle())
             .onTapGesture { open?() ?? show() }
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .contextMenu {
                 if let open { Button("Open", action: open) }
                 Button("Show in Folder", action: show)

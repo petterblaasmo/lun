@@ -95,14 +95,17 @@ enum TabOffersPanel {
         window.addChildWindow(panel, ordered: .above)
         self.panel = panel
         self.host = host
+        Motion.arrive(panel)
     }
 
     static func hide() {
         guard let panel else { return }
-        panel.parent?.removeChildWindow(panel)
-        panel.orderOut(nil)
         self.panel = nil
         host = nil
+        Motion.leave(panel) {
+            panel.parent?.removeChildWindow(panel)
+            panel.orderOut(nil)
+        }
     }
 
     private final class Panel: NSPanel {

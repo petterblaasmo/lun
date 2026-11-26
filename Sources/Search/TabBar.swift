@@ -261,7 +261,7 @@ struct TabBar: View {
                     }
                     .buttonStyle(.plain)
                     .shortcutHelp("New Tab", "file.newTab")
-                    .onHover { plussed = $0 }
+                    .hovers($plussed)
                     .padding(.leading, stands ? 4 : 0)
 
                     Spacer(minLength: 0)

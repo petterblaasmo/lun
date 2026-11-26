@@ -225,7 +225,7 @@ struct AccountList: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .onHover { onCross = $0 }
+                .hovers($onCross)
                 .help("Don't offer again")
                 .accessibilityLabel("Don't offer again")
             }
