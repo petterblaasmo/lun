@@ -896,7 +896,7 @@ struct DownloadsPanel: View {
                 if hovering {
                     HStack(spacing: 12) {
                         if keep.stillThere { Quick("Show in Finder", act: reveal) }
-                        Quick("Remove", tint: .red.opacity(0.75), act: forget)
+                        Quick("Remove", tint: Palette.danger, act: forget)
                     }
                     .padding(.leading, 12)
                     .padding(.trailing, 14)

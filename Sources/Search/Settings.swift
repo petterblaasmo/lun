@@ -166,13 +166,8 @@ struct SettingsPanel: View {
             content
         }
         .frame(width: SettingsPanel.width, height: SettingsPanel.height)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(0.16), radius: 34, y: 12)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
+        .elevated(.overlay, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous), fill: Palette.ground)
         .onChange(of: page) { _, page in Store.settings.set(page.rawValue, forKey: "settings.page") }
     }
 
@@ -285,7 +280,7 @@ struct SettingsPanel: View {
                             .fill(Palette.hover)
                     }
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             }
             .buttonStyle(.plain)
             .onHover { hovering = $0 }
@@ -441,13 +436,52 @@ struct SettingsPanel: View {
     /// undone and one press did it. A site's own answers are reset one by
     /// one in the list under this row.
     private func forgetChoices() {
-        guard !Store.testing else { return browser.forgetCaptureChoices() }
+        ask(.choices) { browser.forgetCaptureChoices() }
+    }
+
+    /// Asks before something that can't be undone, and does it on a yes.
+    /// At once in a test run, which has nobody to answer.
+    private func ask(_ wiping: Wiping, then act: () -> Void) {
+        guard !Store.testing else { return act() }
         let alert = NSAlert()
-        alert.messageText = "Forget every site's answers?"
-        alert.informativeText = "Each site will ask again before it uses the camera, the microphone or your location, or sends notifications."
-        alert.addButton(withTitle: "Forget")
+        alert.messageText = wiping.question
+        alert.informativeText = wiping.detail
+        alert.addButton(withTitle: wiping.yes)
         alert.addButton(withTitle: "Cancel")
-        if alert.runModal() == .alertFirstButtonReturn { browser.forgetCaptureChoices() }
+        if alert.runModal() == .alertFirstButtonReturn { act() }
+    }
+
+    /// What Settings › Privacy takes away for good, and how it asks first:
+    /// each row's pill ends in "…" and one press no longer does it.
+    enum Wiping: CaseIterable {
+        case choices, history, cookies, cache
+
+        var question: String {
+            switch self {
+            case .choices: return "Forget every site's answers?"
+            case .history: return "Clear all of your history?"
+            case .cookies: return "Sign out of every site?"
+            case .cache: return "Clear the cache?"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .choices: return "Each site will ask again before it uses the camera, the microphone or your location, or sends notifications."
+            case .history: return "Every address you have been to, in every space, and the tabs Lun put away. This can't be undone."
+            case .cookies: return "Cookies and everything sites keep on this Mac are removed. Your saved passwords stay."
+            case .cache: return "Only what was fetched to draw pages. You stay signed in, and pages take a little longer the first time."
+            }
+        }
+
+        /// The button that does it, named for what it does.
+        var yes: String {
+            switch self {
+            case .choices: return "Forget"
+            case .history, .cache: return "Clear"
+            case .cookies: return "Sign Out"
+            }
+        }
     }
 
     /// In its section, a dependent row is there only while it counts.
@@ -702,8 +736,8 @@ struct SettingsPanel: View {
         case "address.width": Segmented(options: AddressWidth.allCases.map { ($0, $0.title) }, selection: $prefs.addressWidth)
         case "window.glass": Switch(on: $prefs.glass)
         case "window.glass.style": Segmented(options: GlassStyle.allCases.map { ($0, $0.title) }, selection: $prefs.glassStyle)
-        case "window.glass.clear": Slider(value: $prefs.glassClear, in: 0...1).controlSize(.small).frame(width: 160)
-        case "window.glass.grain": Slider(value: $prefs.glassGrain, in: 0...1).controlSize(.small).frame(width: 160)
+        case "window.glass.clear": Slide(value: $prefs.glassClear).frame(width: 160).accessibilityLabel("Transparency")
+        case "window.glass.grain": Slide(value: $prefs.glassGrain).frame(width: 160).accessibilityLabel("Grain")
         case "toolbar.left": Switch(on: $prefs.navigationLeft)
         case "tabs.compact":
             Switch(on: Binding(
@@ -955,9 +989,11 @@ struct SettingsPanel: View {
         case "privacy.httpsFirst": Switch(on: $prefs.triesHTTPSFirst)
         case "notifications.ask": Switch(on: $prefs.siteNotifications)
         case "privacy.forget": Pill("Forget Choices…") { forgetChoices() }
-        case "clear.history": Pill("Clear") { browser.clearHistory() }
-        case "clear.cookies": Pill("Sign out of everything") { browser.clearSites() }
-        case "clear.cache": Pill("Clear") { browser.clearCache() }
+        // "Clear…" on each, as the board has it, and asked first: History
+        // and Cookies went at the press, with no way back.
+        case "clear.history": Pill("Clear…") { ask(.history) { browser.clearHistory() } }
+        case "clear.cookies": Pill("Clear…") { ask(.cookies) { browser.clearSites() } }
+        case "clear.cache": Pill("Clear…") { ask(.cache) { browser.clearCache() } }
         default: EmptyView()
         }
     }
@@ -1097,7 +1133,7 @@ struct SettingsPanel: View {
         ZStack(alignment: .leading) {
             if text.wrappedValue.isEmpty {
                 Text(placeholder)
-                    .foregroundStyle(Palette.muted.opacity(0.8))
+                    .foregroundStyle(Palette.muted)
             }
             TextField("", text: text)
                 .textFieldStyle(.plain)
@@ -1521,13 +1557,17 @@ struct Segmented<Option: Hashable>: View {
     /// True when the control has the whole width to itself, so the choices
     /// share it evenly instead of each taking only what its word needs.
     var wide = false
+    /// Symbols where the words would be (a gradient's eight directions):
+    /// each option's string is then a symbol's name, and this says what it
+    /// is called, for its tooltip and VoiceOver.
+    var symbols: ((Option) -> String)? = nil
 
     @Namespace private var slide
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(options, id: \.0) { option, title in
-                Choice(title: title, chosen: option == selection, wide: wide, slide: slide) {
+                Choice(title: title, named: symbols?(option), chosen: option == selection, wide: wide, slide: slide) {
                     withAnimation(Motion.settle) { selection = option }
                 }
             }
@@ -1542,6 +1582,8 @@ struct Segmented<Option: Hashable>: View {
     /// and it gives under the press.
     private struct Choice: View {
         let title: String
+        /// What a symbol is called; nil where the title is words.
+        let named: String?
         let chosen: Bool
         let wide: Bool
         let slide: Namespace.ID
@@ -1550,11 +1592,8 @@ struct Segmented<Option: Hashable>: View {
 
         var body: some View {
             Button(action: pick) {
-                Text(title)
-                    .font(.system(size: 13, weight: chosen ? .medium : .regular))
+                words
                     .foregroundStyle(chosen || hovering ? Palette.ink : Palette.muted)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: !wide, vertical: false)
                     .frame(maxWidth: wide ? .infinity : nil)
                     .padding(.horizontal, wide ? 4 : 10)
                     .frame(height: wide ? 26 : 22)
@@ -1569,28 +1608,41 @@ struct Segmented<Option: Hashable>: View {
             }
             .buttonStyle(Gives(to: 0.96))
             .hovers($hovering)
+            .help(named ?? "")
+            .accessibilityLabel(named ?? title)
             .accessibilityAddTraits(chosen ? .isSelected : [])
+        }
+
+        @ViewBuilder private var words: some View {
+            if named != nil {
+                Image(systemName: title)
+                    .font(.system(size: 10, weight: .semibold))
+            } else {
+                Text(title)
+                    .font(.system(size: 13, weight: chosen ? .medium : .regular))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: !wide, vertical: false)
+            }
         }
     }
 }
 
-/// On or off, in ink rather than in blue.
 /// A few things each shown or not, side by side: a tick for each
-/// (Back, Forward, Reload…).
+/// (Back, Forward, Reload…), in Lun's own drawing (Tick) where the Mac's
+/// blue checkboxes were.
 struct Ticks: View {
     let items: [(String, Binding<Bool>)]
 
     var body: some View {
         HStack(spacing: 14) {
             ForEach(items.indices, id: \.self) { index in
-                Toggle(items[index].0, isOn: items[index].1)
-                    .toggleStyle(.checkbox)
-                    .font(.system(size: 12.5))
+                Ticked(items[index].0, on: items[index].1)
             }
         }
     }
 }
 
+/// On or off, in ink rather than in blue.
 ///
 /// A button, so the keyboard and VoiceOver can press it and it says whether
 /// it is on. It answers the pointer (the track a shade darker), gives under

@@ -161,7 +161,7 @@ struct Omnibox: View {
             .overlay {
                 if refused {
                     shape
-                        .strokeBorder(Color.red.opacity(0.35), lineWidth: 1)
+                        .strokeBorder(Palette.dangerRing, lineWidth: 1)
                         .allowsHitTesting(false)
                 }
             }
@@ -211,7 +211,7 @@ struct Omnibox: View {
             if let site = browser.siteOffer {
                 SiteOfferRow(site: site)
                     .contentShape(Rectangle())
-                    .onTapGesture { _ = browser.lockSiteOffer() }
+                    .pressed(to: 0.99) { _ = browser.lockSiteOffer() }
             }
             ForEach(Array(browser.offers.enumerated()), id: \.element.id) { index, offer in
                 // A line between the places and the words to search for.
@@ -220,7 +220,7 @@ struct Omnibox: View {
                 }
                 Row(offer: offer, picked: browser.picked == index, typed: browser.typed, large: large)
                     .contentShape(Rectangle())
-                    .onTapGesture { browser.take(offer) }
+                    .pressed(to: 0.99) { browser.take(offer) }
             }
             if let note = browser.switcherNote {
                 Text(note)
@@ -420,7 +420,7 @@ private struct SiteChip: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 22)
-        .background(Palette.wash, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .background(Palette.wash, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Searching \(site.name)")
     }
@@ -443,7 +443,7 @@ private struct SiteOfferRow: View {
                 .foregroundStyle(Palette.muted)
                 .padding(.horizontal, 6)
                 .frame(height: 18)
-                .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
         }
         .padding(.horizontal, 10)
         .frame(height: 36)

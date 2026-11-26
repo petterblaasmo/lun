@@ -756,17 +756,25 @@ struct NewSpaceCard: View {
 
     private func swatch(_ index: Int) -> some View {
         let none = index == 0
-        return Button { colour = index } label: {
-            Circle()
-                .fill(none ? Palette.frame : Spaces.colours[index])
-                .overlay { if none { Circle().strokeBorder(Palette.faint, lineWidth: 1) } }
-                .frame(width: 22, height: 22)
-                .overlay {
-                    if colour == index { Circle().strokeBorder(Palette.ink, lineWidth: 1.5).padding(-3.5) }
-                }
-                .contentShape(Circle())
+        return Hovered { hovering in
+            Button { colour = index } label: {
+                Circle()
+                    .fill(none ? Palette.frame : Spaces.colours[index])
+                    .overlay { if none { Circle().strokeBorder(Palette.faint, lineWidth: 1) } }
+                    .frame(width: 22, height: 22)
+                    .overlay {
+                        // The ring the chosen one wears, fainter, under
+                        // the pointer.
+                        if colour == index {
+                            Circle().strokeBorder(Palette.ink, lineWidth: 1.5).padding(-3.5)
+                        } else if hovering {
+                            Circle().strokeBorder(Palette.ring, lineWidth: 1.5).padding(-3.5)
+                        }
+                    }
+                    .contentShape(Circle())
+            }
+            .buttonStyle(Gives(to: 0.92))
         }
-        .buttonStyle(.plain)
         .help(none ? "No colour" : Spaces.colourNames[index])
         .accessibilityLabel(none ? "No colour" : Spaces.colourNames[index])
         .accessibilityAddTraits(colour == index ? .isSelected : [])
@@ -795,21 +803,30 @@ struct NewSpaceCard: View {
     private var icons: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.fixed(28), spacing: 4), count: 6), spacing: 4) {
             ForEach(Array(zip(Spaces.icons, Spaces.iconNames)), id: \.0) { symbol, name in
-                Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(symbol == icon ? Palette.ink : Palette.muted)
-                    .frame(width: 28, height: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .fill(symbol == icon ? Palette.wash : .clear)
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
+                // A button: the keyboard and VoiceOver can press it, it
+                // answers the pointer and gives under the press. It was a
+                // tap on a picture.
+                Hovered { hovering in
+                    Button {
                         withAnimation(Motion.quick) { icon = symbol }
                         choosing = false
                         typing = true
+                    } label: {
+                        Image(systemName: symbol)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(symbol == icon || hovering ? Palette.ink : Palette.muted)
+                            .frame(width: 28, height: 28)
+                            .background(
+                                RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
+                                    .fill(symbol == icon ? Palette.wash : hovering ? Palette.hover : .clear)
+                            )
+                            .contentShape(Rectangle())
                     }
-                    .help(name)
+                    .buttonStyle(Gives(to: 0.9))
+                }
+                .help(name)
+                .accessibilityLabel(name)
+                .accessibilityAddTraits(symbol == icon ? .isSelected : [])
             }
         }
         .padding(10)

@@ -1093,17 +1093,21 @@ struct TranslateMenu: View {
         let act: () -> Void
         @State private var hovering = false
 
+        // A button: the keyboard and VoiceOver can press it, and it gives
+        // under the press. It was a tap on a stack.
         var body: some View {
-            HStack(spacing: 8) {
-                Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 14)
-                Text(title).font(.system(size: 12.5)).foregroundStyle(Palette.ink).lineLimit(1)
-                Spacer(minLength: 0)
+            Button(action: act) {
+                HStack(spacing: 8) {
+                    Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 14)
+                    Text(title).font(.system(size: 12.5)).foregroundStyle(Palette.ink).lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
-            .contentShape(Rectangle())
-            .onTapGesture(perform: act)
+            .buttonStyle(Gives(to: 0.98))
             .hovers($hovering)
         }
     }

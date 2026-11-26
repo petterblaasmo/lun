@@ -67,7 +67,7 @@ struct ScreenQuestion: View {
                     .padding(.top, 2)
                 Text(ask.sound ? "\(ask.host) wants to share your screen and your Mac's sound"
                                : "\(ask.host) wants to share your screen")
-                    .font(.system(size: 12.5))
+                    .font(.system(size: 13))
                     .foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
             }

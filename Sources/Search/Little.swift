@@ -631,9 +631,7 @@ private struct LittleToast: View {
                     .foregroundStyle(Palette.ink)
                     .padding(.horizontal, 15)
                     .padding(.vertical, 9)
-                    .background(Palette.ground, in: Capsule())
-                    .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
-                    .shadow(color: .black.opacity(0.10), radius: 18, y: 6)
+                    .elevated(.float, in: Capsule())
                     .transition(.bar(.bottom))
             }
         }

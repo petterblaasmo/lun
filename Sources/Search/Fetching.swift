@@ -731,7 +731,7 @@ struct FetchDoor: View {
                     if !fetches.showing {
                         Image(systemName: "arrow.down.circle")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(hovering ? Palette.ink.opacity(0.7) : Palette.muted)
+                            .foregroundStyle(hovering ? Palette.ink : Palette.muted)
                             .transition(.opacity)
                     } else if fetches.done {
                         Image(systemName: "arrow.down")

@@ -177,7 +177,7 @@ struct PasswordsPanel: View {
                 }
                 HStack {
                     Spacer()
-                    Pill("Remove…", tint: .red.opacity(0.8), action: forget)
+                    Pill("Remove…", tint: Palette.danger, action: forget)
                 }
             }
             .onDisappear { conceal() }

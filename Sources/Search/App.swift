@@ -1255,9 +1255,7 @@ struct ContentView: View {
                     if browser.makingSpace, sidebar, browser.prefs.iconColumn {
                         NewSpaceCard(browser: browser)
                             .frame(width: 260)
-                            .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-                            .shadow(color: .black.opacity(0.12), radius: 18, y: 6)
+                            .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
                             .padding(sideOnRight ? .trailing : .leading, sideWidth + 12)
                             .padding(.top, 60)
                             .transition(.card(from: sideOnRight ? .topTrailing : .topLeading))
@@ -1447,8 +1445,7 @@ struct ContentView: View {
             .foregroundStyle(Palette.ground.opacity(0.92))
             .padding(.horizontal, 15)
             .padding(.vertical, 9)
-            .background(Palette.ink.opacity(0.92), in: Capsule())
-            .shadow(color: .black.opacity(0.18), radius: 18, y: 6)
+            .elevated(.float, in: Capsule(), fill: Palette.ink.opacity(0.92))
     }
 
     /// The same dimmed ground and spring for every panel that floats over a
@@ -1463,7 +1460,7 @@ struct ContentView: View {
             CursorGround()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
-            Color.black.opacity(0.10)
+            Palette.scrim
                 .ignoresSafeArea()
                 .onTapGesture(perform: close)
             panel()
@@ -2491,9 +2488,7 @@ private struct ImportProgress: View {
         }
         .padding(14)
         .frame(width: 250, alignment: .leading)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.08), radius: 16, y: 5)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
         .padding(20)
         .transition(.opacity)
         .accessibilityElement(children: .combine)
@@ -2520,16 +2515,10 @@ private struct ImportProgress: View {
                     .foregroundStyle(Palette.muted)
             }
             Spacer(minLength: 0)
-            Button { browser.cancelFileImport() } label: {
-                Text(job.cancelling ? "Cancelling…" : "Cancel")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.ink)
-                    .padding(.horizontal, 10)
-                    .frame(height: 22)
-                    .background(Palette.ink.opacity(0.07), in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .disabled(job.cancelling)
+            // Quick answers the pointer and the press, and dims while it
+            // can't be pressed: "Cancelling…" looked as live as "Cancel".
+            Quick(job.cancelling ? "Cancelling…" : "Cancel") { browser.cancelFileImport() }
+                .disabled(job.cancelling)
         }
     }
 }

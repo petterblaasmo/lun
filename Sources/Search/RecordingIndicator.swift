@@ -179,6 +179,8 @@ private final class PillPanel: NSPanel {
 struct PillView: View {
     @ObservedObject var indicator: RecordingIndicator
 
+    private var corner: CGFloat { indicator.lines.count > 1 ? Radius.panel : 19 }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(indicator.lines) { line in
@@ -186,7 +188,7 @@ struct PillView: View {
                     // The pill's one colour: a recording is known at a
                     // glance by its red dot, as in Chrome and Loom.
                     Circle()
-                        .fill(Color(nsColor: .systemRed))
+                        .fill(Palette.recording)
                         .frame(width: 7, height: 7)
                     (Text(line.name).font(.system(size: 12.5, weight: .semibold))
                         + Text(" \(line.what)").font(.system(size: 12.5)))
@@ -194,25 +196,18 @@ struct PillView: View {
                         .lineLimit(1)
                         .fixedSize()
                     Spacer(minLength: 12)
-                    Button { indicator.stop(line.id) } label: {
-                        Text("Stop")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Palette.ground)
-                            .padding(.horizontal, 11)
-                            .frame(height: 22)
-                            .background(Palette.ink, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Stop \(line.name)")
+                    Pill("Stop", filled: true) { indicator.stop(line.id) }
+                        .accessibilityLabel("Stop \(line.name)")
                 }
             }
         }
         .padding(.leading, 14)
         .padding(.trailing, 7)
         .padding(.vertical, 7)
-        // A capsule for one line; the same corners round a taller card.
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+        // A capsule for one line (half its 38 points); a panel's corners
+        // round a taller card.
+        .background(Palette.ground, in: RoundedRectangle(cornerRadius: corner, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: corner, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
         .fixedSize()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Recording")

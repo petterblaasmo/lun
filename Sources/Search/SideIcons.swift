@@ -115,7 +115,7 @@ struct IconTile: View {
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(Palette.muted)
                     .frame(width: 15, height: 15)
-                    .background(Palette.ink.opacity(0.07), in: Circle())
+                    .background(Palette.fill, in: Circle())
             } else if interactive, let number = shortcutNumbers[tab.id] {
                 TabShortcutNumber(number: number)
             } else if tab.loading {
@@ -143,7 +143,7 @@ struct IconTile: View {
         .overlay(alignment: .topTrailing) {
             if tab.recording {
                 Circle()
-                    .fill(Color(nsColor: .systemRed))
+                    .fill(Palette.recording)
                     .frame(width: 6, height: 6)
                     .overlay(Circle().strokeBorder(Palette.ground, lineWidth: 1))
                     .padding(4)
@@ -159,7 +159,7 @@ struct IconTile: View {
         .overlay {
             if browser.selectedTabIDs.contains(tab.id) {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
+                    .strokeBorder(Palette.ring, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }

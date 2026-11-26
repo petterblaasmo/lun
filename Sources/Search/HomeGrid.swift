@@ -34,17 +34,23 @@ struct HomeGrid: View {
                 let width = Omnibox.width(in: page.size)
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
                     ForEach(sites) { site in
-                        Button { site.address.map(browser.openBookmark) } label: {
-                            Text(site.label)
-                                .font(.system(size: 12))
-                                .foregroundStyle(Palette.muted)
-                                .lineLimit(1)
-                                .padding(.horizontal, 10)
-                                .frame(maxWidth: .infinity, minHeight: 50, maxHeight: 50)
-                                .background(RoundedRectangle(cornerRadius: 14).strokeBorder(Palette.hairline))
-                                .contentShape(RoundedRectangle(cornerRadius: 14))
+                        // Filled in under the pointer, its name in ink,
+                        // and it gives under the press: it was an outline
+                        // that answered nothing.
+                        Hovered { hovering in
+                            Button { site.address.map(browser.openBookmark) } label: {
+                                Text(site.label)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(hovering ? Palette.ink : Palette.muted)
+                                    .lineLimit(1)
+                                    .padding(.horizontal, 10)
+                                    .frame(maxWidth: .infinity, minHeight: 50, maxHeight: 50)
+                                    .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                                    .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.hairline))
+                                    .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                            }
+                            .buttonStyle(Gives(to: 0.97))
                         }
-                        .buttonStyle(.plain)
                     }
                 }
                 .frame(width: width)

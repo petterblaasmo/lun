@@ -389,7 +389,7 @@ struct SiteCard: View {
                             .lineLimit(1)
                             .truncationMode(.head)
                         if let safety {
-                            Said(words: safety.title + " ›", tint: safety.tint) { deeper = true }
+                            Said(words: safety.title, tint: safety.tint) { deeper = true }
                         }
                     }
                     Spacer(minLength: 0)
@@ -489,29 +489,27 @@ struct SiteCard: View {
         @ObservedObject var prefs: Preferences
         let kind: CaptureChoices.Kind
         let origin: String
+        @State private var hovering = false
 
         var body: some View {
             let now = CaptureChoices.choice(kind, origin: origin).title
             Line(kind.title) {
+                // The pop-up every other choice has (PopUp), over a menu
+                // of things to do: an answer saved two ways is none of
+                // the three, so there is no one value to tick.
                 Menu {
                     Button("Ask") { browser.setSitePermission(nil, kind: kind, origin: origin) }
                     Button("Allow") { browser.setSitePermission(true, kind: kind, origin: origin) }
                         .disabled(kind == .notifications && !prefs.siteNotifications)
                     Button("Refuse") { browser.setSitePermission(false, kind: kind, origin: origin) }
                 } label: {
-                    HStack(spacing: 5) {
-                        Text(now).font(.system(size: 12)).foregroundStyle(Palette.ink)
-                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(Palette.muted)
-                    }
-                    .padding(.leading, 8)
-                    .padding(.trailing, 6)
-                    .frame(height: 22)
-                    .background(Palette.fill, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    PopUpFace(shows: now, hovering: hovering)
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
                 .menuIndicator(.hidden)
                 .fixedSize()
+                .hovers($hovering)
                 .accessibilityLabel("\(kind.title): \(now)")
             }
         }
@@ -573,15 +571,20 @@ struct SiteCard: View {
         Line("Zoom") {
             HStack(spacing: 2) {
                 Step(symbol: "minus", help: "Zoom Out", shortcut: "view.zoomOut") { browser.zoom(by: 1 / 1.1) }
-                Button { browser.resetZoom() } label: {
-                    Text("\(Int((tab.zoom * 100).rounded()))%")
-                        .font(.system(size: 12))
-                        .monospacedDigit()
-                        .foregroundStyle(Palette.ink)
-                        .frame(width: 44)
-                        .contentShape(Rectangle())
+                // The number is a button too (back to the size sites start
+                // at): the wash and the give the steps beside it have.
+                Hovered { hovering in
+                    Button { browser.resetZoom() } label: {
+                        Text("\(Int((tab.zoom * 100).rounded()))%")
+                            .font(.system(size: 12))
+                            .monospacedDigit()
+                            .foregroundStyle(Palette.ink)
+                            .frame(width: 44, height: 22)
+                            .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(Gives(to: 0.94))
                 }
-                .buttonStyle(.plain)
                 .shortcutHelp("Actual Size", "view.actualSize")
                 Step(symbol: "plus", help: "Zoom In", shortcut: "view.zoomIn") { browser.zoom(by: 1.1) }
             }
@@ -887,7 +890,8 @@ struct SiteCard: View {
             }
             .padding(.horizontal, 12)
             .frame(height: 32)
-            .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            // The card's corner less the gap to it (16 − 6).
+            .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .contentShape(Rectangle())
         }
     }
@@ -902,14 +906,22 @@ struct SiteCard: View {
 
         var body: some View {
             Button(action: act) {
-                Text(words)
-                    .font(.system(size: 12))
-                    .underline(hovering)
-                    .foregroundStyle(tint)
-                    .contentShape(Rectangle())
+                // The arrow is a symbol, as a row's is: it was a "›" typed
+                // after the words, and underlined with them.
+                HStack(spacing: 4) {
+                    Text(words)
+                        .font(.system(size: 12))
+                        .underline(hovering)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .semibold))
+                }
+                .foregroundStyle(tint)
+                .contentShape(Rectangle())
             }
             .buttonStyle(Gives(to: 0.97))
             .hovers($hovering)
+            .pointingHand()
+            .accessibilityLabel(words)
         }
     }
 

@@ -1023,7 +1023,7 @@ struct ReleaseNotesPanel: View {
             }
             .padding(12)
             .frame(maxHeight: .infinity, alignment: .top)
-            .background(Palette.fill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(Palette.fill, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
     }
 }

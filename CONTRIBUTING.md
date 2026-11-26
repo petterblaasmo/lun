@@ -36,7 +36,7 @@ A build of your own is signed ad hoc: passkeys and iCloud sync need Apple's prov
 
 ## How the code wants to be written
 
-- Colours, sizes and motion come from `Sources/Search/Design.swift`: `Palette`, `Metrics`, `Motion`. No animation is written outside `Motion`, and a test holds that.
+- Colours, sizes, corners, shadows and motion come from `Sources/Search/Design.swift`: `Palette`, `Metrics`, `Radius`, `Elevation` (`.elevated`), `Motion`. No animation is written outside `Motion`, no shadow outside the elevations, and tests hold both.
 - A button gives under a press (`Gives`) and answers the pointer (`.hovers`). Text is 12 points or more.
 - A setting has to earn its place. Settings is 74 rows; a new behaviour is first a decision, and a switch only if people really differ. Switches that were retired are in `RetiredSettings.swift`.
 - Comments say why, not what.

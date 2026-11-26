@@ -1082,7 +1082,7 @@ struct BookmarkOutline: View {
                 .padding(.leading, CGFloat(depth) * 18 + 10)
                 .padding(.trailing, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(wash))
+                .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(wash))
                 .overlay(alignment: aim == .before ? .top : .bottom) {
                     if aim == .before || aim == .after {
                         // Below an open folder is its first child's place.
@@ -1183,6 +1183,8 @@ struct BookmarkCard: View {
     let id: Bookmark.ID
 
     @State private var title = ""
+    /// The pointer is over the folder's pop-up.
+    @State private var overFolder = false
     @FocusState private var naming: Bool
 
     var body: some View {
@@ -1209,7 +1211,7 @@ struct BookmarkCard: View {
             }
 
             HStack(spacing: 8) {
-                Quick("Remove", tint: .red.opacity(0.75)) {
+                Quick("Remove", tint: Palette.danger) {
                     close()
                     bookmarks.remove(id)
                 }
@@ -1264,12 +1266,13 @@ struct BookmarkCard: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(overFolder ? Palette.fillHover : Palette.fill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
+        .hovers($overFolder)
     }
 
     private func file(into folder: Bookmark.ID?) { bookmarks.file(id, into: folder) }

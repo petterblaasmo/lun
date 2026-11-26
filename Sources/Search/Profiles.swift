@@ -400,7 +400,7 @@ struct ProfilesSettings: View {
                         }
                     }
                     if !profile.isPersonal {
-                        Pill("Delete…", tint: .red) {
+                        Pill("Delete…", tint: Palette.danger) {
                             Ask.sure("Delete “\(profile.name)”?",
                                      detail: "Its windows close, its spaces go with their tabs and pins, and its cookies, sign-ins, history and bookmarks are erased from this Mac.",
                                      confirm: "Delete", returnCancels: true) {

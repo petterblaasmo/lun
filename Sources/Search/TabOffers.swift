@@ -137,7 +137,7 @@ private struct TabOffersList: View {
             ForEach(Array(browser.tabOffers.enumerated()), id: \.element.id) { index, offer in
                 Omnibox.Row(offer: offer, picked: browser.tabPicked == index)
                     .contentShape(Rectangle())
-                    .onTapGesture { browser.takeTabOffer(offer) }
+                    .pressed(to: 0.99) { browser.takeTabOffer(offer) }
             }
         }
         .padding(6)
