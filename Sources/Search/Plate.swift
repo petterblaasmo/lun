@@ -204,6 +204,91 @@ struct Line<Control: View>: View {
     }
 }
 
+/// A tick box in Lun's own drawing: a small square, ink with a tick when
+/// it is on, an outline when it is not.
+struct Tick: View {
+    let on: Bool
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+            .fill(on ? Palette.ink : Color.clear)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+                    .strokeBorder(on ? Color.clear : Palette.muted.opacity(0.7), lineWidth: 1.2)
+            )
+            .overlay {
+                if on {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9.5, weight: .bold))
+                        .foregroundStyle(Palette.ground)
+                }
+            }
+            .frame(width: 16, height: 16)
+    }
+}
+
+/// One thing a checklist offers: its tick, what it is, what will happen to
+/// it, and how many there are. The whole row is the button, so it is as
+/// easy to land on as it is wide; one with nothing to bring is dimmed and
+/// can't be ticked.
+struct Checked: View {
+    let title: String
+    let detail: String?
+    /// How many there are, at the row's end.
+    var count: String? = nil
+    @Binding var on: Bool
+    /// Nothing of this kind to choose.
+    var none = false
+
+    @State private var hovering = false
+
+    init(_ title: String, _ detail: String? = nil, count: String? = nil, on: Binding<Bool>, none: Bool = false) {
+        self.title = title
+        self.detail = detail
+        self.count = count
+        self._on = on
+        self.none = none
+    }
+
+    var body: some View {
+        Button { on.toggle() } label: {
+            HStack(alignment: .center, spacing: 12) {
+                Tick(on: on && !none)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.ink)
+                    if let detail {
+                        Text(detail)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Palette.muted)
+                            .lineLimit(3)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 8)
+                if let count {
+                    Text(count)
+                        .font(.system(size: 12).monospacedDigit())
+                        .foregroundStyle(Palette.muted)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(hovering && !none ? Palette.fillHover : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(Gives(to: 0.995))
+        .disabled(none)
+        .hovers($hovering)
+        .accessibilityLabel(title)
+        .accessibilityValue(none ? "None" : (on ? "Ticked" : "Not ticked") + (count.map { ", \($0)" } ?? ""))
+        .accessibilityAddTraits(.isToggle)
+    }
+}
+
 /// A small heading over a card, for when a panel has more than one.
 struct Caption: View {
     let text: String
