@@ -55,7 +55,7 @@ final class RetiredSettingsTests: XCTestCase {
         store.set(false, forKey: "tabs.give")
 
         RetiredSettings.settle(store)
-        XCTAssertEqual(RetiredSettings.fixed.count, 25)
+        XCTAssertEqual(RetiredSettings.fixed.count, 24)
         for (key, _) in RetiredSettings.fixed where key != "downloads.open" {
             XCTAssertEqual(store.object(forKey: key) as? Bool, true, key)
         }
@@ -64,6 +64,13 @@ final class RetiredSettingsTests: XCTestCase {
         XCTAssertEqual(store.string(forKey: RetiredSettings.aside("downloads.open")), "tab")
         XCTAssertEqual(store.object(forKey: RetiredSettings.aside("tabs.give")) as? Bool, false)
         XCTAssertNil(store.object(forKey: RetiredSettings.aside("commandbar")))
+
+        // The column's slow slide was fixed on for a day: off again, so
+        // ⌘S is as quick as it was.
+        XCTAssertNil(Motion.slide(out: true))
+        store.set(true, forKey: Motion.slidesKey)
+        RetiredSettings.settle(store)
+        XCTAssertNil(store.object(forKey: Motion.slidesKey))
 
         // Again: already as fixed, nothing more is put aside.
         RetiredSettings.settle(store)
