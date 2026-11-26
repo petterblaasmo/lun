@@ -1650,7 +1650,19 @@ struct ContentView: View {
     private func watchKeys() {
         let id = ObjectIdentifier(browser)
         if let old = ContentView.monitors[id] { NSEvent.removeMonitor(old) }
-        ContentView.monitors[id] = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]) { event in
+        ContentView.monitors[id] = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged, .leftMouseDown, .leftMouseUp, .rightMouseDown, .otherMouseDown]) { event in
+            if event.type == .leftMouseUp {
+                // The button coming up after it went down on one of this
+                // window's switcher cards (Browser.liftTabSwitcher), and
+                // nothing else: wherever it comes up, that press is over,
+                // and only over its card is the card taken.
+                guard browser.tabSwitcher.pressedID != nil else { return event }
+                var at = CGPoint(x: -1, y: -1)
+                if let window, event.window === window, let height = window.contentView?.bounds.height {
+                    at = CGPoint(x: event.locationInWindow.x, y: height - event.locationInWindow.y)
+                }
+                return browser.liftTabSwitcher(at: at) ? nil : event
+            }
             if event.type != .keyDown, event.type != .flagsChanged {
                 // A click in this window means a close is no longer the last
                 // thing done (Browser.lastClose). On the way down, so the
@@ -1658,13 +1670,13 @@ struct ContentView: View {
                 guard let window, event.window === window else { return event }
                 Browser.lastClose = nil
                 Browser.lastMove = nil
-                // A click on the tab switcher, in this window only (see
-                // Browser.clickTabSwitcher), turned into the top-left
+                // A press on the tab switcher, in this window only (see
+                // Browser.pressTabSwitcher), turned into the top-left
                 // coordinates SwiftUI's frames are in.
                 guard event.type == .leftMouseDown, let height = window.contentView?.bounds.height
                 else { return event }
                 let at = event.locationInWindow
-                return browser.clickTabSwitcher(at: CGPoint(x: at.x, y: height - at.y)) ? nil : event
+                return browser.pressTabSwitcher(at: CGPoint(x: at.x, y: height - at.y)) ? nil : event
             }
             // Every window has a monitor, and every monitor hears every key:
             // each takes only its own window's, and the one in front takes

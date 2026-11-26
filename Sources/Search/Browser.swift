@@ -6719,14 +6719,21 @@ final class Browser: NSObject, ObservableObject {
         window.makeKeyAndOrderFront(nil)
     }
 
-    /// A click while the switcher is up, at a point in the window's own
-    /// top-left coordinates: on a card, that card; outside the panel, the
-    /// switcher goes. True when the click was the switcher's. Taken before any
-    /// view sees it, because ⌃ is held for as long as the switcher is up, and
-    /// a ⌃-click is a right-click to AppKit, not a click the card's button
-    /// can be counted on to take. From #358, by oddharsh.
-    func clickTabSwitcher(at point: CGPoint) -> Bool {
-        tabSwitcher.click(at: point) { commitTabSwitch(picking: $0) }
+    /// The button going down while the switcher is up, at a point in the
+    /// window's own top-left coordinates: on a card, that card gives under
+    /// it; outside the panel, the switcher goes. True when the press was the
+    /// switcher's. Taken before any view sees it, because ⌃ is held for as
+    /// long as the switcher is up, and a ⌃-click is a right-click to AppKit,
+    /// not a click the card's button can be counted on to take. From #358,
+    /// by oddharsh.
+    func pressTabSwitcher(at point: CGPoint) -> Bool {
+        tabSwitcher.press(at: point)
+    }
+
+    /// The button coming up again: over the card it went down on, that
+    /// card's tab. True when it ended a press of the switcher's.
+    func liftTabSwitcher(at point: CGPoint) -> Bool {
+        tabSwitcher.lift(at: point) { commitTabSwitch(picking: $0) }
     }
 
     func commitTabSwitch(picking id: Tab.ID? = nil) {
