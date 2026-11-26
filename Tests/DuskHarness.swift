@@ -34,7 +34,8 @@ private final class DuskHarness: NSObject, NSApplicationDelegate, WKScriptMessag
         /// starts in: a page the colours gave up on.
         var finish: String?
         /// JavaScript that should be true of the darkened page, with
-        /// lum(selector, property) and ok(selector, property) to read it.
+        /// lum(selector, property) and ok(selector, property) to read it;
+        /// lum(selector, property, '::before') reads a pseudo-element's.
         /// A selector reaches into a shadow root with " >>> ".
         var looks: [String] = []
         /// Each frame, by its document's title: whether it should end up
@@ -415,6 +416,24 @@ private final class DuskHarness: NSObject, NSApplicationDelegate, WKScriptMessag
             <html class=cdn-root><link rel=stylesheet href="test-other://cdn/sheet.css"><p id=text>Plain writing</p></html>
             """, dark: false, shown: true,
                 looks: ["lum('#text','color') > 0.4", "lum('html','backgroundColor') < 0.05"], settle: 1.0, served: true),
+        // An unread sheet's ground on a ::before: one there from the start,
+        // and one that comes only with a class the page sets later, as a
+        // header's does when it sticks to the top on scroll. Both are taken
+        // dark. So is a ground a class brings on the element itself, plain
+        // or faded in by a transition of the page's.
+        Fixture(name: "colours-unreadable-pseudo", html: """
+            <link rel=stylesheet href="test-other://cdn/sheet.css"><style>body{background:#fff}</style>
+            <div id=pin class=cdn-pin>Pinned</div><div id=bar class=cdn-bar>Header</div>
+            <div id=plain class=cdn-bar>Plain</div><div id=fade class="cdn-bar cdn-fade">Faded</div>
+            <script>setTimeout(function () {
+              document.getElementById('bar').classList.add('cdn-stuck');
+              document.getElementById('plain').classList.add('cdn-fill');
+              document.getElementById('fade').classList.add('cdn-fill');
+            }, 300);</script>
+            """, dark: false, shown: true,
+                looks: ["lum('#pin','backgroundColor','::before') < 0.05", "lum('#bar','backgroundColor','::before') < 0.05",
+                        "lum('#bar','color','::before') > 0.4", "lum('#plain','backgroundColor') < 0.05",
+                        "lum('#fade','backgroundColor') < 0.05"], settle: 1.2, served: true),
         // The site's own rules are never touched: darkened or let go, each
         // says what the page read before anything was darkened.
         Fixture(name: "colours-leave-the-site-alone", html: """
@@ -425,6 +444,19 @@ private final class DuskHarness: NSObject, NSApplicationDelegate, WKScriptMessag
                 looks: ["lum('body','backgroundColor') < 0.05", "lum('#p','color') > 0.3",
                         "(function () { var r = document.styleSheets[0].cssRules; return r[0].style.cssText + '|' + r[1].cssRules[0].style.cssText === document.documentElement.dataset.before; })()",
                         "(function () { window.__officeDusk.update({ on: false }); var r = document.styleSheets[0].cssRules; return r[0].style.cssText + '|' + r[1].cssRules[0].style.cssText === document.documentElement.dataset.before && lum('body','backgroundColor') > 0.9; })()"]),
+        // Under the filter, a dark part drawn by a ::before, and one a class
+        // makes dark after the load, are kept as the site made them; one a
+        // class makes light again is let go, or it would be turned back,
+        // light on a darkened page; and a small dark bullet stays with the
+        // writing.
+        Fixture(name: "filter-dark-later", html: """
+            <style>body{background:#fff;color:#111}.bar,.gone{height:60px}.bar.stuck,.gone{background:#1b1b1b;color:#fff}.gone.off{background:transparent;color:#111}
+            .pin{position:relative;height:60px}.pin::before{content:'';position:absolute;inset:0;z-index:-1;background:#1b1b1b}
+            .dot{position:relative}.dot::before{content:'';position:absolute;left:0;width:6px;height:6px;background:#111}</style>
+            <div id=pin class=pin>Pin</div><div id=bar class=bar>Bar</div><div id=gone class=gone>Gone</div>
+            <p id=dot class=dot>A light page with a small dark bullet, and enough writing to read as light.</p>
+            <script>setTimeout(function () { document.getElementById('bar').classList.add('stuck'); document.getElementById('gone').classList.add('off'); }, 400);</script>
+            """, dark: false, shown: true, kept: ["#bar", "#pin"], turned: ["#gone", "#dot"], mode: "filter", settle: 1.0),
         Fixture(name: "known-light-from-start", html: "<style>body{background:#fff}</style>" + card,
                 dark: false, shown: true, seen: ["known-light-from-start.test": false]),
     ]
@@ -464,8 +496,8 @@ private final class DuskHarness: NSObject, NSApplicationDelegate, WKScriptMessag
       for (var i = 0; i < parts.length; i++) { var el = at.querySelector(parts[i]); at = i < parts.length - 1 ? el.shadowRoot : el; }
       return at;
     };
-    var lum = function (sel, prop) {
-      pen.clearRect(0, 0, 1, 1); pen.fillStyle = 'rgba(0,0,0,0)'; pen.fillStyle = getComputedStyle(find(sel))[prop];
+    var lum = function (sel, prop, pseudo) {
+      pen.clearRect(0, 0, 1, 1); pen.fillStyle = 'rgba(0,0,0,0)'; pen.fillStyle = getComputedStyle(find(sel), pseudo || null)[prop];
       pen.fillRect(0, 0, 1, 1); var d = pen.getImageData(0, 0, 1, 1).data;
       return 0.2126 * lin(d[0]) + 0.7152 * lin(d[1]) + 0.0722 * lin(d[2]);
     };
@@ -596,7 +628,7 @@ private final class DuskHarness: NSObject, NSApplicationDelegate, WKScriptMessag
 /// Serves a served fixture's page (test-page://) and a stylesheet from
 /// another origin (test-other://), as a CDN's is to the page.
 private final class OtherOrigin: NSObject, WKURLSchemeHandler {
-    static let css = ".cdn{background:#fff;color:#111;border:2px solid #ddd}.cdn-card{background:#f4f4f4}.cdn-page{background:#fff;color:#1d1e1c}.cdn-same{color:#1d1e1c}.cdn-pills>a{color:#000 !important;background:#fff !important}html.cdn-root{background:#fff;color:#222}"
+    static let css = ".cdn{background:#fff;color:#111;border:2px solid #ddd}.cdn-card{background:#f4f4f4}.cdn-page{background:#fff;color:#1d1e1c}.cdn-same{color:#1d1e1c}.cdn-pills>a{color:#000 !important;background:#fff !important}html.cdn-root{background:#fff;color:#222}.cdn-pin,.cdn-bar{position:relative}.cdn-pin::before,.cdn-bar.cdn-stuck::before{content:'';position:absolute;inset:0;z-index:-1;background:#fff;color:#111}.cdn-bar.cdn-fill{background:#fff}.cdn-fade{transition:background-color .2s linear}"
     static var page = ""
     func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
         guard let url = task.request.url else { return }
