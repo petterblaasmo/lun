@@ -92,7 +92,7 @@ struct HiddenPanel: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            .background(hovering ? Palette.hover : .clear)
+            .background(hovering ? Palette.fillHover : .clear)
             .contentShape(Rectangle())
             .onHover { inside in
                 hovering = inside
