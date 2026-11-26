@@ -198,7 +198,7 @@ struct DeveloperSettingsView: View {
                 }
                 Spacer(minLength: 0)
             }
-            .animation(Motion.reduced ? nil : .spring(response: 0.45, dampingFraction: 0.72), value: shell.settingsSection)
+            .animation(Motion.rail, value: shell.settingsSection)
             .padding(8)
             .frame(width: 180, alignment: .leading)
             .frame(maxHeight: .infinity, alignment: .top)
@@ -356,6 +356,7 @@ private struct DeveloperShortcutKeyCap: View {
             .overlay(outline.strokeBorder(recording ? Palette.ink.opacity(0.4) : Palette.hairline, lineWidth: 1))
             .contentShape(Rectangle())
             .onHover { hovering = editable && $0 }
+            .animation(Motion.quick, value: hovering)
     }
 }
 

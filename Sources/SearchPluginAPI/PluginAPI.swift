@@ -47,6 +47,17 @@ public protocol SearchDevToolsHost: NSObjectProtocol {
     func rearm(_ webView: WKWebView)
     /// What the package draws around the page changed: Search asks again.
     func invalidate()
+
+    /// How Search's own interface is moving, so a package's moves the same.
+    /// Asked each time something is about to move. Optional, so the
+    /// version stands: a Search from before them says nothing, and the
+    /// package goes by the Mac's own setting.
+    ///
+    /// Nothing travels: the Mac's Reduce Motion, or Reduce animations in
+    /// Search's Settings.
+    @objc optional var reducesMotion: Bool { get }
+    /// Nothing fades either: Reduce animations in Search's Settings.
+    @objc optional var stillsMotion: Bool { get }
 }
 
 /// A package, as Search sees it. Every call is on the main thread.
