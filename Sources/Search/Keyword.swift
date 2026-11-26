@@ -17,7 +17,7 @@ struct Keyword: Codable, Identifiable, Equatable {
 
     /// What a row calls this: the site's own name, stood in for by its host,
     /// the same way Engine.name(custom:) does for the one default engine.
-    var name: String { Engine.bareHost(of: template) ?? template }
+    var name: String { Engine.bareHost(of: Keyword.address(template)) ?? template }
 
     /// `typed` starts with this keyword, a space, and something after it —
     /// the words to search with. Nil if the keyword is unset, there's no
@@ -56,6 +56,16 @@ struct Keyword: Codable, Identifiable, Equatable {
 
     private static let mark = "SEARCHWORDSGOHERE"
 
+    /// A site's search address as typed into Settings. One written without
+    /// its scheme, as the field's own example is
+    /// (youtube.com/results?search_query=%s), is taken as https, the way the
+    /// address field takes a site typed without one: it was refused.
+    static func address(_ typed: String) -> String {
+        let trimmed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.contains("://"), let first = trimmed.first, first.isLetter || first.isNumber else { return trimmed }
+        return "https://" + trimmed
+    }
+
     /// Why `word` and `template` can't be saved alongside `keywords` yet, in
     /// a line Settings can show — or nil when they can.
     static func problem(word: String, template: String, among keywords: [Keyword]) -> String? {
@@ -65,7 +75,7 @@ struct Keyword: Codable, Identifiable, Equatable {
         if let taken = keywords.first(where: { $0.keyword.caseInsensitiveCompare(word) == .orderedSame }) {
             return "\(taken.keyword) already goes to \(taken.name)"
         }
-        guard accepts(template) else {
+        guard accepts(address(template)) else {
             return "An http or https address with %s once, where the words go"
         }
         return nil
