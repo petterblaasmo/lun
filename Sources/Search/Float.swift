@@ -137,6 +137,52 @@ final class Float {
     /// everywhere else.
     static var benchScreens: [NSRect]?
 
+    /// How far two fingers go, with flicks on, before the window flies to a
+    /// corner: at once past `flickAt`, or as they lift past `nudge`. A swipe
+    /// shorter than that has only placed the window, point for point.
+    nonisolated static let flickAt: CGFloat = 120
+    nonisolated static let nudge: CGFloat = 20
+
+    /// Whether a swipe this long is a flick, now or as the fingers lift.
+    nonisolated static func flies(_ swipe: CGVector, lifted: Bool) -> Bool {
+        let length = hypot(swipe.dx, swipe.dy)
+        return length > flickAt || (lifted && length > nudge)
+    }
+
+    /// How much of a pinch is taken at a time. Where every step lays the
+    /// page out again, a fiftieth: below what an eye reads as a jump, and an
+    /// order of magnitude less work than a step an event. Where the page
+    /// keeps its size and only the window's scale changes, a step costs
+    /// nothing, and the window follows the fingers.
+    nonisolated static let coarsePinch: CGFloat = 0.02
+    nonisolated static let finePinch: CGFloat = 0.002
+
+    /// The window `was`, made `width` wide. Its shape is kept: a video
+    /// window that can be squashed is a video window showing bars. `shape`
+    /// is that shape where the window has one of its own: the frame's is in
+    /// whole points, and taken from it the shape drifted a little with
+    /// every step of a pinch. No narrower than `least`, and no larger than
+    /// fits whole, both ways, in most of a screen `area` in size: by its
+    /// width alone, a window on a wide screen grew taller than the screen.
+    /// About `anchor`, the place under the pointer stays under it; without
+    /// one, the top left stays.
+    nonisolated static func sized(_ was: NSRect, to width: CGFloat, around anchor: NSPoint? = nil,
+                                  shape: NSSize? = nil, least: CGFloat, within area: NSSize) -> NSRect {
+        guard was.width > 0, was.height > 0 else { return was }
+        let shape = shape.flatMap { $0.width > 0 && $0.height > 0 ? $0 : nil } ?? was.size
+        let most = min(area.width, area.height * shape.width / shape.height) * 0.85
+        let wide = max(least, min(width, most))
+        let tall = wide * shape.height / shape.width
+        guard let anchor else {
+            return NSRect(x: was.minX, y: was.maxY - tall, width: wide, height: tall)
+        }
+        // Where the pointer sits within the window, as a fraction, kept at
+        // the same fraction of the new one.
+        let across = (anchor.x - was.minX) / was.width
+        let up = (anchor.y - was.minY) / was.height
+        return NSRect(x: anchor.x - across * wide, y: anchor.y - up * tall, width: wide, height: tall)
+    }
+
     /// The part of its page a window of `shape` shows: around the video's
     /// `picture`, of the window's shape, and no larger than holds the
     /// picture whole. In the page's own points, down from its top left. It
@@ -301,6 +347,7 @@ final class Float {
         }
 
         let controls = Controls(frame: ground.bounds)
+        controls.fine = keeps
         controls.autoresizingMask = [.width, .height]
         controls.onClose = { [weak self] in self?.onClose?() }
         controls.onReturn = { [weak self] in self?.onReturn?() }
@@ -474,7 +521,7 @@ final class Float {
     ///
     /// Out of sight until the pointer is over the window — the whole point of
     /// this window is the picture.
-    private final class Controls: NSView {
+    final class Controls: NSView {
         var onClose: (() -> Void)?
         var onReturn: (() -> Void)?
         var onPlayPause: (() -> Void)?
@@ -697,17 +744,17 @@ final class Float {
 
             let spot = window.frame.origin
             window.setFrameOrigin(NSPoint(x: spot.x + dx, y: spot.y - dy))
+            carryPointer(to: NSPoint(x: NSEvent.mouseLocation.x + dx, y: NSEvent.mouseLocation.y - dy))
+        }
 
+        /// The pointer, put at `spot` on screen. Never a test run's: its
+        /// windows are off every screen, and the pointer is somebody's.
+        private func carryPointer(to spot: NSPoint) {
             // Screen coordinates run up from the bottom, the cursor's run down
             // from the top of the first display.
-            guard let ground = NSScreen.screens.first else { return }
-            let mouse = NSEvent.mouseLocation
-            CGWarpMouseCursorPosition(
-                CGPoint(
-                    x: mouse.x + dx,
-                    y: ground.frame.height - (mouse.y - dy)
-                )
-            )
+            guard Float.benchAway == nil, Float.benchScreens == nil, !Store.testing,
+                  let ground = NSScreen.screens.first else { return }
+            CGWarpMouseCursorPosition(CGPoint(x: spot.x, y: ground.frame.height - spot.y))
             // Without this the pointer and the physical trackpad stay parted
             // for a moment, and the next flick arrives from the wrong place.
             CGAssociateMouseAndMouseCursorPosition(1)
@@ -718,8 +765,22 @@ final class Float {
         /// the left at the height it is at, a diagonal one to that corner —
         /// one move a swipe, however long the swipe. Dragging it anywhere is
         /// still the click's.
+        ///
+        /// Until it flies, the window is under the fingers, point for point,
+        /// and a swipe too short to be a flick leaves it where they put it:
+        /// a corner is rarely quite where a video is wanted, and with flicks
+        /// on there was no way to move it a little but to click and drag.
         private var swipe: CGVector = .zero
         private var flicked = false
+        /// Whether this swipe has the window under the fingers. Not one
+        /// that began while it was still on its way to a corner, which it
+        /// is left to reach, nor one at a docked window.
+        private var placing = false
+        /// Where the pointer was as the swipe began. It rides with the
+        /// window while it is placed, so that the window stays the one the
+        /// fingers are talking to, and is put back as the window flies off,
+        /// which leaves it where a flick always left it.
+        private var pointerFrom: NSPoint = .zero
         /// For a wheel, which has no gesture to belong to: one flick a turn.
         private var lastWheelFlick = Date.distantPast
 
@@ -747,6 +808,8 @@ final class Float {
                 flicked = false
                 pulling = nil
                 pullFrom = window?.frame.origin ?? .zero
+                placing = docked == nil && gliding == nil && ticking == nil
+                pointerFrom = NSEvent.mouseLocation
             }
             swipe.dx += step.dx
             swipe.dy += step.dy
@@ -767,9 +830,13 @@ final class Float {
 
             // Against a side, and swiped at it: it gives, heavily, under the
             // fingers, and on lifting either goes into the side — only a
-            // sliver left — or springs back out.
-            if pulling == nil, !flicked, let side = against(), outward(swipe, from: side), abs(swipe.dx) > 6 {
+            // sliver left — or springs back out. The side it was against as
+            // the swipe began: placed, it is wherever the fingers have it.
+            let side = against(placing ? rest : nil)
+            if pulling == nil, !flicked, let side, outward(swipe, from: side), abs(swipe.dx) > 6 {
                 pulling = side
+                if placing { carryPointer(to: pointerFrom) }
+                placing = false
                 // A spring still settling from the last one would pull the
                 // other way, a frame at a time.
                 stopGlide()
@@ -789,15 +856,29 @@ final class Float {
             // Read from the whole swipe, as the fingers lift: a swipe often
             // sets off along one side before it turns diagonal, and read
             // early it went the wrong way. A long one doesn't wait.
-            let length = hypot(swipe.dx, swipe.dy)
-            if !flicked, length > 120 || (lifted && length > 20) {
+            if !flicked, Float.flies(swipe, lifted: lifted) {
                 flicked = true
-                flick(swipe)
+                // To the corner it would have gone to from where it rested.
+                let from = placing ? rest : nil
+                if placing { carryPointer(to: pointerFrom) }
+                placing = false
+                flick(swipe, from: from)
+            } else if placing, !flicked, !(side.map { outward(swipe, from: $0) } ?? false) {
+                // Not at the side it is against: the first of a pull at it
+                // would move it out, and the pull then take it back.
+                window?.setFrameOrigin(NSPoint(x: pullFrom.x + swipe.dx, y: pullFrom.y + swipe.dy))
+                carryPointer(to: NSPoint(x: pointerFrom.x + swipe.dx, y: pointerFrom.y + swipe.dy))
             }
             if lifted {
                 swipe = .zero
                 flicked = false
+                placing = false
             }
+        }
+
+        /// The window where it was as the swipe began.
+        private var rest: NSRect? {
+            window.map { NSRect(origin: pullFrom, size: $0.frame.size) }
         }
 
         // Docking at a side, as in Dia: a strong swipe at the side the window
@@ -826,14 +907,14 @@ final class Float {
         }
 
         /// The side the window is up against, if it is, and if it can go
-        /// into it.
-        private func against() -> Side? {
-            guard let window, let area else { return nil }
+        /// into it. `at`: where it was, for one moved since.
+        private func against(_ at: NSRect? = nil) -> Side? {
+            guard let frame = at ?? window?.frame, let area else { return nil }
             let screens = Float.benchScreens ?? NSScreen.screens.map(\.frame)
-            if window.frame.maxX >= area.maxX - 16,
-               Float.dockable(window.frame, right: true, in: area, screens: screens) { return .right }
-            if window.frame.minX <= area.minX + 16,
-               Float.dockable(window.frame, right: false, in: area, screens: screens) { return .left }
+            if frame.maxX >= area.maxX - 16,
+               Float.dockable(frame, right: true, in: area, screens: screens) { return .right }
+            if frame.minX <= area.minX + 16,
+               Float.dockable(frame, right: false, in: area, screens: screens) { return .left }
             return nil
         }
 
@@ -881,10 +962,11 @@ final class Float {
         }
 
         /// To the corner the swipe points at, a margin in from the edges of
-        /// the screen's usable part.
-        private func flick(_ way: CGVector) {
+        /// the screen's usable part. `from`: where the window was before
+        /// the swipe placed it, which is what the corner is read from.
+        private func flick(_ way: CGVector, from: NSRect? = nil) {
             guard let window, let area else { return }
-            let target = Float.corner(for: window.frame, in: area, toward: way)
+            let target = Float.corner(for: from ?? window.frame, in: area, toward: way)
             guard target != window.frame.origin else { return }
             glide(to: target)
         }
@@ -965,49 +1047,50 @@ final class Float {
         /// about the centre instead makes the picture slide sideways under a
         /// hand that never moved, which is what felt wrong.
         private var pinching: CGFloat = 0
+        /// How wide the pinch has the window, to a fraction of a point. The
+        /// window's own width is in whole points: taken from that, a fine
+        /// step was a whole point or nothing.
+        private var pinchedTo: CGFloat = 0
+        /// Whether the page in the window keeps its size whatever the
+        /// window's (see Float.kept): a pinch is then taken in fine steps.
+        var fine = false
 
         override func magnify(with event: NSEvent) {
-            guard let window else { return }
-            if event.phase == .began { pinching = 0 }
+            // Docked, only a sliver of it is on screen: nothing there to
+            // size, and sizing it would pull part of it back out at the side.
+            guard let window, docked == nil else { return }
+            if event.phase.contains(.began) { pinching = 0 }
             pinching += event.magnification
 
             // Every event would mean a window resize, a web view relayout and a
-            // video re-fit sixty times a second, which is the stutter. Moving
-            // in steps of a fiftieth is below what an eye reads as a jump and
-            // an order of magnitude less work.
-            guard abs(pinching) > 0.02 else { return }
-            let by = pinching
+            // video re-fit sixty times a second, which is the stutter: taken
+            // in steps (see Float.coarsePinch). What is left of a pinch as
+            // the fingers lift is taken too: without it the smallest pinch
+            // did nothing, and none ended quite where the fingers had it.
+            let over = !event.phase.isDisjoint(with: [.ended, .cancelled])
+            guard abs(pinching) > (fine ? Float.finePinch : Float.coarsePinch) || (over && pinching != 0) else { return }
+            // From the window as it is, unless it is where the last step
+            // left it: at its least or its most, it is held there.
+            if abs(pinchedTo - window.frame.width) > 1 { pinchedTo = window.frame.width }
+            pinchedTo *= 1 + pinching
             pinching = 0
+            // About the pointer, which a test run's window has none over.
+            let hand = NSEvent.mouseLocation
             resize(
-                to: window.frame.width * (1 + by),
+                to: pinchedTo,
                 from: window.frame,
-                around: NSEvent.mouseLocation
+                around: window.frame.contains(hand) ? hand : NSPoint(x: window.frame.midX, y: window.frame.midY)
             )
         }
 
         private func resize(to width: CGFloat, from was: NSRect, around anchor: NSPoint? = nil) {
             guard let window, was.width > 0 else { return }
-            let limit = NSScreen.main?.visibleFrame.width ?? 1600
-            // Keeps the shape: a video window that can be squashed is a video
-            // window showing bars.
-            let wide = min(max(window.minSize.width, width), limit * 0.85)
-            let tall = wide * was.height / was.width
-
-            let spot: NSPoint
-            if let anchor {
-                // Where the pointer sits within the window, as a fraction, kept
-                // at the same fraction of the new one.
-                let across = (anchor.x - was.minX) / was.width
-                let up = (anchor.y - was.minY) / was.height
-                spot = NSPoint(x: anchor.x - across * wide, y: anchor.y - up * tall)
-            } else {
-                spot = NSPoint(x: was.minX, y: was.maxY - tall)
-            }
             // Not display: true — asking for an immediate redraw on every step
             // is what makes a live resize stutter. The next frame is soon
             // enough.
             window.setFrame(
-                NSRect(x: spot.x, y: spot.y, width: wide, height: tall),
+                Float.sized(was, to: width, around: anchor, shape: window.aspectRatio, least: window.minSize.width,
+                            within: area?.size ?? NSSize(width: 1600, height: 1000)),
                 display: false
             )
         }
