@@ -1042,7 +1042,7 @@ struct ContentView: View {
         }
         guard !Motion.reduced, arriving.0 || arriving.1 || farComing else { return }
         let ticket = roomTicket
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Motion.glideLanded) {
             guard ticket == roomTicket else { return }
             withTransaction(still) {
                 room = chrome

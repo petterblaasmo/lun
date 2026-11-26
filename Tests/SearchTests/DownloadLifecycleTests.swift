@@ -265,8 +265,8 @@ final class DownloadLifecycleTests: XCTestCase {
 
     func testThePulseHoldsStillUnderReduceMotionAndNeverHasNoLength() {
         for light in [false, true] {
-            let still = FetchDoor.pulse(reduced: true, light: light)
-            let moving = FetchDoor.pulse(reduced: false, light: light)
+            let still = Motion.pulse(reduced: true, light: light)
+            let moving = Motion.pulse(reduced: false, light: light)
             XCTAssertEqual(still.peak, 1, "Reduce Motion should leave the icon at its size (light: \(light))")
             XCTAssertGreaterThan(moving.peak, 1, "without Reduce Motion the icon should swell (light: \(light))")
             // A keyframe of no length makes a scale that is not a number, and AppKit stops the app.

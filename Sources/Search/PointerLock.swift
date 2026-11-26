@@ -109,7 +109,7 @@ final class PointerLock {
         }
         panel.place(over: page.convert(page.bounds, to: nil), in: window)
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = Motion.reduced ? 0 : 0.15
+            context.duration = Motion.hint(shown: true)
             panel.animator().alphaValue = 1
         }
         NSAccessibility.post(element: window, notification: .announcementRequested, userInfo: [
@@ -124,7 +124,7 @@ final class PointerLock {
         showing = false
         guard let panel, panel.parent != nil else { return }
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = Motion.reduced ? 0 : 0.2
+            context.duration = Motion.hint(shown: false)
             panel.animator().alphaValue = 0
         }, completionHandler: {
             MainActor.assumeIsolated {

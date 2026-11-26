@@ -541,7 +541,6 @@ private struct Breath: NSViewRepresentable {
         /// it on stills a breath already going.
         @objc private func breathe() {
             glow.removeAnimation(forKey: "breath")
-            guard !Motion.reduced else { return }
             let size = CABasicAnimation(keyPath: "transform.scale")
             size.fromValue = 0.97
             size.toValue = 1.03
@@ -550,11 +549,7 @@ private struct Breath: NSViewRepresentable {
             fade.toValue = 1.0
             let both = CAAnimationGroup()
             both.animations = [size, fade]
-            both.duration = 2.6
-            both.autoreverses = true
-            both.repeatCount = .infinity
-            both.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            glow.add(both, forKey: "breath")
+            if let both = Motion.loop(.breathe, both) { glow.add(both, forKey: "breath") }
         }
     }
 }

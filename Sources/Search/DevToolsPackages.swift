@@ -685,6 +685,11 @@ final class DevToolsHostBridge: NSObject, SearchDevToolsHost {
 
     func invalidate() { DevToolsPackages.shared.invalidate() }
 
+    /// The two switches of Motion, so the panels hold still when the rest
+    /// of the window does.
+    var reducesMotion: Bool { Motion.reduced }
+    var stillsMotion: Bool { Motion.instant }
+
     private func tab(_ web: WKWebView) -> Tab? { DevToolsPackages.shared.tab(for: web) }
 }
 

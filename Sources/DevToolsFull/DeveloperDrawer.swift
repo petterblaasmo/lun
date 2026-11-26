@@ -49,7 +49,7 @@ struct DeveloperDrawerView: View {
                 .scrollIndicators(.never)
                 .onAppear { reader.scrollTo(shell.drawerSelection) }
                 .onChange(of: shell.drawerSelection) { _, item in
-                    withAnimation(.easeOut(duration: 0.15)) { reader.scrollTo(item) }
+                    withAnimation(Motion.shift) { reader.scrollTo(item) }
                 }
                 .onChange(of: shell.drawerTabs) { _, _ in reader.scrollTo(shell.drawerSelection) }
             }

@@ -2539,9 +2539,7 @@ struct Ring: NSViewRepresentable {
             // is anticlockwise in a view that isn't flipped.
             turn.fromValue = 0
             turn.toValue = -2 * Double.pi
-            turn.duration = 0.85
-            turn.repeatCount = .infinity
-            ring.add(turn, forKey: "turn")
+            if let turn = Motion.loop(.spin, turn) { ring.add(turn, forKey: "turn") }
         }
     }
 }

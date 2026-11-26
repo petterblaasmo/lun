@@ -779,8 +779,8 @@ final class PaneStage: NSView {
         if fading, !Motion.reduced, tabs.first !== tab, let layer {
             let fade = CATransition()
             fade.type = .fade
-            fade.duration = 0.15
-            fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            fade.duration = Motion.spaceFade
+            fade.timingFunction = Motion.timing(.dissolve)
             layer.add(fade, forKey: "space")
         }
         // The usual way in, so a move under way is cut short as any change of
@@ -1151,8 +1151,8 @@ extension PaneStage {
         NSAnimationContext.runAnimationGroup({ context in
             // Search's glide, as near as a curve comes to its spring:
             // quick away, settling without a bounce, in about 0.3 s.
-            context.duration = 0.32
-            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
+            context.duration = Motion.panes
+            context.timingFunction = Motion.timing(.glide)
             context.allowsImplicitAnimation = true
             for (view, end) in moving {
                 if let end {

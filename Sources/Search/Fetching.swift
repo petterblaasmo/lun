@@ -680,15 +680,6 @@ final class Fetches: ObservableObject {
 /// wherever Settings says (see Browser.showDownloads) — beside it, as the
 /// side panel's card floating there (DownloadsFloat), among them.
 struct FetchDoor: View {
-    /// How far the icon swells when a download starts, and how long it takes
-    /// each way. Under Reduce Motion it goes nowhere, for the same length: a
-    /// keyframe of no length comes out as not a number, and AppKit stops the
-    /// whole app over a transform like that.
-    static func pulse(reduced: Bool, light: Bool) -> (peak: CGFloat, up: Double, down: Double) {
-        let seconds = light ? 0.16 : 0.3
-        return (reduced ? 1 : 1.35, seconds * 0.4, seconds * 0.6)
-    }
-
     @ObservedObject var browser: Browser
     @ObservedObject var fetches: Fetches
     @ObservedObject var prefs: Preferences
@@ -770,7 +761,7 @@ struct FetchDoor: View {
                 .keyframeAnimator(initialValue: CGFloat(1), trigger: fetches.started) { icon, scale in
                     icon.scaleEffect(scale)
                 } keyframes: { _ in
-                    let pulse = Self.pulse(reduced: Motion.reduced, light: Motion.light)
+                    let pulse = Motion.pulse()
                     CubicKeyframe(pulse.peak, duration: pulse.up)
                     CubicKeyframe(1, duration: pulse.down)
                 }
