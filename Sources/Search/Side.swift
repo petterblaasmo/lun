@@ -1418,6 +1418,9 @@ struct SideBar: View {
                         rowItem(tab, tabs: browser.tabs, splits: browser.splits,
                                 activeID: browser.activeID, interactive: true, pill: pill,
                                 close: { browser.closeTab(tab) })
+                        // Another tab held lying across this one: the split
+                        // letting go would make.
+                        .overlay { if prefs.splitView { JoinHint(browser: browser, tab: tab, marked: !icons) } }
                         // Positions here are among the loose rows; the pinned block
                         // sits in front of them in the real list.
                         .modifier(Carried(index: index, steps: looseSteps, vertical: true,
@@ -1426,7 +1429,8 @@ struct SideBar: View {
                                           loose: prefs.usesTabGroups ? looseFrames : nil,
                                           outside: { browser.dragOut(tab) }, browser: browser, tab: tab,
                                           cross: { cross(tab, $0, from: .rows) },
-                                          land: { land(tab, $0) }, faded: crossing?.tab == tab.id) {
+                                          land: { land(tab, $0) }, faded: crossing?.tab == tab.id,
+                                          row: prefs.splitView ? loose : nil) {
                             if prefs.usesTabGroups {
                                 browser.move(tab, within: nil, to: $0)
                             } else {
