@@ -571,15 +571,20 @@ struct SiteCard: View {
         Line("Zoom") {
             HStack(spacing: 2) {
                 Step(symbol: "minus", help: "Zoom Out", shortcut: "view.zoomOut") { browser.zoom(by: 1 / 1.1) }
-                Button { browser.resetZoom() } label: {
-                    Text("\(Int((tab.zoom * 100).rounded()))%")
-                        .font(.system(size: 12))
-                        .monospacedDigit()
-                        .foregroundStyle(Palette.ink)
-                        .frame(width: 44)
-                        .contentShape(Rectangle())
+                // The number is a button too (back to the size sites start
+                // at): the wash and the give the steps beside it have.
+                Hovered { hovering in
+                    Button { browser.resetZoom() } label: {
+                        Text("\(Int((tab.zoom * 100).rounded()))%")
+                            .font(.system(size: 12))
+                            .monospacedDigit()
+                            .foregroundStyle(Palette.ink)
+                            .frame(width: 44, height: 22)
+                            .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(Gives(to: 0.94))
                 }
-                .buttonStyle(.plain)
                 .shortcutHelp("Actual Size", "view.actualSize")
                 Step(symbol: "plus", help: "Zoom In", shortcut: "view.zoomIn") { browser.zoom(by: 1.1) }
             }
