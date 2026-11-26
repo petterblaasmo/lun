@@ -16,6 +16,7 @@
 - Every control gives under a press and answers the pointer. The last of the Mac's own checkboxes, sliders and pickers are Lun's.
 - Settings › Privacy can clear History, Cookies and Cache. Site permissions list the sites you have answered.
 - Settings is 72 rows: "Roomier tabs" is gone.
+- Signed with Lun's own provisioning profile: a proxy's password and "Always allow" for a coding agent are kept in the Mac's protected keychain again.
 
 ## 0.1.0
 
