@@ -288,13 +288,10 @@ struct OptInForm: View {
     private func hint(_ better: String) -> some View {
         HStack(spacing: 0) {
             Text("Did you mean ")
-            Button { email = better } label: {
-                Text(verbatim: better).underline().foregroundStyle(Palette.ink)
-            }
-            .buttonStyle(.plain)
+            TextLink(better, tint: Palette.ink, underlined: true) { email = better }
             Text("?")
         }
-        .font(.system(size: 11.5))
+        .font(.system(size: 12))
         .foregroundStyle(Palette.muted)
         .lineLimit(1)
         .truncationMode(.middle)
@@ -405,13 +402,10 @@ struct OptInFinePrint: View {
     var body: some View {
         HStack(spacing: 4) {
             Text("Unsubscribe anytime. Your email is used for nothing else.")
-            Button { open(OptIn.privacy) } label: {
-                Text("Privacy").underline()
-            }
-            .buttonStyle(.plain)
-            .help(OptIn.privacy.absoluteString)
+            TextLink("Privacy", underlined: true) { open(OptIn.privacy) }
+                .help(OptIn.privacy.absoluteString)
         }
-        .font(.system(size: 11))
+        .font(.system(size: 12))
         .foregroundStyle(Palette.muted)
         .fixedSize(horizontal: false, vertical: true)
     }

@@ -859,17 +859,7 @@ struct Trouble: View {
             }
             if let tab, let address = tab.shownURL, code != 0 {
                 VStack(spacing: 10) {
-                    Button { withAnimation(Motion.quick) { detailed.toggle() } } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 9, weight: .semibold))
-                                .rotationEffect(.degrees(detailed ? 90 : 0))
-                            Text("Details").font(.system(size: 12))
-                        }
-                        .foregroundStyle(Palette.muted)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+                    Disclosure("Details", open: $detailed)
                     if detailed {
                         Text("\(address.absoluteString)\n\(message) (\(code))")
                             .font(.system(size: 12, design: .monospaced))

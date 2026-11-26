@@ -1407,10 +1407,12 @@ struct ContentView: View {
             HStack(spacing: 8) {
                 Text(text)
                     .foregroundStyle(Palette.ink)
-                // A file just saved: the line shows it in the Finder.
-                if browser.announcedFile != nil {
-                    Text("Show in Finder")
-                        .foregroundStyle(Palette.muted)
+                // A file just saved: the line shows it in the Finder. A
+                // link, for the keyboard and VoiceOver, which the tap on
+                // the whole line never reached; the tap stays, for a hand
+                // that lands beside the words.
+                if let file = browser.announcedFile {
+                    TextLink("Show in Finder", size: 13) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
                 }
             }
                 .font(.system(size: 13))
