@@ -1,49 +1,144 @@
 name: CI
 
 # Every pull request and every push to main: does it build, and do the unit
-# tests pass. The tests are reported but do not fail the run yet: a few are
-# known to depend on the order they run in, or to die in WebKit's display
-# link (issue 98). When those are fixed, take `continue-on-error` away.
+# tests pass.
+#
+# Built once, then tested on four Macs at a time from what was built: each
+# test class runs in a process of its own (scripts/ci/tests.py), so one class
+# that leaves something behind can't fail the next. A class that fails is run
+# again alone; a test that only failed once is flagged as flaky, not failed,
+# and the tests listed in Tests/known-failures.txt are warnings with their
+# reason. Red means a test failed twice, by itself.
+#
+# A change that only touches text (Markdown, pictures, the issue templates)
+# runs nothing.
 on:
   pull_request:
+    paths-ignore: ["**/*.md", "docs/**", ".github/ISSUE_TEMPLATE/**", "LICENSE"]
   push:
     branches: [main]
+    paths-ignore: ["**/*.md", "docs/**", ".github/ISSUE_TEMPLATE/**", "LICENSE"]
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  # A newer push to a pull request replaces the run on the older one. Every
+  # merge to main keeps its own run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
   build:
+    # Everything compiles: the app, the developer tools packages, the tests.
+    # Alongside the tests, not before them.
     name: Build
     runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Swift version
-        run: swift --version
-      - name: Build the app and the tests
-        run: swift build --build-tests 2>&1 | tail -40
+      - name: Build everything
+        run: |
+          swift --version
+          if ! swift build --build-tests > build.log 2>&1; then
+            grep -E "error:" build.log | sort -u | head -50
+            tail -40 build.log
+            exit 1
+          fi
+          tail -1 build.log
 
-  test:
-    name: Unit tests
-    needs: build
+  bundle:
+    # Only what the tests need (not the developer tools packages, a third of
+    # the code), packed for the shards.
+    name: Build the tests
     runs-on: macos-26
-    timeout-minutes: 60
-    continue-on-error: true
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Unit tests, in parts
+      - name: Build the tests
         run: |
-          status=0
-          for part in "A-B" "C-D" "E-F" "G-M" "N-R" "S" "T-V" "W-Z"; do
-            echo "::group::SearchTests.[$part]"
-            if ! swift test --filter "SearchTests\.[$part]" 2>&1 | tail -60; then status=1; fi
-            echo "::endgroup::"
-          done
-          exit $status
-        shell: bash
+          if ! swift build --product SearchPackageTests > build.log 2>&1; then
+            grep -E "error:" build.log | sort -u | head -50
+            tail -40 build.log
+            exit 1
+          fi
+          tail -1 build.log
+      - name: List the tests
+        run: swift test list --skip-build > tests.txt && wc -l < tests.txt
+      - name: Pack what the tests need
+        # The bundle's name is the toolchain's to choose (SearchTests or
+        # SearchPackageTests): whichever was made, as tests.xctest.
+        run: |
+          bin=$(swift build --show-bin-path)
+          bin=${bin#"$PWD/"}
+          bundle=$(find "$bin/" -maxdepth 1 -name "*.xctest" | head -1)
+          echo "$bundle"
+          test -n "$bundle"
+          ln -s "$(basename "$bundle")" "$bin/tests.xctest"
+          tar -czf products.tgz tests.txt "$bin/tests.xctest" "$bundle"
+          ls -la products.tgz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: products
+          path: products.tgz
+          retention-days: 1
+          compression-level: 0
+
+  shard:
+    name: Tests ${{ matrix.shard }}/4
+    needs: bundle
+    runs-on: macos-26
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: products
+      - run: tar -xzf products.tgz
+      - name: Unit tests, one class at a time
+        run: python3 scripts/ci/tests.py --list tests.txt --bundle "$(find .build -maxdepth 4 -name tests.xctest | head -1)" --shard ${{ matrix.shard }} --of 4
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tests-${{ matrix.shard }}
+          path: ci-out/
+          retention-days: 7
+
+  tests:
+    # The one check to look at: green when every shard is.
+    name: Unit tests
+    needs: shard
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tests-*
+          merge-multiple: true
+          path: ci-out
+      - name: Times for the next split
+        run: |
+          python3 - <<'EOF'
+          import glob, json
+          times = {}
+          for f in glob.glob("ci-out/times-*.json"):
+              times.update(json.load(open(f)))
+          json.dump(times, open("ci-times.json", "w"), indent=1, sort_keys=True)
+          print(f"{len(times)} classes, {sum(times.values()):.0f} s in all")
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-times
+          path: ci-times.json
+          retention-days: 30
+      - name: Every shard passed
+        run: |
+          echo "Shards: ${{ needs.shard.result }}"
+          test "${{ needs.shard.result }}" = success
