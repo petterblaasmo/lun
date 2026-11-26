@@ -105,17 +105,22 @@ final class DownloadsPageDrawnTests: XCTestCase {
         return rep
     }
 
-    private func differs(_ a: NSBitmapImageRep, _ b: NSBitmapImageRep) -> Int {
-        guard a.pixelsWide == b.pixelsWide, a.pixelsHigh == b.pixelsHigh else { return Int.max }
+    /// How much of the page differs between two pictures of it, in square
+    /// points: the same on a screen of one pixel to the point as of two.
+    private func differs(_ a: NSBitmapImageRep, _ b: NSBitmapImageRep) -> CGFloat {
+        guard a.pixelsWide == b.pixelsWide, a.pixelsHigh == b.pixelsHigh else { return .infinity }
+        let scale = CGFloat(a.pixelsWide) / a.size.width
         var count = 0
-        for y in stride(from: 0, to: a.pixelsHigh, by: 2) {
-            for x in stride(from: 0, to: a.pixelsWide, by: 2) {
+        for y in 0..<a.pixelsHigh {
+            for x in 0..<a.pixelsWide {
                 guard let p = a.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
                       let q = b.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
-                if abs(p.redComponent - q.redComponent) > 0.06 { count += 1 }
+                // As little as a tile's ground on the page's counts: the
+                // picture itself may still be on its way.
+                if abs(p.redComponent - q.redComponent) > 0.03 { count += 1 }
             }
         }
-        return count
+        return CGFloat(count) / (scale * scale)
     }
 
     func testThisWeeksPicturesAreShownLargeAndOlderOnesAreNot() async throws {
@@ -167,7 +172,7 @@ final class DownloadsPageDrawnTests: XCTestCase {
             let two = try await picture(host, dark: dark, name: "downloads")
             // A second picture in the row over the list: 150 by 96 points
             // of it, where there was the page's ground.
-            XCTAssertGreaterThan(differs(one, two), 150 * 96 / 2, "\(look): this week's picture is shown large")
+            XCTAssertGreaterThan(differs(one, two), 150 * 96 * 0.6, "\(look): this week's picture is shown large")
             XCTAssertEqual(DownloadsPanel.bytes(of: files.map(\.path)), 4_800_000 + 3_000 + 1_200_000 + 14_000
                            + DownloadsPanel.bytes(of: [files[4].path]), look)
             window.contentView = nil
