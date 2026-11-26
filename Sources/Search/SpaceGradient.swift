@@ -875,7 +875,7 @@ enum SpaceLookPopover {
         let popover = NSPopover()
         popover.contentViewController = host
         popover.behavior = .transient
-        popover.animates = !Motion.instant
+        popover.animates = Motion.popovers
         popover.delegate = watch
         shown = popover
         // Escape puts back what the space had; a click elsewhere keeps it.
