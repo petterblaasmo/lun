@@ -603,9 +603,11 @@ enum Motion {
 struct Logomark: Shape {
     /// The ink's own size, nothing outside it.
     static let canvas = CGSize(width: 143, height: 77)
-    private static let pen: CGFloat = 13
+    static let pen: CGFloat = 13
 
-    func path(in rect: CGRect) -> Path {
+    /// Where the pen goes, in the canvas's own points: l, u, n, in the
+    /// order a hand writes them.
+    static let line: Path = {
         let half = Logomark.pen / 2
         var line = Path()
         // l
@@ -626,14 +628,43 @@ struct Logomark: Shape {
         line.addArc(center: CGPoint(x: 110 + half, y: 44 + half), radius: 20,
                     startAngle: .degrees(180), endAngle: .degrees(0), clockwise: false)
         line.addLine(to: CGPoint(x: 130 + half, y: 64 + half))
-        let outline = line.strokedPath(StrokeStyle(lineWidth: Logomark.pen, lineCap: .round, lineJoin: .round))
+        return line
+    }()
 
-        // Fit into whatever frame this is given, centred, at the larger
-        // scale that still keeps it inside: an SVG viewBox's "meet".
-        let scale = min(rect.width / Logomark.canvas.width, rect.height / Logomark.canvas.height)
+    /// How much larger than its canvas it is drawn in `rect`.
+    static func scale(in rect: CGRect) -> CGFloat {
+        min(rect.width / Logomark.canvas.width, rect.height / Logomark.canvas.height)
+    }
+
+    /// Into whatever frame this is given, centred, at the larger scale that
+    /// still keeps it inside: an SVG viewBox's "meet".
+    static func fit(_ rect: CGRect) -> CGAffineTransform {
+        let scale = scale(in: rect)
         let x = rect.midX - Logomark.canvas.width * scale / 2
         let y = rect.midY - Logomark.canvas.height * scale / 2
-        return outline.applying(CGAffineTransform(translationX: x, y: y).scaledBy(x: scale, y: scale))
+        return CGAffineTransform(translationX: x, y: y).scaledBy(x: scale, y: scale)
+    }
+
+    func path(in rect: CGRect) -> Path {
+        Logomark.line
+            .strokedPath(StrokeStyle(lineWidth: Logomark.pen, lineCap: .round, lineJoin: .round))
+            .applying(Logomark.fit(rect))
+    }
+}
+
+/// The wordmark as the pen writes it, from nothing (`drawn` 0) to all three
+/// letters (1): the welcome's first page. Drawn whole, it is Logomark.
+struct LogomarkWritten: View {
+    var drawn: CGFloat
+
+    var body: some View {
+        GeometryReader { box in
+            let rect = CGRect(origin: .zero, size: box.size)
+            Logomark.line.applying(Logomark.fit(rect))
+                .trim(from: 0, to: drawn)
+                .stroke(Palette.ink, style: StrokeStyle(lineWidth: Logomark.pen * Logomark.scale(in: rect), lineCap: .round, lineJoin: .round))
+        }
+        .aspectRatio(Logomark.canvas.width / Logomark.canvas.height, contentMode: .fit)
     }
 }
 
