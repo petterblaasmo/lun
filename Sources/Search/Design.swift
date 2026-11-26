@@ -989,6 +989,14 @@ extension AnyTransition {
         .offset(x: edge == .leading ? -24 : 24).combined(with: .opacity)
     }
 
+    /// The pages a long swipe back or forward offers, in the disc's place:
+    /// grown from the edge the swipe came from, and less far going than
+    /// coming, since the page is already on its way.
+    static func swiped(from anchor: UnitPoint) -> AnyTransition {
+        .asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.92, anchor: anchor)),
+                    removal: .opacity.combined(with: .scale(scale: 0.96, anchor: anchor)))
+    }
+
     /// A small sign: a badge, a tick, a count.
     static var pop: AnyTransition {
         .scale(scale: 0.6).combined(with: .opacity)

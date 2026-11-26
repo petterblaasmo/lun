@@ -130,10 +130,7 @@ struct Swiping: View {
                 // middle it would slide in from the middle.
                 HistoryList(pull: pull)
                     .id(pull.back)
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.92, anchor: pull.back ? .leading : .trailing)),
-                        removal: .opacity.combined(with: .scale(scale: 0.96, anchor: pull.back ? .leading : .trailing))
-                    ))
+                    .transition(.swiped(from: pull.back ? .leading : .trailing))
             } else if let pull {
                 Disc(pull: pull)
                     // A disc for each edge, never one that changes edges: a
