@@ -29,7 +29,7 @@ enum Web {
     /// tab once for each site the extension was granted, and kept the whole
     /// text each time: an extension with a 2 MB script and a 1 MB
     /// stylesheet for 32 sites took 408 MiB of the app's own memory with
-    /// four tabs open, and takes 18 MiB shared (Tests/extension_memory.py).
+    /// four tabs open, and takes about 20 MiB shared (Tests/extension_memory.py).
     ///
     /// WebKit shares them only for an app that says it takes every current
     /// WebKit behaviour, as Safari does. It comes with no SDK: WebKit holds
