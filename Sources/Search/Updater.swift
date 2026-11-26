@@ -23,24 +23,35 @@ import Security
 // `.old` bundle it set aside.
 //
 // build.sh writes the file (build/appcast.json) at the same time as the DMG
-// and the ZIP; publish.sh puts all three where `feed` points.
+// and the ZIP; release.sh puts them in a release on GitHub, where `feed` points.
 
 @MainActor
 final class Updater: ObservableObject {
     static let shared = Updater()
 
-    /// Where the file lives. None yet: Lun has no site to serve updates from,
-    /// and must never read Search's. Nothing is fetched and no update row or
-    /// menu item is shown until there is one.
+    /// Where the file lives: with the newest release on GitHub, whose
+    /// "latest" address always names it (release.sh puts it there, signed).
+    /// The ZIP and the disk image it points at are that release's own files,
+    /// on the same host, as `link` asks.
+    /// Apple silicon only: there is one build for now, and an Intel Mac
+    /// must not be handed it, so a build for Intel has no feed.
     /// SEARCH_FEED points a test run at a feed of its own, and is the only
     /// way plain http is accepted. Only a test run: the browser people use
-    /// ignores it.
+    /// ignores it. A test run with none set has no feed: it asks nobody.
     nonisolated static let feed: URL? = {
         if overridden, let set = ProcessInfo.processInfo.environment["SEARCH_FEED"], let url = URL(string: set) {
             return url
         }
+        guard !Store.testing else { return nil }
+        #if arch(arm64)
+        return URL(string: "https://github.com/\(repository)/releases/latest/download/appcast.json")
+        #else
         return nil
+        #endif
     }()
+
+    /// The repository whose releases are Lun's.
+    nonisolated static let repository = "petterblaasmo/lun"
 
     nonisolated static var available: Bool { feed != nil }
 
@@ -316,7 +327,7 @@ final class Updater: ObservableObject {
     }
 
     private static func fetch() async -> Release? {
-        // The feed as Office Commun signed it: appcast.json.zip, next to the
+        // The feed as it was signed: appcast.json.zip, next to the
         // plain one older builds read, holding the same file with its code
         // signature (build.sh). Only what comes out of it, checked, is read:
         // a feed a server or a hijacked answer made up is no feed at all.
