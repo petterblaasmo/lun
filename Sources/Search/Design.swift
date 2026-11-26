@@ -37,6 +37,49 @@ enum Palette {
     static let safe = Color(nsColor: NS.safe)           // green-700 · green-400
     static let unsafe = Color(nsColor: NS.unsafe)       // amber-700 · amber-400
 
+    // MARK: said once here, where each was written out by hand
+    //
+    // Each of these was a colour typed at several places, a shade apart
+    // from one to the next.
+
+    /// What takes something away for good, in its own words (Remove,
+    /// Delete…), and the words of a refusal: the Mac's red, eased to sit
+    /// with the greys.
+    static let danger = Color.red.opacity(0.8)
+    /// Round a field that refused what was typed: the address field, the
+    /// launcher, Find with nothing found.
+    static let dangerRing = Color.red.opacity(0.35)
+    /// Ink a step back, between ink and muted: a title at rest that goes
+    /// to ink under the pointer or once it is picked (the update's and the
+    /// agent's pill, a live folder's item, a page a long swipe offers), and
+    /// a small sign drawn in a row's ink (a page of Lun's own by its
+    /// symbol, a download's ring).
+    static let soft = ink.opacity(0.75)
+    /// Round a tab or a pin chosen along with others.
+    static let ring = ink.opacity(0.35)
+    /// The outline of where what is being dragged would land.
+    static let drop = ink.opacity(0.16)
+    /// What dims the window under a panel, and under a peek, which is a
+    /// page over the page and wants the one behind further back.
+    static let scrim = Color.black.opacity(0.10)
+    static let scrimDeep = Color.black.opacity(0.22)
+    /// What sets the page back under the raised address field in a light
+    /// window. The cover there is the ground let through (Omnibox), which
+    /// in a light window is white over what is most often a white page:
+    /// nothing said the field was a layer over it. A panel's scrim over
+    /// the cover makes the page a step darker than the card. In a dark
+    /// window the cover is darker than the card already, and this is
+    /// nothing.
+    static let fieldDim = Color(nsColor: NS.fieldDim)
+    /// A hint over a page in full screen, most often over a video: black
+    /// let through and white on it, whatever the window's appearance.
+    static let overPage = Color.black.opacity(0.72)
+    static let overPageEdge = Color.white.opacity(0.6)
+    /// A count that wants looking at: the unread badge on a pin.
+    static let badge = Color(red: 0.93, green: 0.24, blue: 0.21)
+    /// Something is recording: the Mac's own red, as its menu bar's dot.
+    static let recording = Color(nsColor: .systemRed)
+
     /// The same colours for the AppKit corners of the app — a text field's
     /// ink, a window's background — which want an NSColor and keep it.
     enum NS {
@@ -52,6 +95,9 @@ enum Palette {
         static let fill = shade(0.07, 0.08)
         static let fillHover = shade(0.11, 0.13)
         static let rule = shade(0.10, 0.10)
+        static let fieldDim = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .clear : NSColor(white: 0, alpha: 0.10)
+        }
         static let knob = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? NSColor(white: 1, alpha: 0.16) : .white
         }
@@ -303,6 +349,23 @@ enum Metrics {
     static let sideMax: CGFloat = 440
 }
 
+/// The house's corners, all continuous: a control inside a control (a
+/// track's knob, a step, a chip), a row's wash or a door or a key, a card
+/// of rows or a field, what floats over the page from a field (the
+/// launcher, a list under it), and a panel or a question. A shape inside
+/// another takes the outer's less the gap between them, so their curves run
+/// alongside: a theme's ring is 13 round a 10 picture, 3 away.
+enum Radius {
+    static let control: CGFloat = 6
+    static let row: CGFloat = 8
+    static let card: CGFloat = 10
+    static let float: CGFloat = 14
+    static let panel: CGFloat = 16
+    /// The address field alone in the middle of the window: rounder than a
+    /// panel, as it is the one thing there.
+    static let middle: CGFloat = 20
+}
+
 /// Three heights over the ground, one shadow each: a card lying on the column
 /// (the tab you're on), one floating over the page (the address list, a
 /// question), one over everything (the tab switcher). A hairline round each
@@ -347,6 +410,25 @@ extension View {
     /// On a card at `height` over what it lies on (see Elevated).
     func elevated<S: InsettableShape>(_ height: Elevation, in shape: S, fill: Color = Palette.raised) -> some View {
         modifier(Elevated(height: height, shape: shape, fill: fill))
+    }
+}
+
+extension View {
+    /// The shadow under what the hand has lifted out of its row and is
+    /// carrying: a tab across the top, a pin, a tab's picture between
+    /// windows. One lift for the three, which each had their own; deeper
+    /// in a dark window, as the elevations are. Nothing while not `held`.
+    func carriedShadow(_ held: Bool = true) -> some View {
+        modifier(CarriedShadow(held: held))
+    }
+}
+
+private struct CarriedShadow: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    let held: Bool
+
+    func body(content: Content) -> some View {
+        content.shadow(color: .black.opacity(held ? (scheme == .dark ? 0.4 : 0.16) : 0), radius: 12, y: 4)
     }
 }
 
@@ -1048,6 +1130,50 @@ extension View {
     func bumps<Value: Equatable>(on value: Value) -> some View {
         symbolEffect(.bounce, value: Motion.reduced ? nil : value)
     }
+}
+
+extension View {
+    /// A row pressed as a whole that can't be a Button, since it holds
+    /// buttons of its own or lies under other clicks: it gives under the
+    /// press as a button does (Gives, by a tab's means: Pressing and Give)
+    /// and does `act` on the click. A tap on a stack did the thing with
+    /// nothing to say it had been pressed. After the row's contentShape.
+    func pressed(to: CGFloat = 0.98, _ act: @escaping () -> Void) -> some View {
+        modifier(PressedRow(to: to, act: act))
+    }
+}
+
+private struct PressedRow: ViewModifier {
+    let to: CGFloat
+    let act: () -> Void
+    @State private var down = false
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(Give(pressed: down, to: to))
+            .modifier(Pressing(down: $down))
+            .onTapGesture(perform: act)
+    }
+}
+
+/// Hands what it draws whether the pointer is over it, eased as every
+/// hover is: for one of many built in a loop (a swatch, a tile, a cell of
+/// a grid), which has nowhere of its own to keep that.
+struct Hovered<Label: View>: View {
+    @ViewBuilder let label: (Bool) -> Label
+    @State private var hovering = false
+
+    var body: some View {
+        label(hovering).hovers($hovering)
+    }
+}
+
+/// A change made at once, from inside a control that slides a knob of its
+/// own (Segmented, Switch): the knob still moves, on its own animation, and
+/// what it sets in the window doesn't ride along on it. For what was set by
+/// one of the Mac's controls, which carried no animation with it.
+func atOnce(_ change: () -> Void) {
+    withTransaction(Transaction(animation: nil), change)
 }
 
 /// Wrong address, said without a dialog: the field shivers and stops.

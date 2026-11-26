@@ -128,7 +128,7 @@ struct PinFolderHeading: View {
     /// High contrast text, as a tab's title is.
     private func titleColour(hovering: Bool) -> Color {
         if prefs.highContrastText { return Palette.ink }
-        return hovering ? Palette.ink.opacity(0.7) : Palette.muted
+        return hovering ? Palette.ink : Palette.muted
     }
 
     /// A live folder's feed, or that its last fetch failed: nothing louder.
@@ -218,10 +218,10 @@ struct FeedItemRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .foregroundStyle(prefs.highContrastText || hovering ? Palette.ink : Palette.ink.opacity(0.75))
+        .foregroundStyle(prefs.highContrastText || hovering ? Palette.ink : Palette.soft)
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hovering ? greys.hover : .clear))
         .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .onTapGesture { if interactive { browser.openFeedItem(item) } }
+        .pressed { if interactive { browser.openFeedItem(item) } }
         .onHover { hovering = interactive && $0 }
         .help(compact ? item.title : item.link.absoluteString)
         .accessibilityElement(children: .ignore)

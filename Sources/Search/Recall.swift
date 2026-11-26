@@ -428,6 +428,31 @@ struct DownloadsPanel: View {
     @State private var sort: Sort = .all
     @State private var hunt = ""
     @FocusState private var hunting: Bool
+    /// What the files listed come to together, once they are measured
+    /// (off the main thread: a file each to ask about).
+    @State private var weight: Int64?
+
+    /// Whether a file came in this week: the pictures shown large are this
+    /// week's, as the board has them; older ones are in the list.
+    static func thisWeek(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear)
+    }
+
+    /// Over the list: how many files it holds and, once known, their size
+    /// together.
+    static func tally(files: Int, bytes: Int64?) -> String {
+        let count = files == 1 ? "1 file" : "\(files.formatted()) files"
+        guard let bytes, bytes > 0 else { return count }
+        return "\(count), \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))"
+    }
+
+    /// What the files at these paths come to. One that has gone counts for
+    /// nothing.
+    nonisolated static func bytes(of paths: [String]) -> Int64 {
+        paths.reduce(0) { sum, path in
+            sum + Int64((try? URL(fileURLWithPath: path).resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+        }
+    }
 
     private var shown: [Keep] {
         let words = hunt.trimmingCharacters(in: .whitespaces).lowercased()
@@ -438,7 +463,7 @@ struct DownloadsPanel: View {
 
     private var plate: some View {
         let shown = self.shown
-        let pictures = Array(shown.filter { Sort.images.holds($0) && $0.stillThere }.prefix(8))
+        let pictures = Array(shown.filter { Sort.images.holds($0) && DownloadsPanel.thisWeek($0.date) && $0.stillThere }.prefix(8))
         return Plate("Downloads", width: 560, tools: AnyView(HStack(spacing: 8) {
             Segmented(options: Sort.allCases.map { ($0, $0.rawValue) }, selection: $sort)
             Hunt(text: $hunt, prompt: "Search", focus: $hunting).frame(width: 200)
@@ -468,7 +493,7 @@ struct DownloadsPanel: View {
                         }
                         if !pictures.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
-                                heading("Pictures")
+                                heading("Pictures this week")
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(alignment: .top, spacing: 12) {
                                         ForEach(pictures) { keep in Picture(keep: keep) { loot.open(keep) } }
@@ -483,8 +508,12 @@ struct DownloadsPanel: View {
                                 HStack {
                                     heading("Completed")
                                     Spacer()
-                                    Text(shown.count == 1 ? "1 file" : "\(shown.count) files")
+                                    Text(DownloadsPanel.tally(files: shown.count, bytes: weight))
                                         .font(.system(size: 12)).foregroundStyle(Palette.muted).padding(.trailing, 4)
+                                        .task(id: shown.map(\.path)) {
+                                            let paths = shown.map(\.path)
+                                            weight = await Task.detached(priority: .utility) { DownloadsPanel.bytes(of: paths) }.value
+                                        }
                                 }
                                 Card {
                                     HStack(spacing: 12) {
@@ -539,6 +568,8 @@ struct DownloadsPanel: View {
         let keep: Keep
         let open: () -> Void
         @State private var image: NSImage?
+        /// The file's size, read with its picture.
+        @State private var size: String?
         @State private var hovering = false
 
         var body: some View {
@@ -558,10 +589,11 @@ struct DownloadsPanel: View {
                     // said it was a button.
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(Palette.ink.opacity(hovering ? 0.35 : 0), lineWidth: 1)
+                            .strokeBorder(hovering ? Palette.ring : .clear, lineWidth: 1)
                     )
                     FadingLine(text: keep.name).font(.system(size: 12)).foregroundStyle(Palette.ink)
-                    Text(When.day(keep.date)).font(.system(size: 12)).foregroundStyle(Palette.muted)
+                    Text([size, When.day(keep.date)].compactMap { $0 }.joined(separator: " · "))
+                        .font(.system(size: 12)).foregroundStyle(Palette.muted).lineLimit(1)
                 }
                 .frame(width: 150, alignment: .leading)
                 .contentShape(Rectangle())
@@ -580,6 +612,8 @@ struct DownloadsPanel: View {
                     ] as CFDictionary)
                 }.value
                 image = made.map { NSImage(cgImage: $0, size: .zero) }
+                let bytes = await Task.detached(priority: .utility) { DownloadsPanel.bytes(of: [url.path]) }.value
+                size = bytes > 0 ? ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) : nil
             }
         }
     }
@@ -896,7 +930,7 @@ struct DownloadsPanel: View {
                 if hovering {
                     HStack(spacing: 12) {
                         if keep.stillThere { Quick("Show in Finder", act: reveal) }
-                        Quick("Remove", tint: .red.opacity(0.75), act: forget)
+                        Quick("Remove", tint: Palette.danger, act: forget)
                     }
                     .padding(.leading, 12)
                     .padding(.trailing, 14)

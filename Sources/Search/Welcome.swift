@@ -640,7 +640,7 @@ struct WelcomePanel: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Palette.fill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(Palette.fill, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
     }
 

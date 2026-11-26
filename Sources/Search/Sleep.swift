@@ -184,6 +184,27 @@ extension Browser {
         return busy(tab)
     }
 
+    /// Reasons that need no saying in a tab's menu: the tab is the one
+    /// looked at, or about to be something else.
+    private static let plainlyAwake: Set<String> = ["on screen", "still loading"]
+
+    /// The line a tab's menu has under Put to Sleep while the tab is kept
+    /// awake: "Awake: playing sound". A tab that never sleeps looks like a
+    /// fault unless something says why. Nothing for a tab with no page to
+    /// let go of (blank, asleep already, never loaded), the one on screen,
+    /// or one free to sleep. Something typed and not sent is only known
+    /// once the page has been asked, on the way to sleep (see `sleep`).
+    func awakeLine(for tab: Tab) -> String? {
+        guard !tab.bench, !tab.isBlank, !tab.asleep, tab.built != nil else { return nil }
+        guard let reason = awake(because: tab) else {
+            return tab.holdsTyped ? "Awake: \(Browser.typedReason)" : nil
+        }
+        return Browser.plainlyAwake.contains(reason) ? nil : "Awake: \(reason)"
+    }
+
+    /// What `sleep` answers for a page with something typed and not sent.
+    static let typedReason = "holding something typed"
+
     func keepsAwake(_ tab: Tab) -> Bool {
         guard prefs.keepsSitesAwake, let host = tab.awakeHost else { return false }
         return (tab.shy ? tab.awakeSites : prefs.awakeSites).contains(host)
@@ -252,8 +273,9 @@ extension Browser {
         let web = tab.built, document = tab.documentGeneration, touched = tab.touched
         tab.unsaved { [weak self, weak tab] typed in
             guard let self, let tab else { done?("gone"); return }
+            tab.typedIn = typed ? tab.documentGeneration : nil
             if typed {
-                done?("holding something typed")
+                done?(Browser.typedReason)
                 return
             }
             if let reason = self.awake(because: tab) {
@@ -271,7 +293,11 @@ extension Browser {
                             done?("page changed")
                             return
                         }
-                        if typed { done?("holding something typed"); return }
+                        if typed {
+                            tab.typedIn = tab.documentGeneration
+                            done?(Browser.typedReason)
+                            return
+                        }
                         if let reason = self.awake(because: tab) { done?(reason); return }
                         KeptSession.remember(storage, for: tab, in: self)
                         KeptPlace.remember(place, for: tab, in: self)

@@ -70,6 +70,14 @@ struct SearchApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1180, height: 780)
+        // Nothing from outside is SwiftUI's to bring to this window. Given a
+        // page handed off from an iPhone, or a file opened from the Finder,
+        // SwiftUI closed the window and opened it again before the event
+        // reached Links, and the close counted as yours: with another
+        // window open, every tab of this one went. Links takes them all
+        // itself (application(_:continue:), (_:open:), the URL Apple
+        // Event). `python3 Tests/handoff_scene.py`
+        .handlesExternalEvents(matching: [])
         .commands {
             CommandGroup(replacing: .newItem) {
                 // Another window, with tabs of its own (see Windows.swift).
@@ -1225,6 +1233,13 @@ struct ContentView: View {
                     Fold(browser: browser, prefs: browser.prefs, onDrag: { [edges] in edges.side = $0 })
                 }
             }
+            // With the column folded away: back, forward and the address,
+            // down from the top edge (see EdgeBar.swift).
+            .overlay(alignment: .top) {
+                if fullscreenTab == nil {
+                    EdgeBar(browser: browser, state: browser.edgeBar, wanted: browser.edgeBarWanted)
+                }
+            }
             .overlay(alignment: .bottom) { bars }
             .overlay { siteQuestions }
             .overlay {
@@ -1247,9 +1262,7 @@ struct ContentView: View {
                     if browser.makingSpace, sidebar, browser.prefs.iconColumn {
                         NewSpaceCard(browser: browser)
                             .frame(width: 260)
-                            .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-                            .shadow(color: .black.opacity(0.12), radius: 18, y: 6)
+                            .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
                             .padding(sideOnRight ? .trailing : .leading, sideWidth + 12)
                             .padding(.top, 60)
                             .transition(.card(from: sideOnRight ? .topTrailing : .topLeading))
@@ -1323,7 +1336,15 @@ struct ContentView: View {
                 browser.appLeft()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
-                if let window, (note.object as? NSWindow) === window { Browsers.becameKey(browser) }
+                if let window, (note.object as? NSWindow) === window {
+                    Browsers.becameKey(browser)
+                    // Its video, out since the app was left, comes home now
+                    // if another of Lun's windows was in front until here.
+                    browser.appBack(in: window)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeMainNotification)) { note in
+                if let window, (note.object as? NSWindow) === window { browser.appBack(in: window) }
             }
             .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.activeSpaceDidChangeNotification)) { _ in
                 if browser.prefs.keepsWindow, browser.tabs.contains(where: \.immersed) { immersing() }
@@ -1351,7 +1372,7 @@ struct ContentView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                 resting?.isHidden = true
-                browser.appBack()
+                browser.appBack(in: NSApp.mainWindow ?? NSApp.keyWindow)
             }
             .onChange(of: browser.fieldShowing) { _, showing in
                 if showing {
@@ -1439,8 +1460,7 @@ struct ContentView: View {
             .foregroundStyle(Palette.ground.opacity(0.92))
             .padding(.horizontal, 15)
             .padding(.vertical, 9)
-            .background(Palette.ink.opacity(0.92), in: Capsule())
-            .shadow(color: .black.opacity(0.18), radius: 18, y: 6)
+            .elevated(.float, in: Capsule(), fill: Palette.ink.opacity(0.92))
     }
 
     /// The same dimmed ground and spring for every panel that floats over a
@@ -1455,7 +1475,7 @@ struct ContentView: View {
             CursorGround()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
-            Color.black.opacity(0.10)
+            Palette.scrim
                 .ignoresSafeArea()
                 .onTapGesture(perform: close)
             panel()
@@ -1645,7 +1665,19 @@ struct ContentView: View {
     private func watchKeys() {
         let id = ObjectIdentifier(browser)
         if let old = ContentView.monitors[id] { NSEvent.removeMonitor(old) }
-        ContentView.monitors[id] = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]) { event in
+        ContentView.monitors[id] = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged, .leftMouseDown, .leftMouseUp, .rightMouseDown, .otherMouseDown]) { event in
+            if event.type == .leftMouseUp {
+                // The button coming up after it went down on one of this
+                // window's switcher cards (Browser.liftTabSwitcher), and
+                // nothing else: wherever it comes up, that press is over,
+                // and only over its card is the card taken.
+                guard browser.tabSwitcher.pressedID != nil else { return event }
+                var at = CGPoint(x: -1, y: -1)
+                if let window, event.window === window, let height = window.contentView?.bounds.height {
+                    at = CGPoint(x: event.locationInWindow.x, y: height - event.locationInWindow.y)
+                }
+                return browser.liftTabSwitcher(at: at) ? nil : event
+            }
             if event.type != .keyDown, event.type != .flagsChanged {
                 // A click in this window means a close is no longer the last
                 // thing done (Browser.lastClose). On the way down, so the
@@ -1653,13 +1685,13 @@ struct ContentView: View {
                 guard let window, event.window === window else { return event }
                 Browser.lastClose = nil
                 Browser.lastMove = nil
-                // A click on the tab switcher, in this window only (see
-                // Browser.clickTabSwitcher), turned into the top-left
+                // A press on the tab switcher, in this window only (see
+                // Browser.pressTabSwitcher), turned into the top-left
                 // coordinates SwiftUI's frames are in.
                 guard event.type == .leftMouseDown, let height = window.contentView?.bounds.height
                 else { return event }
                 let at = event.locationInWindow
-                return browser.clickTabSwitcher(at: CGPoint(x: at.x, y: height - at.y)) ? nil : event
+                return browser.pressTabSwitcher(at: CGPoint(x: at.x, y: height - at.y)) ? nil : event
             }
             // Every window has a monitor, and every monitor hears every key:
             // each takes only its own window's, and the one in front takes
@@ -2483,9 +2515,7 @@ private struct ImportProgress: View {
         }
         .padding(14)
         .frame(width: 250, alignment: .leading)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.08), radius: 16, y: 5)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
         .padding(20)
         .transition(.opacity)
         .accessibilityElement(children: .combine)
@@ -2497,7 +2527,7 @@ private struct ImportProgress: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Palette.hairline)
                 if let fraction {
-                    Capsule().fill(Palette.ink.opacity(0.7)).frame(width: geo.size.width * fraction)
+                    Capsule().fill(Palette.soft).frame(width: geo.size.width * fraction)
                 }
             }
         }
@@ -2512,16 +2542,10 @@ private struct ImportProgress: View {
                     .foregroundStyle(Palette.muted)
             }
             Spacer(minLength: 0)
-            Button { browser.cancelFileImport() } label: {
-                Text(job.cancelling ? "Cancelling…" : "Cancel")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.ink)
-                    .padding(.horizontal, 10)
-                    .frame(height: 22)
-                    .background(Palette.ink.opacity(0.07), in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .disabled(job.cancelling)
+            // Quick answers the pointer and the press, and dims while it
+            // can't be pressed: "Cancelling…" looked as live as "Cancel".
+            Quick(job.cancelling ? "Cancelling…" : "Cancel") { browser.cancelFileImport() }
+                .disabled(job.cancelling)
         }
     }
 }

@@ -480,46 +480,42 @@ struct SideBar: View {
     /// double-click it to put it back. The whole edge takes the pointer; on
     /// it, a small pill shows in the middle (see Grip) so the edge says it
     /// can be taken before it is. Edge to edge, the pill sits on the page's
-    /// hairline; as cards, in the gap before the page.
+    /// hairline; as cards, in the gap before the page. The pointer and the
+    /// pull are taken by a view of AppKit's own laid over it (EdgeHandle),
+    /// so the left-right arrows stay for as long as the edge is held.
     private var edge: some View {
         EdgeGrip(lit: onEdge || grabbed != nil)
             .offset(x: onFrame ? 0 : onRight ? -4 : 4)
             .frame(width: 9)
             .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .onHover { over in
-                onEdge = over
-                if over { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
-            }
-            .gesture(
-                DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                    .onChanged { value in
-                        // Taken from the strip, as if a little short of the
-                        // line: a short pull brings the titles back, where
-                        // the strip's own width would need a long one.
-                        if grabbed == nil { grabbed = strip ? Metrics.narrowLine - SideBar.stripPull : prefs.columnWidth }
-                        let delta = onRight ? -value.translation.width : value.translation.width
-                        let wanted = (grabbed ?? prefs.columnWidth) + delta
-                        let held = SideBar.held(wanted, narrows: prefs.narrowsToIcons)
-                        if held.narrow != prefs.narrowed, prefs.narrowsToIcons {
-                            withAnimation(Motion.glide) { prefs.narrowed = held.narrow }
-                        }
-                        live = held.width
-                        onDrag(live)
+            .overlay(EdgeHandle(
+                hover: { onEdge = $0 },
+                pulled: { across in
+                    // Taken from the strip, as if a little short of the
+                    // line: a short pull brings the titles back, where
+                    // the strip's own width would need a long one.
+                    if grabbed == nil { grabbed = strip ? Metrics.narrowLine - SideBar.stripPull : prefs.columnWidth }
+                    let delta = onRight ? -across : across
+                    let wanted = (grabbed ?? prefs.columnWidth) + delta
+                    let held = SideBar.held(wanted, narrows: prefs.narrowsToIcons)
+                    if held.narrow != prefs.narrowed, prefs.narrowsToIcons {
+                        withAnimation(Motion.glide) { prefs.narrowed = held.narrow }
                     }
-                    .onEnded { _ in
-                        if let live { prefs.sideWidth = live }
-                        live = nil
-                        grabbed = nil
-                        onDrag(nil)
+                    live = held.width
+                    onDrag(live)
+                },
+                ended: {
+                    if let live { prefs.sideWidth = live }
+                    live = nil
+                    grabbed = nil
+                    onDrag(nil)
+                },
+                twice: {
+                    withAnimation(Motion.settle) {
+                        prefs.narrowed = false
+                        prefs.sideWidth = Metrics.side
                     }
-            )
-            .modifier(OneClick(double: true) {
-                withAnimation(Motion.settle) {
-                    prefs.narrowed = false
-                    prefs.sideWidth = Metrics.side
-                }
-            })
+                }))
             .animation(Motion.quick, value: onEdge)
     }
 
@@ -1418,6 +1414,9 @@ struct SideBar: View {
                         rowItem(tab, tabs: browser.tabs, splits: browser.splits,
                                 activeID: browser.activeID, interactive: true, pill: pill,
                                 close: { browser.closeTab(tab) })
+                        // Another tab held lying across this one: the split
+                        // letting go would make.
+                        .overlay { if prefs.splitView { JoinHint(browser: browser, tab: tab, marked: !icons) } }
                         // Positions here are among the loose rows; the pinned block
                         // sits in front of them in the real list.
                         .modifier(Carried(index: index, steps: looseSteps, vertical: true,
@@ -1426,7 +1425,8 @@ struct SideBar: View {
                                           loose: prefs.usesTabGroups ? looseFrames : nil,
                                           outside: { browser.dragOut(tab) }, browser: browser, tab: tab,
                                           cross: { cross(tab, $0, from: .rows) },
-                                          land: { land(tab, $0) }, faded: crossing?.tab == tab.id) {
+                                          land: { land(tab, $0) }, faded: crossing?.tab == tab.id,
+                                          row: prefs.splitView ? loose : nil) {
                             if prefs.usesTabGroups {
                                 browser.move(tab, within: nil, to: $0)
                             } else {
@@ -2025,7 +2025,7 @@ private struct PinSquare: View, Equatable {
         .overlay {
             if selected {
                 RoundedRectangle(cornerRadius: scale * 10 / 32, style: .continuous)
-                    .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
+                    .strokeBorder(Palette.ring, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -2304,7 +2304,7 @@ private struct SideRow: View, Equatable {
         .overlay {
             if selected {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Palette.ink.opacity(0.35), lineWidth: 1)
+                    .strokeBorder(Palette.ring, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -2636,7 +2636,7 @@ struct PinCarried: ViewModifier {
             // Under the hand exactly, as a row is (see Carried).
             .transaction { if held { $0.animation = nil } }
             .zIndex(held ? 1 : 0)
-            .shadow(color: .black.opacity(held ? 0.16 : 0), radius: 10, y: 3)
+            .carriedShadow(held)
             // Measured in the grid's own space, not the square's: a square
             // that has just been moved to a new cell would otherwise report
             // the drag from where it now is, and shuttle between two cells.

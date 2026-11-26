@@ -750,8 +750,8 @@ final class Bookmarks {
 
 /// The list itself: folders that open in place rather than to the side, each
 /// row draggable above or below another, or into a folder, each row good
-/// for a right-click too. Used both in the small dropdown off the button and
-/// in the full manager — the interaction is the same size either way.
+/// for a right-click too. The small dropdown off the button; the Bookmarks
+/// page draws the same list its own way (BookmarksPage.swift).
 struct BookmarkOutline: View {
     let bookmarks: Bookmarks
     /// The folders open, kept by whoever shows the outline, so the manager
@@ -1082,7 +1082,7 @@ struct BookmarkOutline: View {
                 .padding(.leading, CGFloat(depth) * 18 + 10)
                 .padding(.trailing, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(wash))
+                .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(wash))
                 .overlay(alignment: aim == .before ? .top : .bottom) {
                     if aim == .before || aim == .after {
                         // Below an open folder is its first child's place.
@@ -1183,6 +1183,8 @@ struct BookmarkCard: View {
     let id: Bookmark.ID
 
     @State private var title = ""
+    /// The pointer is over the folder's pop-up.
+    @State private var overFolder = false
     @FocusState private var naming: Bool
 
     var body: some View {
@@ -1209,7 +1211,7 @@ struct BookmarkCard: View {
             }
 
             HStack(spacing: 8) {
-                Quick("Remove", tint: .red.opacity(0.75)) {
+                Quick("Remove", tint: Palette.danger) {
                     close()
                     bookmarks.remove(id)
                 }
@@ -1264,12 +1266,13 @@ struct BookmarkCard: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(Palette.wash, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(overFolder ? Palette.fillHover : Palette.fill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
+        .hovers($overFolder)
     }
 
     private func file(into folder: Bookmark.ID?) { bookmarks.file(id, into: folder) }
@@ -1422,177 +1425,6 @@ struct BookmarksDropdown: View {
             }
             .buttonStyle(Gives(to: 0.99))
             .hovers($hovering)
-        }
-    }
-}
-
-/// The full list, for putting it in order, finding one, or bringing more in.
-struct BookmarksPanel: View {
-    @ObservedObject var browser: Browser
-    let bookmarks: Bookmarks
-
-    @State private var expanded: Set<Bookmark.ID> = []
-    @State private var query = ""
-    @FocusState private var hunting: Bool
-    /// The row just shown from a search, washed for a moment so the eye
-    /// lands on it.
-    @State private var shown: Bookmark.ID?
-
-    var body: some View {
-        Plate("Bookmarks", width: 600, tools: AnyView(HStack(spacing: 8) {
-            Hunt(text: $query, prompt: bookmarks.count == 1 ? "Search 1 bookmark" : "Search \(bookmarks.count) bookmarks", focus: $hunting)
-                .onSubmit(openFirst)
-                .frame(width: 240)
-            Pill("New Folder…") { bookmarks.askNewFolder(in: nil) }
-        }), close: { browser.bookmarking = false }) {
-            VStack(alignment: .leading, spacing: 14) {
-                if bookmarks.isEmpty {
-                    Card { Nothing("Nothing kept yet. Add this page with ⇧⌘B, or bring yours in below.") }
-                } else if !query.isEmpty {
-                    found
-                } else {
-                    ScrollViewReader { scroller in
-                        ScrollView {
-                            Card {
-                                BookmarkOutline(bookmarks: bookmarks, expanded: $expanded, shown: shown) { url in
-                                    browser.pickBookmark(url)
-                                } openInNewTab: { url in
-                                    browser.pickBookmark(url, inNewTab: true)
-                                }
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 6)
-                            }
-                            .padding(.bottom, 2)
-                        }
-                        .listHeight(440)
-                        // A bookmark found is shown where it lives, which
-                        // may be below what shows. This list is only made
-                        // as the search is cleared for it, with the row to
-                        // show already set, so it is read as it appears too.
-                        .onChange(of: shown, initial: true) { _, id in
-                            guard let id else { return }
-                            DispatchQueue.main.async {
-                                withAnimation(Motion.settle) { scroller.scrollTo(id, anchor: .center) }
-                            }
-                        }
-                    }
-                }
-            }
-        } foot: {
-            HStack(spacing: 8) {
-                Text("Bring in from")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.muted)
-                Pill("Bring in…") { browser.lead(to: InternalPage(.importing)) }
-                Pill("File…") { browser.importFile() }
-                Spacer()
-                Text(bookmarks.count == 1 ? "1 bookmark" : "\(bookmarks.count) bookmarks")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.muted)
-            }
-        }
-        .animation(Motion.settle, value: query.isEmpty)
-        .onAppear { hunting = true }
-    }
-
-    /// What the search finds, flat, each with the folders it is in. Nothing
-    /// here is dragged: it is put in order in the tree.
-    @ViewBuilder
-    private var found: some View {
-        let hits = bookmarks.matches(query)
-        if hits.isEmpty {
-            Card { Nothing("Nothing matches.") }
-        } else {
-            ScrollView {
-                Card {
-                    ForEach(Array(hits.enumerated()), id: \.element.node.id) { index, hit in
-                        if index > 0 { Rule(inset: 40) }
-                        Found(
-                            node: hit.node,
-                            path: hit.path,
-                            open: hit.node.url.flatMap(URL.init(string:)).map { url in { browser.pickBookmark(url) } },
-                            show: { show(hit.node) }
-                        )
-                    }
-                }
-                .padding(.bottom, 2)
-            }
-            .listHeight(440)
-        }
-    }
-
-    /// Return in the field: the first site found.
-    private func openFirst() {
-        guard let url = bookmarks.matches(query).lazy.compactMap({ $0.node.url.flatMap(URL.init(string:)) }).first
-        else { return }
-        browser.pickBookmark(url)
-    }
-
-    /// Back to the tree, opened down to it, and it washed a moment. A
-    /// folder is shown open.
-    private func show(_ node: Bookmark) {
-        query = ""
-        expanded.formUnion((bookmarks.path(to: node.id) ?? []).map(\.id))
-        if node.isFolder { expanded.insert(node.id) }
-        shown = node.id
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-            if shown == node.id { withAnimation(Motion.settle) { shown = nil } }
-        }
-    }
-
-    /// One line of what was found: its title, then where it is.
-    private struct Found: View {
-        let node: Bookmark
-        let path: [String]
-        /// Nil for a folder, which is shown in the tree instead.
-        let open: (() -> Void)?
-        let show: () -> Void
-
-        @State private var hovering = false
-
-        var body: some View {
-            RowButton(hovering: $hovering, action: { open?() ?? show() }) {
-                HStack(spacing: 10) {
-                    if node.isFolder {
-                        Mark(icon: nil, letter: "", size: 16)
-                            .overlay(Image(systemName: "folder.fill").font(.system(size: 9.5)).foregroundStyle(Palette.muted))
-                    } else {
-                        Mark(icon: Favicons.shared.cached(for: node.address), letter: String((node.host ?? "•").prefix(1)).uppercased(), size: 16)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(node.label)
-                            .font(.system(size: 13))
-                            .foregroundStyle(node.unnamed ? Palette.muted : Palette.ink)
-                            .lineLimit(1)
-                        Text(whereabouts)
-                            .font(.system(size: 12))
-                            .foregroundStyle(Palette.muted)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                    Spacer(minLength: 8)
-                }
-                .padding(.leading, 14)
-                .padding(.trailing, hovering ? 0 : 14)
-                .padding(.vertical, 9)
-            } trailing: {
-                if hovering {
-                    Quick("Show in Folder", act: show)
-                        .padding(.leading, 10)
-                        .padding(.trailing, 14)
-                }
-            }
-            .contextMenu {
-                if let open { Button("Open", action: open) }
-                Button("Show in Folder", action: show)
-            }
-        }
-
-        /// The folders it is in, then the site.
-        private var whereabouts: String {
-            let folders = path.isEmpty ? "Top level" : path.joined(separator: " \u{203A} ")
-            guard let host = node.host else { return folders }
-            return folders + "  \u{00B7}  " + host
         }
     }
 }

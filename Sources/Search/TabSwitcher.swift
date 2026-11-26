@@ -67,8 +67,12 @@ final class TabSwitcher: ObservableObject {
     /// pages pictured side by side (see Browser.switchTabs).
     var partners: [Tab.ID: Tab.ID] = [:]
 
+    /// The card the button is down on, until it comes up: it gives under
+    /// the press, as a tab does (see `press(at:)` and `lift(at:pick:)`).
+    @Published private(set) var pressedID: Tab.ID?
+
     /// Where the panel and each card are in the window, for the pointer to be
-    /// matched against (see `hover(at:)` and Browser.clickTabSwitcher). From
+    /// matched against (see `hover(at:)` and Browser.pressTabSwitcher). From
     /// #358, by oddharsh.
     var panelFrame: CGRect = .zero
     var moonsFrame: CGRect = .zero
@@ -97,17 +101,37 @@ final class TabSwitcher: ObservableObject {
         cardFrames.first { $0.value.contains(point) && ring.contains($0.key) }?.key
     }
 
-    /// A click while the panel is up, at a point in the window's top-left
-    /// coordinates: on a card, that card is picked; outside the panel, the
-    /// switcher goes. True when the click was the switcher's.
-    func click(at point: CGPoint, pick: (Tab.ID) -> Void) -> Bool {
+    /// The button going down while the panel is up, at a point in the
+    /// window's top-left coordinates: on a card, that card is the pick and
+    /// gives under the press until the button comes up (`lift`); outside
+    /// the panel, the switcher goes. True when the press was the
+    /// switcher's.
+    ///
+    /// A card was taken the moment the button went down, and the switcher
+    /// was gone with it: nothing said the press had landed, where every
+    /// other thing pressed gives first. The tab is yours when you let go,
+    /// as letting go of ⌃ takes the card the keys are on.
+    func press(at point: CGPoint) -> Bool {
         guard visible else { return false }
         guard panelFrame.contains(point) || moonsFrame.contains(point) else {
             cancel()
             return true
         }
         // Between two cards: the switcher's, and nothing happens.
-        if let id = card(at: point) { pick(id) }
+        if let id = card(at: point) {
+            if selectedID != id { selectedID = id }
+            pressedID = id
+        }
+        return true
+    }
+
+    /// The button coming up: over the card it went down on, that card is
+    /// taken; anywhere else the press is let go of and the switcher stays.
+    /// True when there was a press of the switcher's to end.
+    func lift(at point: CGPoint, pick: (Tab.ID) -> Void) -> Bool {
+        guard let pressed = pressedID else { return false }
+        pressedID = nil
+        if visible, card(at: point) == pressed { pick(pressed) }
         return true
     }
 
@@ -278,6 +302,7 @@ final class TabSwitcher: ObservableObject {
         moons.removeAll { $0 == id }
         cardFrames[id] = nil
         guard ring.count > 1 else { return cancel() }
+        if pressedID == id { pressedID = nil }
         if selectedID == id { selectedID = before[(index + 1) % before.count] }
     }
 
@@ -302,6 +327,7 @@ final class TabSwitcher: ObservableObject {
         home = nil
         moonsLead = false
         selectedID = nil
+        pressedID = nil
         visible = false
         panelFrame = .zero
         moonsFrame = .zero
@@ -415,6 +441,12 @@ struct TabSwitcherOverlay: View {
     /// small window is.
     private static let moonScale: CGFloat = 0.62
 
+    /// How far a card gives under the press: a row's, less than a tab's,
+    /// as a card is the larger. By the switcher's own word for the press
+    /// (TabSwitcher.pressedID), not a button's: the window takes the click
+    /// before any view does (Browser.pressTabSwitcher).
+    private static let give: CGFloat = 0.98
+
     /// A moon's size by its page's length, as a moon's goes by its mass: a
     /// page one screen long is the smallest, sixteen screens or more fills
     /// the column, on a log scale between, so a 40-comment thread and a
@@ -471,6 +503,8 @@ struct TabSwitcherOverlay: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Palette.fill)
                     .frame(width: width, height: cardHeight)
+                    // With the card on it, or the card would shrink in it.
+                    .modifier(Give(pressed: switcher.pressedID == selected, to: Self.give))
                     .offset(
                         x: CGFloat(index % 5) * (width + 8),
                         y: CGFloat(index / 5) * (cardHeight + 8)
@@ -633,6 +667,7 @@ struct TabSwitcherOverlay: View {
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+        .modifier(Give(pressed: switcher.pressedID == tab.id, to: Self.give))
         .background(GeometryReader { box in
             Color.clear.preference(key: CardFrames.self, value: [tab.id: box.frame(in: .global)])
         })
@@ -671,6 +706,7 @@ struct TabSwitcherOverlay: View {
             .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .buttonStyle(.plain)
+        .modifier(Give(pressed: switcher.pressedID == tab.id, to: Self.give))
         .background(GeometryReader { box in
             Color.clear.preference(key: CardFrames.self, value: [tab.id: box.frame(in: .global)])
         })

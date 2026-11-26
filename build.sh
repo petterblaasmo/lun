@@ -367,6 +367,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <string>Websites you visit can ask for your location. Lun asks you each time a site does, unless you choose Always allow for it; Settings › Privacy forgets those choices.</string>
   <key>NSDownloadsFolderUsageDescription</key>
   <string>Files you download are saved to your Downloads folder.</string>
+  <!-- Only when you choose Add Image to Photos in a picture's menu
+       (AddToPhotos.swift). To add, and nothing else: there is no sentence
+       here for reading the library, so Lun can't ask to. -->
+  <key>NSPhotoLibraryAddUsageDescription</key>
+  <string>Lun adds a picture to your Photos library when you choose Add Image to Photos. It can't see the pictures that are already there.</string>
   <!-- Only once you turn on Settings › Passwords › Fill in your contact
        details: your own card, never anyone else's (MeCard.swift). -->
   <key>NSContactsUsageDescription</key>

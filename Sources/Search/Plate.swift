@@ -112,13 +112,8 @@ struct Plate<Content: View, Foot: View>: View {
             }
         }
         .frame(width: width, alignment: .leading)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.16), radius: 34, y: 12)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
+        .elevated(.overlay, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous), fill: Palette.ground)
     }
 }
 
@@ -209,13 +204,16 @@ struct Line<Control: View>: View {
 /// it is on, an outline when it is not.
 struct Tick: View {
     let on: Bool
+    /// Under the pointer: its edge goes to ink, and its ink eases off as a
+    /// filled pill's does.
+    var lit = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: 4.5, style: .continuous)
-            .fill(on ? Palette.ink : Color.clear)
+            .fill(on ? Palette.ink.opacity(lit ? 0.86 : 1) : Color.clear)
             .overlay(
                 RoundedRectangle(cornerRadius: 4.5, style: .continuous)
-                    .strokeBorder(on ? Color.clear : Palette.muted.opacity(0.7), lineWidth: 1.2)
+                    .strokeBorder(on ? Color.clear : lit ? Palette.ink : Palette.muted.opacity(0.7), lineWidth: 1.2)
             )
             .overlay {
                 if on {
@@ -225,6 +223,41 @@ struct Tick: View {
                 }
             }
             .frame(width: 16, height: 16)
+    }
+}
+
+/// A tick box with its words beside it: one of a few things side by side
+/// (Ticks), or a line of its own under a form. The words are part of the
+/// button, and it is a little taller to land on than it looks.
+struct Ticked: View {
+    let title: String
+    @Binding var on: Bool
+    @State private var hovering = false
+
+    init(_ title: String, on: Binding<Bool>) {
+        self.title = title
+        self._on = on
+    }
+
+    var body: some View {
+        Button { on.toggle() } label: {
+            HStack(spacing: 7) {
+                Tick(on: on, lit: hovering)
+                Text(title)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .padding(.vertical, -4)
+        }
+        .buttonStyle(Gives(to: 0.96))
+        .hovers($hovering)
+        .accessibilityLabel(title)
+        .accessibilityValue(on ? "Ticked" : "Not ticked")
+        .accessibilityAddTraits(.isToggle)
     }
 }
 
@@ -697,6 +730,9 @@ struct SideChoice: View {
     let title: String
     var icon: NSImage?
     var globe = false
+    /// A sign in front of the words, where there is no icon: a warning's.
+    var symbol: String?
+    var symbolTint: Color = Palette.muted
     let count: Int?
     let on: Bool
     let act: () -> Void
@@ -707,6 +743,13 @@ struct SideChoice: View {
         Button(action: act) {
             HStack(spacing: 8) {
                 if globe || icon != nil { Mark(icon: icon, letter: "", size: 16, globe: true) }
+                if let symbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(symbolTint)
+                        .frame(width: 16)
+                        .accessibilityHidden(true)
+                }
                 Text(title)
                     .font(.system(size: 13, weight: on ? .medium : .regular))
                     .foregroundStyle(on || hovering ? Palette.ink : Palette.muted)

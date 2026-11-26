@@ -52,6 +52,25 @@ final class PairSeparation: ObservableObject {
     private init() {}
 }
 
+/// A tab carried down the column and held lying across another (see
+/// Carried.across): let go there, the two are a split. Apart from TabDrag
+/// for the reason PairSeparation is: only the rows' own hints watch it
+/// (see JoinHint), and a split shown over a page redraws no row.
+@MainActor
+final class TabJoin: ObservableObject {
+    static let shared = TabJoin()
+
+    struct Shown: Equatable {
+        let browserID: ObjectIdentifier
+        /// The tab let go on: of a split, the page the carried one goes beside.
+        let targetID: Tab.ID
+        let sourceID: Tab.ID
+    }
+
+    @Published fileprivate(set) var shown: Shown?
+    private init() {}
+}
+
 /// Only the Stage observes `preview`; the browser's tab row stays still while
 /// the pointer moves across a page. A marker is weakly kept and checked in
 /// the source window before it can become a target.
@@ -72,6 +91,8 @@ final class TabDrag: ObservableObject {
     enum Drop {
         case stage(Tab, onLeft: Bool)
         case strip(Tab?)
+        /// Onto another tab in the column: the two side by side (TabJoin).
+        case onto(Tab)
         case outside
         case cancelled
     }
@@ -109,6 +130,12 @@ final class TabDrag: ObservableObject {
     /// page, the one that was there before comes back, to split with, as it
     /// was before the press when tabs opened on letting go.
     private var putAway: Tab.ID?
+    /// The tab the carried one lies across in the column, shown as a split
+    /// to be once the hand has rested there (TabJoin).
+    private var across: Tab.ID?
+    /// A look again at `across` once the hand may have come to rest: its
+    /// own, since every move over the column calls `recheck` off.
+    private var joinCheck: DispatchWorkItem?
     private var escapeMonitor: Any?
 
     /// Only a page's edges split it, a band of either side about a quarter
@@ -127,6 +154,15 @@ final class TabDrag: ObservableObject {
     /// shown coming apart: longer than a split over a page, since the hand
     /// slows to a crawl right there on its way to moving the pair a place.
     static let parting: TimeInterval = 0.3
+    /// A tab carried down the column makes a split with a neighbour only
+    /// from the last part of the way to it, where it lies across a good part
+    /// of that row: this share of the way, before the neighbour makes way
+    /// and after. The rest of the way, round each resting place, moves the
+    /// tab and nothing else, held there for however long (Carried.across).
+    nonisolated static let acrossShare: CGFloat = 1.0 / 3
+    /// How much further back the hand goes before a split shown there
+    /// lets go, in points.
+    nonisolated static let acrossSlack: CGFloat = 4
     /// How long after the press that opened it a drag still counts as that
     /// press's: a hand may hold a tab a while before it sets off.
     static let pressed: TimeInterval = 10
@@ -229,6 +265,57 @@ final class TabDrag: ObservableObject {
         NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
     }
 
+    /// Told at every move of a tab carried down the column, after `update`:
+    /// the tab it lies across now (Carried.across), or nil. Shown as the
+    /// split letting go would make once the hand has rested there as long
+    /// as a pair's half does before it comes apart, with the same tick:
+    /// carried past without stopping, a tab moves a place as it always did,
+    /// and its neighbours make way exactly when they did.
+    func lies(across target: Tab?, browser: Browser, tab: Tab) {
+        guard sourceBrowser === browser, gestureTab === tab, cancelledID != tab.id, let source = sourceTab,
+              let target, joins(source, target, in: browser) else {
+            return join(nil)
+        }
+        if across != target.id { join(nil) }
+        across = target.id
+        let wanted = TabJoin.Shown(browserID: ObjectIdentifier(browser), targetID: target.id, sourceID: source.id)
+        guard TabJoin.shared.shown != wanted else { return }
+        let point = pointer(in: browser)
+        let now = ProcessInfo.processInfo.systemUptime
+        let known = trail.first.map { now - $0.at >= TabDrag.parting } ?? false
+        guard known, settled(at: point, for: TabDrag.parting) else {
+            joinCheck?.cancel()
+            let work = DispatchWorkItem { [weak self, weak browser, weak tab, weak target] in
+                guard let self, let browser, let tab, let target, self.across == target.id else { return }
+                self.lies(across: target, browser: browser, tab: tab)
+            }
+            joinCheck = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + TabDrag.parting + 0.02, execute: work)
+            return
+        }
+        joinCheck?.cancel()
+        TabJoin.shared.shown = wanted
+        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+    }
+
+    /// Whether `source`, carried, may become a split with `target` by being
+    /// let go on it. A tab alone only: a pair's half held over another tab
+    /// comes apart there (see separate), and a pin's row is the pins' to
+    /// move along. Not while a split is shown over a page.
+    private func joins(_ source: Tab, _ target: Tab, in browser: Browser) -> Bool {
+        preview == nil && source.pin == nil && target.pin == nil
+            && browser.split(for: source) == nil && browser.canJoin(source, beside: target)
+    }
+
+    private func join(_ shown: TabJoin.Shown?) {
+        if shown == nil {
+            across = nil
+            joinCheck?.cancel()
+            joinCheck = nil
+        }
+        if TabJoin.shared.shown != shown { TabJoin.shared.shown = shown }
+    }
+
     private func showSeparation(_ shown: (leaving: Tab.ID, before: Tab.ID?)?) {
         separation = shown
         if PairSeparation.shared.leaving != shown?.leaving { PairSeparation.shared.leaving = shown?.leaving }
@@ -249,6 +336,12 @@ final class TabDrag: ObservableObject {
         var result: Drop
         if cancelledID == tab.id {
             result = .cancelled
+        } else if sourceBrowser === browser && gestureTab === tab,
+                  let shown = TabJoin.shared.shown, shown.sourceID == source.id,
+                  shown.browserID == ObjectIdentifier(browser),
+                  let onto = browser.tabs.first(where: { $0.id == shown.targetID }) {
+            // Onto a tab only where that was shown.
+            result = .onto(onto)
         } else if sourceBrowser === browser && gestureTab === tab {
             result = match(browser: browser, source: source, at: point)
             // A split only where one was shown.
@@ -335,6 +428,7 @@ final class TabDrag: ObservableObject {
         cancelledID = gestureTab.id
         preview = nil
         over = nil
+        join(nil)
         showSeparation(nil)
         target = .cancelled
         removeMonitor()
@@ -363,6 +457,7 @@ final class TabDrag: ObservableObject {
         trail = []
         preview = nil
         over = nil
+        join(nil)
         showSeparation(nil)
         sourceBrowser = nil
         gestureTab = nil

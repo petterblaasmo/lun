@@ -185,19 +185,31 @@ final class LittleWindow: NSObject, NSWindowDelegate {
 
     private static func watch() {
         guard watching.isEmpty else { return }
-        if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .leftMouseDown], handler: { event in
+        if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .leftMouseDown, .leftMouseUp], handler: { event in
+            if event.type == .leftMouseUp {
+                // The button coming up after it went down on a card: that
+                // press is over wherever it comes up, and only over its card
+                // is the card taken (TabSwitcher.lift).
+                guard switcher.pressedID != nil else { return event }
+                var at = CGPoint(x: -1, y: -1)
+                if let little = owning(event.window), switcher.home == little.tab.id,
+                   let height = little.window.contentView?.bounds.height {
+                    at = CGPoint(x: event.locationInWindow.x, y: height - event.locationInWindow.y)
+                }
+                return switcher.lift(at: at) { commit(picking: $0) } ? nil : event
+            }
             guard switcher.active, let little = owning(event.window), switcher.home == little.tab.id
             else { return event }
             if event.type == .flagsChanged {
                 if !ShortcutStore.shared.recentHeld(event.modifierFlags) { commit() }
                 return event
             }
-            // As in a browser window (Browser.clickTabSwitcher): ⌃ is held,
+            // As in a browser window (Browser.pressTabSwitcher): ⌃ is held,
             // and a ⌃-click is a right-click to AppKit, so the switcher
-            // takes the click before any view does.
+            // takes the press before any view does.
             guard let height = little.window.contentView?.bounds.height else { return event }
             let at = event.locationInWindow
-            return switcher.click(at: CGPoint(x: at.x, y: height - at.y)) { commit(picking: $0) } ? nil : event
+            return switcher.press(at: CGPoint(x: at.x, y: height - at.y)) ? nil : event
         }) {
             watching.append(monitor)
         }
@@ -631,9 +643,7 @@ private struct LittleToast: View {
                     .foregroundStyle(Palette.ink)
                     .padding(.horizontal, 15)
                     .padding(.vertical, 9)
-                    .background(Palette.ground, in: Capsule())
-                    .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
-                    .shadow(color: .black.opacity(0.10), radius: 18, y: 6)
+                    .elevated(.float, in: Capsule())
                     .transition(.bar(.bottom))
             }
         }

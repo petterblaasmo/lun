@@ -14,6 +14,10 @@ import WebKit
 // While it records, its page is lent to the pill — a 2×2 point view behind
 // the pill's content — and given back after: the thing that lets it record
 // is the thing that says it is recording.
+//
+// It comes up at the foot of the screen, which is where Meet and others
+// keep their own controls. So it can be taken by anywhere but its Stop and
+// put somewhere else, and it comes back where it was left (PillPlace).
 
 /// One line of the pill: who is recording, and what.
 struct RecordingLine: Identifiable, Equatable {
@@ -142,7 +146,8 @@ private final class PillPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         hidesOnDeactivate = false
         becomesKeyOnlyIfNeeded = true
-        isMovableByWindowBackground = true
+        // Moved by PillGrip, which also writes down where it was left.
+        isMovableByWindowBackground = false
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true
@@ -163,21 +168,124 @@ private final class PillPanel: NSPanel {
 
     func holds(_ web: WKWebView) -> Bool { web.superview === lending }
 
-    /// Its size for what it says, at the foot of the screen, centred.
+    /// Its size for what it says. Coming up, it is where it was last left,
+    /// or at the foot of the screen, centred; already up, it stays put.
     func fit() {
         content.layoutSubtreeIfNeeded()
         let size = content.fittingSize
         let screen = NSApp.keyWindow?.screen ?? NSApp.mainWindow?.screen ?? NSScreen.main
         let area = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let frame = NSRect(x: area.midX - size.width / 2, y: area.minY + 24, width: size.width, height: size.height)
+        let frame = PillPlace.frame(size: size, left: PillPlace.left(), screens: NSScreen.screens.map(\.visibleFrame), home: area)
         content.frame = NSRect(origin: .zero, size: size)
         if isVisible { setFrame(NSRect(origin: self.frame.origin, size: size), display: true) } else { setFrame(frame, display: false) }
+    }
+}
+
+/// Where the pill is: at the foot of the screen Lun is on until it is
+/// dragged, then where it was left, on any screen, for as long as that
+/// spot is still on one. What is kept is the middle of its lower edge, so
+/// a pill with more or fewer words comes back centred on the same spot.
+enum PillPlace {
+    static let key = "recording.pill.place"
+    /// How far above the foot of the screen it rests when never moved.
+    static let rise: CGFloat = 24
+
+    /// The frame for a pill of `size`. `screens` are the visible parts of
+    /// every screen, `home` that of the screen Lun is on. A spot left on a
+    /// screen since unplugged, or under where the Dock is now, isn't
+    /// followed out of sight: the pill is kept whole on the screen the
+    /// spot is on, or goes back to the foot of `home`.
+    static func frame(size: CGSize, left: CGPoint?, screens: [CGRect], home: CGRect) -> CGRect {
+        let rest = CGRect(x: home.midX - size.width / 2, y: home.minY + rise, width: size.width, height: size.height)
+        guard let left, let screen = screens.first(where: { $0.insetBy(dx: -1, dy: -1).contains(left) }) else { return rest }
+        let x = min(max(left.x - size.width / 2, screen.minX), max(screen.minX, screen.maxX - size.width))
+        let y = min(max(left.y, screen.minY), max(screen.minY, screen.maxY - size.height))
+        return CGRect(x: x, y: y, width: size.width, height: size.height)
+    }
+
+    /// Where it was last left, if it ever was.
+    static func left(in store: UserDefaults = Store.settings) -> CGPoint? {
+        guard let kept = store.array(forKey: key) as? [Double], kept.count == 2 else { return nil }
+        return CGPoint(x: kept[0], y: kept[1])
+    }
+
+    /// Left here, by hand.
+    static func leave(_ frame: CGRect, in store: UserDefaults = Store.settings) {
+        store.set([Double(frame.midX), Double(frame.minY)], forKey: key)
+    }
+}
+
+/// Where each Stop is in the pill, for the grip to leave alone.
+private struct StopPlaces: PreferenceKey {
+    static let defaultValue: [Anchor<CGRect>] = []
+    static func reduce(value: inout [Anchor<CGRect>], nextValue: () -> [Anchor<CGRect>]) { value += nextValue() }
+}
+
+/// Laid over the whole pill: a press anywhere that isn't Stop takes the
+/// pill, and it goes where the pointer goes until it is let go. A view of
+/// AppKit's own, laid over rather than under: the pill's words and its
+/// outline take a press meant for anything SwiftUI has behind them, and a
+/// SwiftUI drag would move the view inside the panel, not the panel. Over
+/// a Stop it isn't there, and the button is pressed as before.
+struct PillGrip: NSViewRepresentable {
+    /// The Stops, in the pill's own coordinates, from its top left.
+    var holes: [CGRect] = []
+
+    func makeNSView(context: Context) -> Handle { Handle() }
+    func updateNSView(_ view: Handle, context: Context) { view.holes = holes }
+
+    final class Handle: NSView {
+        var holes: [CGRect] = []
+        /// Where the pointer is on the screen; a test's own stands in.
+        var pointer: () -> CGPoint = { NSEvent.mouseLocation }
+        /// Where a pill let go of is written down.
+        var store: UserDefaults = Store.settings
+        /// The pointer and the window's corner as the press began.
+        private var held: (pointer: CGPoint, corner: CGPoint)?
+        private var moved = false
+
+        /// From the top left, as the holes are given.
+        override var isFlipped: Bool { true }
+        override var mouseDownCanMoveWindow: Bool { false }
+        /// The panel is never the key window: the first press is the drag.
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+        /// Not there over a Stop, for a press or for the pointer alone.
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            let here = superview.map { convert(point, from: $0) } ?? point
+            guard bounds.contains(here), !holes.contains(where: { $0.contains(here) }) else { return nil }
+            return self
+        }
+
+        override func mouseDown(with event: NSEvent) {
+            guard let window else { return }
+            held = (pointer(), window.frame.origin)
+            moved = false
+        }
+
+        override func mouseDragged(with event: NSEvent) {
+            guard let window, let held else { return }
+            let now = pointer()
+            let corner = CGPoint(x: held.corner.x + now.x - held.pointer.x, y: held.corner.y + now.y - held.pointer.y)
+            guard corner != window.frame.origin else { return }
+            moved = true
+            window.setFrameOrigin(corner)
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            defer { held = nil }
+            // A press that went nowhere leaves nothing to remember.
+            guard held != nil, moved, let window else { return }
+            PillPlace.leave(window.frame, in: store)
+        }
     }
 }
 
 /// What the pill draws: a line per extension recording, each with Stop.
 struct PillView: View {
     @ObservedObject var indicator: RecordingIndicator
+
+    private var corner: CGFloat { indicator.lines.count > 1 ? Radius.panel : 19 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -186,7 +294,7 @@ struct PillView: View {
                     // The pill's one colour: a recording is known at a
                     // glance by its red dot, as in Chrome and Loom.
                     Circle()
-                        .fill(Color(nsColor: .systemRed))
+                        .fill(Palette.recording)
                         .frame(width: 7, height: 7)
                     (Text(line.name).font(.system(size: 12.5, weight: .semibold))
                         + Text(" \(line.what)").font(.system(size: 12.5)))
@@ -194,25 +302,23 @@ struct PillView: View {
                         .lineLimit(1)
                         .fixedSize()
                     Spacer(minLength: 12)
-                    Button { indicator.stop(line.id) } label: {
-                        Text("Stop")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Palette.ground)
-                            .padding(.horizontal, 11)
-                            .frame(height: 22)
-                            .background(Palette.ink, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Stop \(line.name)")
+                    Pill("Stop", filled: true) { indicator.stop(line.id) }
+                        .accessibilityLabel("Stop \(line.name)")
+                        .anchorPreference(key: StopPlaces.self, value: .bounds) { [$0] }
                 }
             }
         }
         .padding(.leading, 14)
         .padding(.trailing, 7)
         .padding(.vertical, 7)
-        // A capsule for one line; the same corners round a taller card.
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+        // A capsule for one line (half its 38 points); a panel's corners
+        // round a taller card.
+        .background(Palette.ground, in: RoundedRectangle(cornerRadius: corner, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: corner, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+        // Taken by anywhere that isn't Stop, to be moved off what it covers.
+        .overlayPreferenceValue(StopPlaces.self) { stops in
+            GeometryReader { geometry in PillGrip(holes: stops.map { geometry[$0] }) }
+        }
         .fixedSize()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Recording")

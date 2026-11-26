@@ -44,6 +44,7 @@ struct SplitStage: View {
                 case .even: browser.evenSplit()
                 case .separate: if let tab = browser.active { browser.detachSplit(tab) }
                 case .closeBoth: browser.closeSplit()
+                case .scrollTogether: browser.toggleScrollTogether()
                 }
             },
             hover: { hovered = $0 },
@@ -111,7 +112,7 @@ private struct SplitDropHint: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Palette.ground.opacity(0.35))
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Palette.ink.opacity(0.18), lineWidth: 1)
+                .strokeBorder(Palette.drop, lineWidth: 1)
             Image(systemName: "rectangle.split.2x1")
                 .font(.system(size: 15))
                 .foregroundStyle(Palette.muted)
@@ -406,18 +407,19 @@ private struct PaneQuestionCard: View {
                 }
                 HStack(spacing: 8) {
                     Spacer(minLength: 0)
+                    // The pills every other question has. Dimmed for the
+                    // half second a page's question can't be answered by
+                    // a click meant for the page.
                     if question.kind != .alert {
-                        choice("Cancel", strong: false) { answer(false) }
+                        Pill("Cancel", large: true) { answer(false) }.disabled(!ready)
                     }
-                    choice("OK", strong: true) { answer(true) }
+                    Pill("OK", filled: true, large: true) { answer(true) }.disabled(!ready)
                 }
                 .padding(.top, 2)
             }
             .padding(18)
             .frame(width: min(380, max(0, width - 32)))
-            .background(Palette.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-            .shadow(color: .black.opacity(0.14), radius: 18, y: 6)
+            .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
             .simultaneousGesture(TapGesture().onEnded { browser.focusPane(tab) })
             .padding(.top, 56)
         }
@@ -434,17 +436,4 @@ private struct PaneQuestionCard: View {
         browser.answer(question, ok: ok, text: prompting ? text : nil)
     }
 
-    private func choice(_ title: String, strong: Bool, act: @escaping () -> Void) -> some View {
-        Button(action: act) {
-            Text(title)
-                .font(.system(size: 12.5, weight: strong ? .medium : .regular))
-                .foregroundStyle(strong ? Palette.ground : Palette.ink)
-                .padding(.horizontal, 14)
-                .frame(height: 26)
-                .background(strong ? Palette.ink : Palette.ink.opacity(0.07), in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .disabled(!ready)
-        .opacity(ready ? 1 : 0.5)
-    }
 }

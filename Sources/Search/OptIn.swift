@@ -265,7 +265,7 @@ struct OptInForm: View {
                     hint(suggestion)
                 }
                 if offersBeta && !betaOnly {
-                    Tick(on: $beta, title: "Also send me the iPhone beta")
+                    Ticked("Also send me the iPhone beta", on: $beta)
                 }
                 if case .failed(let failure) = phase {
                     Text(failure.line)
@@ -303,7 +303,7 @@ struct OptInForm: View {
     private var field: some View {
         ZStack(alignment: .leading) {
             if email.isEmpty {
-                Text(verbatim: "you@example.com").foregroundStyle(Palette.muted.opacity(0.75))
+                Text(verbatim: "you@example.com").foregroundStyle(Palette.muted)
             }
             TextField("", text: $email)
                 .textFieldStyle(.plain)
@@ -363,37 +363,6 @@ struct OptInForm: View {
             }
         }
     }
-
-    /// A checkbox in the app's own ink.
-    private struct Tick: View {
-        @Binding var on: Bool
-        let title: String
-        var body: some View {
-            Button { on.toggle() } label: {
-                HStack(spacing: 7) {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(on ? Palette.ink : Palette.ground)
-                        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .strokeBorder(on ? .clear : Palette.faint, lineWidth: 1))
-                        .overlay {
-                            if on {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 8.5, weight: .bold))
-                                    .foregroundStyle(Palette.ground)
-                            }
-                        }
-                        .frame(width: 14, height: 14)
-                    Text(title)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.ink)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(on ? [.isSelected] : [])
-            .accessibilityLabel(title)
-        }
-    }
 }
 
 /// The quiet line under every form: how to stop, and the privacy page.
@@ -434,7 +403,7 @@ struct OptInBlock: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.wash.opacity(0.55), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(Palette.wash.opacity(0.55), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 }
 
