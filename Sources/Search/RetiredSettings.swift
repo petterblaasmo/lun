@@ -28,6 +28,10 @@ enum RetiredSettings {
         "fullscreen.escapeTwice", "fullscreen.keepsWindow", "pages.120", "spaces.buttons", "pins.keep",
         "pins.commandNewTab", "field.hidesPage", "newtab.recent", "passkeys", "privacy.clickIDs", "privacy.gpc",
         "keys.backspaceBack", "swipe.history", "updates.notice",
+        // One height for a tab's row, 32 points with 13 point titles, as it
+        // was unless asked for: the taller one was taste, with no clear
+        // winner, and text too small to read is the Mac's to make larger.
+        "sidebar.roomy",
         // Said twice: the Mac's own setting, or another row, decides.
         "scrollbars.fade", "tabs.highContrast", "motion.instant", "pins.linksNewTab", "launcher.little",
         // Drawn inside another row now (Show the bookmarks bar, Bring
@@ -93,6 +97,8 @@ enum RetiredSettings {
         "privacy.httpsFirst",
         // Links from other apps in a small window: off (see `rows`).
         "links.little",
+        // Roomier tabs: the one height (see `rows`).
+        "sidebar.roomy",
     ]
 
     /// What's New's switches for the same things, by the title its card
@@ -105,7 +111,7 @@ enum RetiredSettings {
         "One button per space", "Buttons at the top", "Dim sleeping tabs", "High contrast tab text",
         "Keep the card in full screen", "⌘-click on a pin opens a new tab", "Close goes back",
         "Tab numbers while ⌘ is held", "Escape twice to leave full screen", "Pins keep their site",
-        "Always show the downloads button", "Pages at 120 Hz",
+        "Always show the downloads button", "Pages at 120 Hz", "Roomier tabs",
         // Always on.
         "Space and arrow keys control videos", "The field in the middle of the window",
         "Smooth scrolling with a mouse wheel", "A loading line with the tabs hidden",

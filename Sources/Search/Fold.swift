@@ -330,6 +330,8 @@ extension Browser {
             return true
         }
         guard folded, !frontFillsHere, let size = window.contentView?.bounds.size else { return false }
+        // Back, forward and the address, down from the top edge (EdgeBar).
+        if edgeBar.shown, EdgeBar.frame(in: size).contains(CGPoint(x: point.x, y: size.height - point.y)) { return true }
         let right = prefs.sidebar && prefs.sidePosition == .right
         // Out, or still sliding back in: where it lies.
         func lies() -> Bool {
@@ -399,7 +401,7 @@ struct Fold: View {
     /// How long the pointer rests on the edge before the strip comes out,
     /// whose edge is the way to the menu bar. Long enough to cross the edge,
     /// short enough not to be waited for.
-    private static let dwell: TimeInterval = 0.15
+    static let dwell: TimeInterval = 0.15
     /// The same for a column hidden for good: a hand on its way along the
     /// side crosses its edge in a frame or two, and anything longer was felt
     /// as a wait (#1279).

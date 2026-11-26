@@ -5,38 +5,68 @@ import SwiftUI
 /// you are you, and never for longer than it takes to read it.
 struct PasswordsPanel: View {
     @ObservedObject var browser: Browser
+    /// A picture's: made-up accounts where the keychain's list would be.
+    private let made: [Kept]?
+    /// Which passwords are worth a look, once that has been asked for and
+    /// the Mac has said who is asking (see PasswordCheck). Nothing is known
+    /// about any password before then.
+    @StateObject private var check: PasswordCheck
 
     @FocusState private var hunting: Bool
     /// The account on show.
     @State private var picked: Kept.ID?
     @State private var adding = false
     @State private var width: CGFloat = 900
+    /// Which accounts the list is asked to show. A warning's only while
+    /// there is something found to show by: see `filter`.
+    @State private var asked: PasswordFilter = .all
 
-    private var accounts: [Kept] { browser.shownSites.flatMap(\.logins) }
+    init(browser: Browser, check: PasswordCheck? = nil, made: [Kept]? = nil, showing: PasswordFilter = .all) {
+        self.browser = browser
+        self.made = made
+        _check = StateObject(wrappedValue: check ?? PasswordCheck())
+        _asked = State(initialValue: showing)
+    }
+
+    /// The narrower choices have a column of their own from this width.
+    static let sidesFrom: CGFloat = 760
+    private static let sidesWidth: CGFloat = 168
+    private static let gap: CGFloat = 24
 
     var body: some View {
-        let accounts = self.accounts
+        let all = made ?? browser.saved
+        // What the search leaves, then what the choice at the side leaves.
+        let searched = made ?? browser.shownSites.flatMap(\.logins)
+        let found = check.warnings
+        let filter = found == nil ? .all : asked
+        let accounts = filter.of(searched, found)
         let shown = accounts.first { $0.id == picked } ?? accounts.first
+        let wide = width >= Self.sidesFrom
         Plate("Passwords", width: 620, tools: AnyView(Pill(adding ? "Cancel" : "Add…") { adding.toggle() }), close: { browser.managing = false }) {
             VStack(alignment: .leading, spacing: 14) {
                 if adding {
                     Card { AddForm(browser: browser) { adding = false } }
                         .transition(.opacity)
                 }
-                HStack(alignment: .top, spacing: 24) {
+                HStack(alignment: .top, spacing: Self.gap) {
+                    if wide {
+                        sides(all: all, searched: searched, found: found, filter: filter)
+                            .frame(width: Self.sidesWidth)
+                    }
                     VStack(alignment: .leading, spacing: 12) {
-                        Hunt(text: $browser.hunting, prompt: accounts.count == 1 ? "Search 1 account" : "Search \(browser.saved.count) accounts", focus: $hunting)
+                        Hunt(text: $browser.hunting, prompt: searched.count == 1 ? "Search 1 account" : "Search \(all.count) accounts", focus: $hunting)
+                        if !wide, !all.isEmpty { narrowed(all: all, searched: searched, found: found, filter: filter) }
                         if accounts.isEmpty {
                             Card {
-                                Nothing(browser.saved.isEmpty
+                                Nothing(all.isEmpty
                                         ? "Nothing kept yet. Sign in somewhere and say yes, or bring yours in below."
-                                        : "Nothing matches.")
+                                        : searched.isEmpty ? "Nothing matches." : filter.nothing)
                             }
                         } else {
                             ScrollView {
                                 LazyVStack(spacing: 2) {
                                     ForEach(accounts) { login in
-                                        AccountRow(login: login, on: login.id == shown?.id) { picked = login.id }
+                                        AccountRow(login: login, on: login.id == shown?.id, warned: found?.says(of: login)) { picked = login.id }
                                     }
                                 }
                                 .padding(.bottom, 2)
@@ -44,9 +74,10 @@ struct PasswordsPanel: View {
                             .listHeight(400)
                         }
                     }
-                    .frame(width: min(280, max(180, width * 0.36)))
+                    .frame(width: min(280, max(180, (wide ? width - Self.sidesWidth - Self.gap : width) * 0.36)))
                     if let shown {
-                        Account(login: shown, copy: { browser.copy(shown) }, forget: { browser.forget(shown) })
+                        Account(login: shown, reused: found?.others(of: shown) ?? [], guessable: found?.whyGuessable(shown) ?? [],
+                                copy: { browser.copy(shown) }, forget: { browser.forget(shown) })
                             .id(shown.id)
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                     } else {
@@ -68,14 +99,15 @@ struct PasswordsPanel: View {
                     Spacer(minLength: 0)
                     // What the list shows, all of it or what the search
                     // leaves: never more than can be seen (Browser.forgetShown).
-                    let shown = browser.shownSites.reduce(0) { $0 + $1.logins.count }
-                    if shown > 0 {
-                        Pill(browser.hunting.trimmingCharacters(in: .whitespaces).isEmpty ? "Remove All…" : "Remove \(shown)…") {
+                    // It goes by the search alone, so with the list narrowed
+                    // to a warning's there is no Remove All… at all.
+                    if !searched.isEmpty, filter == .all {
+                        Pill(browser.hunting.trimmingCharacters(in: .whitespaces).isEmpty ? "Remove All…" : "Remove \(searched.count)…") {
                             browser.forgetShown()
                         }
                         .disabled(browser.forgetting)
                     }
-                    Text(browser.saved.count == 1 ? "1 password" : "\(browser.saved.count) passwords")
+                    Text(all.count == 1 ? "1 password" : "\(all.count) passwords")
                         .font(.system(size: 12))
                         .foregroundStyle(Palette.muted)
                 }
@@ -87,12 +119,83 @@ struct PasswordsPanel: View {
         }
         .animation(Motion.settle, value: adding)
         .onAppear { hunting = true }
+        // Every time the list is read again, also when it reads the same:
+        // a password saved over an old one changes no row of it.
+        .onReceive(browser.$saved.dropFirst()) { check.listed($0) }
+        // What was found is the page's, for as long as it is open.
+        .onDisappear { check.forget() }
+    }
+
+    /// The narrower choices, down the side: all of them, then what is worth
+    /// a look, which is nothing until it has been asked for.
+    private func sides(all: [Kept], searched: [Kept], found: PasswordWarnings?, filter: PasswordFilter) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            SideChoice(title: PasswordFilter.all.title, count: searched.count, on: filter == .all) { asked = .all }
+            Text("Worth a look")
+                .font(.system(size: 12))
+                .foregroundStyle(Palette.muted)
+                .padding(.leading, 10)
+                .padding(.top, 16)
+                .padding(.bottom, 4)
+            if let found {
+                ForEach([PasswordFilter.reused, .guessable], id: \.self) { one in
+                    SideChoice(title: one.title, symbol: "exclamationmark.triangle", symbolTint: Palette.unsafe,
+                               count: one.of(searched, found).count, on: filter == one) { asked = one }
+                }
+                note(found.unread == 0 ? PasswordWarnings.after : PasswordWarnings.after + " " + PasswordWarnings.unread(found.unread))
+                    .padding(.top, 8)
+            } else {
+                note(PasswordWarnings.before)
+                asking(all).padding(.leading, 10).padding(.top, 8)
+            }
+        }
+    }
+
+    /// The same choices over the list, where there is no room beside it.
+    private func narrowed(all: [Kept], searched: [Kept], found: PasswordWarnings?, filter: PasswordFilter) -> some View {
+        HStack(spacing: 8) {
+            if let found {
+                PopUp("Show", shows: filter.title, selection: $asked) {
+                    Text(PasswordFilter.all.title).tag(PasswordFilter.all)
+                    Divider()
+                    ForEach([PasswordFilter.reused, .guessable], id: \.self) { one in
+                        Text("\(one.title) (\(one.of(searched, found).count))").tag(one)
+                    }
+                }
+                Spacer(minLength: 0)
+            } else {
+                Text("Reused or easy to guess?")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.muted)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(PasswordWarnings.before)
+                Spacer(minLength: 0)
+                asking(all)
+            }
+        }
+    }
+
+    /// Asked for, never done on opening the page: the Mac asks who it is.
+    private func asking(_ all: [Kept]) -> some View {
+        Pill(check.checking ? "Checking…" : "Check…") { check.run(all) }
+            .disabled(check.checking || all.isEmpty)
+    }
+
+    private func note(_ words: String) -> some View {
+        Text(words)
+            .font(.system(size: 12))
+            .foregroundStyle(Palette.muted)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 10)
     }
 
     /// One account in the list: its site, and whose it is.
     private struct AccountRow: View {
         let login: Kept
         let on: Bool
+        /// What a look found about its password, in words; nil for nothing.
+        var warned: String?
         let act: () -> Void
 
         @State private var hovering = false
@@ -113,6 +216,13 @@ struct PasswordsPanel: View {
                             .truncationMode(.middle)
                     }
                     Spacer(minLength: 0)
+                    if let warned {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Palette.unsafe)
+                            .help(warned)
+                            .accessibilityLabel(warned)
+                    }
                 }
                 .padding(.horizontal, 10)
                 .frame(height: 44)
@@ -129,6 +239,10 @@ struct PasswordsPanel: View {
     /// it. Show asks the Mac who you are first.
     private struct Account: View {
         let login: Kept
+        /// The other sites with this password, and why it is easy to guess:
+        /// both empty until a look has been taken (see PasswordCheck).
+        var reused: [String] = []
+        var guessable: [Guessable] = []
         let copy: () -> Void
         let forget: () -> Void
 
@@ -148,6 +262,17 @@ struct PasswordsPanel: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
+                }
+                if !reused.isEmpty || !guessable.isEmpty {
+                    Card {
+                        if !reused.isEmpty {
+                            warning(PasswordWarnings.reusedTitle(reused.count), PasswordWarnings.reusedDetail(reused))
+                        }
+                        if !reused.isEmpty, !guessable.isEmpty { Rule() }
+                        if !guessable.isEmpty {
+                            warning(PasswordFilter.guessable.title, guessable.map(\.says).joined(separator: " "))
+                        }
+                    }
                 }
                 Card {
                     line("Username") {
@@ -181,6 +306,30 @@ struct PasswordsPanel: View {
                 }
             }
             .onDisappear { conceal() }
+        }
+
+        /// What a look found, over the account it found it about: said, and
+        /// left to you. Changing a password is the site's to do.
+        private func warning(_ title: String, _ detail: String) -> some View {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Palette.unsafe)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.ink)
+                    Text(detail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .accessibilityElement(children: .combine)
         }
 
         private func line<Value: View, Control: View>(_ name: String, @ViewBuilder value: () -> Value, @ViewBuilder control: () -> Control) -> some View {

@@ -295,6 +295,8 @@ private struct LinkChooserView: View {
         .frame(maxHeight: chooser.room)
         // The card's shadow alone, under its ground: on the card whole,
         // the marked row and each dot cast their own on the white.
+        // Floating, not over everything: the panel's margin has room for
+        // that shadow and no deeper one (LauncherPanel.margin).
         .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
         .padding(LauncherPanel.margin)
         // A click beside it, in the panel, is a click outside it.

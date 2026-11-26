@@ -133,7 +133,7 @@ final class PaneStage: NSView {
     var onHover: ((Tab.ID?) -> Void)?
     private var hovered: Tab.ID?
 
-    enum Action { case swap, even, separate, closeBoth }
+    enum Action { case swap, even, separate, closeBoth, scrollTogether }
 
     /// Between the pages: room for the divider, and to keep it off the left
     /// page's scroll bar.
@@ -717,6 +717,8 @@ final class PaneStage: NSView {
     fileprivate var pageCount: Int { tabs.count }
 
     fileprivate func act(_ action: Action) { onAction?(action) }
+    /// Whether the split shown scrolls as one: the divider's menu ticks it.
+    fileprivate var scrollsTogether: Bool { split?.scrollsTogether ?? false }
 
     // MARK: - a click on a page focuses it
 
@@ -964,6 +966,13 @@ final class PaneDivider: NSView {
             menu.addItem(item)
             if action == .even { menu.addItem(.separator()) }
         }
+        // This split's own, ticked while it is on (Browser.toggleScrollTogether).
+        menu.addItem(.separator())
+        let together = NSMenuItem(title: "Scroll Together", action: #selector(chose(_:)), keyEquivalent: "")
+        together.target = self
+        together.representedObject = PaneStage.Action.scrollTogether
+        together.state = stage?.scrollsTogether == true ? .on : .off
+        menu.addItem(together)
         return menu
     }
 

@@ -793,7 +793,7 @@ struct Mark: View {
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(Palette.ink.opacity(0.75))
+                    .foregroundStyle(Palette.soft)
                     .padding(size * 0.06)
                     .frame(width: size, height: size)
             } else if let icon {

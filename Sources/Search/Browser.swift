@@ -77,6 +77,9 @@ final class Browser: NSObject, ObservableObject {
                 DispatchQueue.main.async { held.forEach { $0.present() } }
             }
             guard oldValue != activeID else { return }
+            // In front now: its page, if it was waiting its turn out of
+            // sight, loads at once (LoadTurns).
+            if let activeID { tabs.first { $0.id == activeID }?.hurry() }
             cameFrom = (oldValue, ProcessInfo.processInfo.systemUptime)
             followPeek()
             // Going to another tab ends a page's run of links (see
@@ -414,6 +417,9 @@ final class Browser: NSObject, ObservableObject {
     /// When the folded column last put back in is off the page: the end of
     /// its slide, on the system's uptime clock.
     var columnGoneAt: TimeInterval = 0
+    /// Back, forward and the address down from the top edge while the
+    /// column is folded away (EdgeBar.swift).
+    let edgeBar = EdgeBarState()
     /// ⌘S on its way to folding the column: the page already has the room,
     /// the column has not moved yet (see Browser.toggleFold).
     @Published var foldingAway = false
@@ -3741,7 +3747,8 @@ final class Browser: NSObject, ObservableObject {
         redusk()
     }
 
-    func writeSession(now: Bool = false) {
+    /// `held`: on the calling thread, for the way out (see writeRow).
+    func writeSession(now: Bool = false, held: Bool = false) {
         guard !isPopup, !retired else { return }
         // The pins as they are here, for the other windows (see Pins.swift):
         // the space's own, and the ones every space shows (only from a row
@@ -3756,7 +3763,7 @@ final class Browser: NSObject, ObservableObject {
             for space in Array(parked.keys) { pinsChanged(in: space) }
         }
         writeRow(spaceID, session(tabs, active: activeID, groups: tabGroups, splits: splits,
-                                  aside: lifted(from: spaceID, besides: tabs)), now: now)
+                                  aside: lifted(from: spaceID, besides: tabs)), now: now, held: held)
         twinsSoon()
     }
 
@@ -4340,12 +4347,18 @@ final class Browser: NSObject, ObservableObject {
         usesFiles ? Session.read(space: space) : (record.rows[space.uuidString] ?? Session.Shape(tabs: [], active: 0))
     }
 
-    func writeRow(_ space: UUID, _ shape: Session.Shape, now: Bool) {
+    /// `now`: handed over at once, not a moment from now with whatever else
+    /// changes meanwhile (Browsers.saveSoon). Either way the row is encoded
+    /// and written off the main thread (see Disk), where a save at every tab
+    /// closed, moved or pinned used to hold the window until the file was
+    /// on disk. `held` is for the way out, when no queue may be left to
+    /// finish it: on the calling thread, on disk when this returns.
+    func writeRow(_ space: UUID, _ shape: Session.Shape, now: Bool, held: Bool = false) {
         if usesFiles {
-            Session.write(now: now, space: space, shape)
+            Session.write(now: held, space: space, shape)
         } else {
             record.rows[space.uuidString] = shape
-            if now { Browsers.save(now: true) } else { Browsers.saveSoon() }
+            if now || held { Browsers.save(now: held) } else { Browsers.saveSoon() }
         }
     }
 
@@ -4440,6 +4453,10 @@ final class Browser: NSObject, ObservableObject {
         var active = id == nil ? -1 : 0
         var indices: [Tab.ID: Int] = [:]
         let liftedIDs = Set(aside.map(\.id))
+        // Asked once, not for every tab: the pages on screen were worked
+        // out again, and the setting read again, three hundred times a save.
+        let visible = visibleTabIDs
+        let mirrors = prefs.mirrorsTabs
         for tab in tabs + aside {
             guard kept(tab), let url = tab.pending ?? tab.address ?? tab.page?.url else { continue }
             if tab.id == id { active = entries.count }
@@ -4450,7 +4467,7 @@ final class Browser: NSObject, ObservableObject {
                 pinID: tab.pin == nil ? nil : tab.pinID,
                 // A page on screen is being looked at now, not when it was
                 // arrived at: quitting on it is leaving it.
-                touched: visibleTabIDs.contains(tab.id) ? Date() : tab.touched,
+                touched: visible.contains(tab.id) ? Date() : tab.touched,
                 letGo: tab.pin == nil ? tab.letGo : nil,
                 listed: tab.pin != nil && tab.listed ? true : nil,
                 muted: tab.muted,
@@ -4459,7 +4476,7 @@ final class Browser: NSObject, ObservableObject {
                 keepsake: keeping ? tab.keepsake.map(Keepsake.init) : nil,
                 // Only with Same tabs in every window on: off, the file is
                 // what it always was.
-                twinID: prefs.mirrorsTabs && twinnable(tab) ? tab.twinID : nil,
+                twinID: mirrors && twinnable(tab) ? tab.twinID : nil,
                 lifted: liftedIDs.contains(tab.id) ? tab.id : nil
             ))
         }
@@ -4485,7 +4502,8 @@ final class Browser: NSObject, ObservableObject {
             let sizes = written.count == pair.tabs.count || pair.sizes.count != pair.tabs.count
                 ? pair.sizes : TabSplit.clamp(written.map { pair.sizes[$0] })
             return Session.Split(tabs: places, axis: pair.axis, sizes: sizes,
-                                 focused: pair.focused.flatMap { indices[$0] })
+                                 focused: pair.focused.flatMap { indices[$0] },
+                                 together: pair.scrollsTogether ? true : nil)
         }
         return .init(tabs: entries, active: active, groups: keptGroups, splits: savedSplits)
     }
@@ -4530,7 +4548,7 @@ final class Browser: NSObject, ObservableObject {
     /// stops waiting: this writes straight to disk, on the thread asking to
     /// quit, before there is a process left to finish the wait on its behalf.
     func flushSession() {
-        writeSession(now: true)
+        writeSession(now: true, held: true)
     }
 
     // MARK: - tabs
@@ -4884,6 +4902,33 @@ final class Browser: NSObject, ObservableObject {
     func evenSplit() {
         guard let pair = activeSplit else { return }
         setSplitSizes(pair.id, TabSplit.even(pair.tabs.count))
+    }
+
+    /// The divider's menu › Scroll Together, and the same line in a split
+    /// tab's own menu: on, a page of this split scrolled takes the others
+    /// with it (see scrollTogether). Decided per split and off until asked
+    /// for, not a setting: it is for two versions of one page side by side,
+    /// and wrong for any other two.
+    func toggleScrollTogether() {
+        guard let pair = activeSplit, let index = splits.firstIndex(where: { $0.id == pair.id }) else { return }
+        splits[index].scrollsTogether.toggle()
+        rememberSession()
+    }
+
+    /// One page of a split with Scroll Together on went down (or up) by
+    /// `dy` under your hand: the others go by as much, each as far as it
+    /// can, so pages lined up before it was turned on stay lined up. Each
+    /// marks where it was put, and its own word of that scroll is then known
+    /// as an echo and goes no further (see ScrollRelay.script): the pages
+    /// never push one another back and forth.
+    func scrollTogether(from tab: Tab, by dy: Double) {
+        guard prefs.splitView, dy.isFinite, dy != 0,
+              let pair = split(for: tab), pair.scrollsTogether else { return }
+        let script = ScrollRelay.follow(by: dy)
+        for id in pair.others(than: tab.id) {
+            guard let web = tabs.first(where: { $0.id == id })?.built else { continue }
+            web.evaluateInSearch(script)
+        }
     }
 
     /// The divider's menu › Close Both. Remembered as one, as Close Tabs
@@ -6719,14 +6764,21 @@ final class Browser: NSObject, ObservableObject {
         window.makeKeyAndOrderFront(nil)
     }
 
-    /// A click while the switcher is up, at a point in the window's own
-    /// top-left coordinates: on a card, that card; outside the panel, the
-    /// switcher goes. True when the click was the switcher's. Taken before any
-    /// view sees it, because ⌃ is held for as long as the switcher is up, and
-    /// a ⌃-click is a right-click to AppKit, not a click the card's button
-    /// can be counted on to take. From #358, by oddharsh.
-    func clickTabSwitcher(at point: CGPoint) -> Bool {
-        tabSwitcher.click(at: point) { commitTabSwitch(picking: $0) }
+    /// The button going down while the switcher is up, at a point in the
+    /// window's own top-left coordinates: on a card, that card gives under
+    /// it; outside the panel, the switcher goes. True when the press was the
+    /// switcher's. Taken before any view sees it, because ⌃ is held for as
+    /// long as the switcher is up, and a ⌃-click is a right-click to AppKit,
+    /// not a click the card's button can be counted on to take. From #358,
+    /// by oddharsh.
+    func pressTabSwitcher(at point: CGPoint) -> Bool {
+        tabSwitcher.press(at: point)
+    }
+
+    /// The button coming up again: over the card it went down on, that
+    /// card's tab. True when it ended a press of the switcher's.
+    func liftTabSwitcher(at point: CGPoint) -> Bool {
+        tabSwitcher.lift(at: point) { commitTabSwitch(picking: $0) }
     }
 
     func commitTabSwitch(picking id: Tab.ID? = nil) {
@@ -6807,7 +6859,8 @@ final class Browser: NSObject, ObservableObject {
         if mayWait, !foreground, prefs.lazyTabs, page == nil {
             tab.restore(url: url, title: "")
         } else {
-            tab.go(to: url)
+            // One of many (`mayWait`) lets a link opened on its own go first.
+            tab.go(to: url, batch: mayWait)
         }
         if foreground {
             leaving()
@@ -7279,7 +7332,8 @@ final class Browser: NSObject, ObservableObject {
             guard members.count == saved.tabs.count, members.count <= TabSplit.most,
                   !members.contains(where: { taken.contains($0.id) }) else { continue }
             let pair = TabSplit(tabs: members.map(\.id), axis: saved.axis, sizes: saved.sizes,
-                                focused: saved.focused.flatMap { bySavedIndex[$0]?.id })
+                                focused: saved.focused.flatMap { bySavedIndex[$0]?.id },
+                                scrollsTogether: saved.together ?? false)
             guard Browser.holds(pair, in: row) else { continue }
             restoredSplits.append(pair)
             taken.formUnion(pair.tabs)
@@ -7362,6 +7416,19 @@ final class Browser: NSObject, ObservableObject {
         guard let source, tabs.contains(where: { $0.id == source.id }) else { return }
         let earlier = linkRun.flatMap { $0.opener == source.id ? $0.opened : nil } ?? []
         linkRun = LinkRun(opener: source.id, last: tab.id, opened: earlier.union([tab.id]))
+    }
+
+    /// What is said when a link opens behind with the tabs out of sight.
+    static let openedBehind = "Opened in a new tab"
+
+    /// A link opened in a tab behind the page — ⌘-click, the middle button,
+    /// Open Link in New Tab — while the tabs are folded away: with no row
+    /// to see it land in, nothing showed the click had done anything, so a
+    /// line says so. With the tabs in sight the new tab is the sign, and a
+    /// tab that went beside its page as a pair is on screen already.
+    func sayOpenedBehind(_ tab: Tab) {
+        guard folded, !peeking, tabs.contains(where: { $0.id == tab.id }), !visibleTabIDs.contains(tab.id) else { return }
+        announce(Browser.openedBehind)
     }
 
     /// Settings › Tabs › Links opened in front go beside their page, which
@@ -7495,9 +7562,18 @@ final class Browser: NSObject, ObservableObject {
     /// home then, to a window on a desktop nobody was looking at, and you
     /// were taken back to that desktop after it. It stays out until its
     /// window's desktop is the one in view (desktopChanged).
-    func appBack() {
+    ///
+    /// Nor while another of Lun's windows is the one come back to. `front`
+    /// is that one, the app's main window: coming back to a link's small
+    /// window, to Settings or to another browser window brings Lun in front
+    /// too, and the video went home to a window nobody had come back to. It
+    /// stays out until this window is the main one, which is asked again as
+    /// it becomes that (ContentView). The main window and not the one with
+    /// the keys: the little window takes the keys when it is clicked or
+    /// moved, and has them still when Lun comes back.
+    func appBack(in front: NSWindow?) {
         stopAwayWatch()
-        guard window?.isOnActiveSpace ?? true else { return }
+        guard window?.isOnActiveSpace ?? true, front === window else { return }
         defer { liftedAway = false }
         if liftedAway, let id = floating, id == activeID { land() }
         if liftedAway, let id = pictured, id == activeID { unpicture() }
@@ -7506,9 +7582,9 @@ final class Browser: NSObject, ObservableObject {
     /// Another desktop has come into view. Back on this window's own, with
     /// Lun in front, a video that left with the app goes home, as appBack
     /// would have sent it had the window been in view then.
-    func desktopChanged(active: Bool = NSApp.isActive) {
+    func desktopChanged(active: Bool = NSApp.isActive, front: NSWindow? = NSApp.mainWindow ?? NSApp.keyWindow) {
         guard liftedAway, active else { return }
-        appBack()
+        appBack(in: front)
     }
 
     /// ⌘⇧P, for lifting one out by hand.
@@ -7666,9 +7742,15 @@ final class Browser: NSObject, ObservableObject {
         // until it is in the little window or has nothing to float.
         let stage = tab.web.superview as? StageView
         stage?.keep(tab.web)
+        var went = false
         func all() {
-            guard let shot, let found, let alone else { return }
-            lifted(tab, shot: shot, alone: alone, found: found, quietly: quietly, otherwise: otherwise, spaceRequest: spaceRequest)
+            guard !went, let shot, let found else { return }
+            // A page that keeps its size out there (Float.kept) has no still
+            // over it, and no picture of the video alone to wait for.
+            let picture = Float.kept(found, in: tab.web)
+            guard picture != nil || alone != nil else { return }
+            went = true
+            lifted(tab, shot: shot, alone: alone ?? nil, picture: picture, found: found, quietly: quietly, otherwise: otherwise, spaceRequest: spaceRequest)
             stage?.letGo(tab.web)
         }
         tab.web.takeSnapshot(with: picture) { image, _ in
@@ -7700,7 +7782,7 @@ final class Browser: NSObject, ObservableObject {
 
     /// The page isolated, or not, and pictured as it was before: into the
     /// little window, or on to the other page of a pair.
-    private func lifted(_ tab: Tab, shot: NSImage?, alone: NSImage?, found answer: Any?, quietly: Bool, otherwise: Tab?, spaceRequest: UUID? = nil) {
+    private func lifted(_ tab: Tab, shot: NSImage?, alone: NSImage?, picture: NSRect?, found answer: Any?, quietly: Bool, otherwise: Tab?, spaceRequest: UUID? = nil) {
         guard let found = answer as? [String: Any], found["floating"] as? Bool == true else {
             if let otherwise { return lift(otherwise, quietly: quietly, spaceRequest: spaceRequest) }
             if let spaceRequest { _ = spaceFloat.finish(spaceRequest) }
@@ -7719,14 +7801,16 @@ final class Browser: NSObject, ObservableObject {
         floating = tab.id
         tab.floating = true
         ownFloater()
-        let still = alone.flatMap { alone in
+        // The still is for a page laid out at the little window's size: one
+        // that keeps its own shows the live video from the first.
+        let still = picture != nil ? nil : alone.flatMap { alone in
             Float.still(
                 of: alone,
                 picture: (found["alone"] as? [NSNumber] ?? []).map(\.doubleValue),
                 page: (found["page"] as? [NSNumber] ?? []).map(\.doubleValue)
             )
         }
-        floater.lift(tab.web, still: still)
+        floater.lift(tab.web, still: still, picture: picture)
     }
 
     /// The page as it was when its video went out, for covering the tab with
@@ -7824,9 +7908,13 @@ final class Browser: NSObject, ObservableObject {
             picking = nil
         }
         tab.onImageMenu = { [weak self] tab, url in self?.showImageMenu(for: tab, at: url) }
-        tab.onImageItem = { [weak self] tab, url, copy in
+        tab.onImageItem = { [weak self] tab, url, action in
             guard let self, let web = tab.built else { return }
-            if copy { copyImage(at: url, in: tab) } else { downloadImage(at: url, from: web) }
+            switch action {
+            case .copy: copyImage(at: url, in: tab)
+            case .download: downloadImage(at: url, from: web)
+            case .photos: addImageToPhotos(at: url, in: tab)
+            }
         }
         tab.searchName = { [weak self] in self.map { $0.prefs.engine.name(custom: $0.prefs.customEngine) } }
         tab.onSearch = { [weak self] tab, text in
@@ -7881,6 +7969,8 @@ final class Browser: NSObject, ObservableObject {
         tab.onPickTrouble = { [weak self] _, reason in
             self?.announce("Couldn't hide that — \(reason)")
         }
+
+        tab.onScrollBy = { [weak self] tab, dy in self?.scrollTogether(from: tab, by: dy) }
 
         // The line at the bottom doubles as the zoom read-out: it keeps being
         // rewritten while you pinch and fades a moment after you stop.
@@ -9314,6 +9404,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
             // site's own pop-up window, whose tab opens in another window,
             // leaves it behind.
             if beside, destination === self { pair(tab, with: opener, onLeft: false) }
+            destination.sayOpenedBehind(tab)
         } else if clicked, destination === self, frontLinksBeside {
             // Settings › Tabs › Links opened in front go beside their page:
             // where a ⌘-click's goes, after the ones the page already opened,
@@ -9379,13 +9470,17 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
                 tabs.insert(tab, at: placeForLink(from: source))
                 if !foreground || frontLinksBeside { noteLink(tab, from: source) }
             }
+            if !foreground { sayOpenedBehind(tab) }
             return
         }
         // To a site Settings sends to another space: there, in front.
         if sendToSpace(url, from: source) { return }
         // From a small window's page, to the space chosen for it.
         if sendToChosenSpace(url, from: source) { return }
-        open(url, foreground: foreground, from: source, mayWait: true, link: true)
+        let tab = open(url, foreground: foreground, from: source, mayWait: true, link: true)
+        // In whichever window it went to: a link out of a site's own pop-up
+        // window opens in a window of tabs.
+        if !foreground { (Browsers.all.first { $0.tabs.contains { $0 === tab } } ?? self).sayOpenedBehind(tab) }
     }
 
     /// Anything the window can't show is something to keep instead.

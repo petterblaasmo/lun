@@ -525,7 +525,7 @@ struct ColourSwatches: View {
                 fill()
                     .frame(width: Self.dot, height: Self.dot)
                     .padding(3)
-                    .overlay(Circle().strokeBorder(selected ? Palette.ink.opacity(0.75) : hovering ? Palette.ring : .clear, lineWidth: 1.5))
+                    .overlay(Circle().strokeBorder(selected ? Palette.soft : hovering ? Palette.ring : .clear, lineWidth: 1.5))
                     .contentShape(Circle())
             }
             .buttonStyle(Gives(to: 0.92))
@@ -619,7 +619,7 @@ struct SpaceLookPicker: View {
             VStack(alignment: .leading, spacing: 12) {
                 Disclosure("Custom gradient", open: $customOpen, weight: .medium) {
                     if choice == .custom {
-                        Circle().fill(Palette.ink.opacity(0.7)).frame(width: 5, height: 5)
+                        Circle().fill(Palette.soft).frame(width: 5, height: 5)
                             .accessibilityLabel("Chosen")
                     }
                 }
