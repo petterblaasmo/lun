@@ -352,47 +352,15 @@ struct ImportPanel: View {
                 }
                 Rule()
             }
-            // A kind the browser has none of is said so, and can't be picked.
-            Line("Passwords", !source.importsPasswords ? (!source.passwordsInPasswordsApp ? "Not supported for \(source.name)"
-                                                          : "\(source.name) keeps them in the Passwords app: export them from there and bring in the CSV file") : preview?.passwords == 0 ? "None in \(source.name)" : source.asksForKey
-                 ? "macOS asks once for \(source.name)'s keychain key"
-                 : "Read from \(source.name)'s own files, unless it has a primary password") {
-                option($wantsPasswords, none: !source.importsPasswords || preview?.passwords == 0)
-            }
-            Rule()
-            Line("Bookmarks", preview?.bookmarks == 0 ? "None in \(source.name)" : "In a “\(source.name)” folder, or at the top if you have none yet") {
-                option($wantsBookmarks, none: preview?.bookmarks == 0)
-            }
-            // Brought before: only what is new comes, unless what came from
-            // it last time is to go first. An import from before this was
-            // kept has nothing recorded, and nothing is guessed at.
-            if wantsBookmarks, preview?.bookmarks != 0, let record = ImportRecords.of(source.name) {
-                Rule()
-                let recorded = !record.bookmarkIDs.isEmpty
-                Line("Replace what came from \(source.name) before",
-                     recorded ? "Its bookmarks from \(record.date.formatted(.dateTime.day().month())) go, and these come fresh; passwords only ever add"
-                              : "Nothing recorded from \(source.name) yet — only what is new comes") {
-                    option($replaceBookmarks, none: !recorded)
-                }
-            }
-            Rule()
-            Line("History", preview?.places == 0 ? "None in \(source.name)" : "The last \((preview.map { $0.places } ?? 3000).formatted()) places") {
-                option($wantsHistory, none: preview?.places == 0)
-            }
-            // Its open tabs and tab groups, asleep at the end of this space.
-            if source.readsOpenTabs {
-                Rule()
-                Line("Open tabs & tab groups", tabsDetail(preview, source)) {
-                    option($wantsTabs, none: !bringsTabs(source))
-                }
-            }
+            // A checklist, in the order things matter to someone moving in:
+            // each row its tick, what happens to it, and how many there are.
+            // A kind the browser has none of is said so, and can't be ticked.
             // Arc's own, or Zen's: its spaces, what is pinned in them, its
             // favourites or Essentials.
             if let arc = arcCounts[key(source, profile(of: source))], arc.spaces + arc.pinned > 0 {
-                Rule()
-                Line("Spaces and pinned tabs", arcDetail(arc, source)) {
-                    Switch(on: $wantsArc)
-                }
+                Checked("Spaces and pinned tabs", arcDetail(arc, source),
+                        count: "\(arc.spaces == 1 ? "1 space" : "\(arc.spaces) spaces"), \(arc.pinned == 1 ? "1 pin" : "\(arc.pinned) pins")",
+                        on: $wantsArc)
                 // Pinned pages only keep their shape as pinned rows, and
                 // those are off until asked for. This is the moment someone
                 // would ask, so the sheet offers the switch here, once, rather
@@ -419,12 +387,42 @@ struct ImportPanel: View {
                         }
                     }
                 }
+                Rule()
             }
+            // Its open tabs and tab groups, asleep at the end of this space.
+            if source.readsOpenTabs {
+                Checked("Open tabs & tab groups", tabsDetail(preview, source),
+                        count: bringsTabs(source) ? preview?.session.tabs.formatted() : nil,
+                        on: $wantsTabs, none: !bringsTabs(source))
+                Rule()
+            }
+            Checked("Bookmarks", preview?.bookmarks == 0 ? "None in \(source.name)" : "In a “\(source.name)” folder, or at the top if you have none yet",
+                    count: counted(preview?.bookmarks), on: $wantsBookmarks, none: preview?.bookmarks == 0)
+            // Brought before: only what is new comes, unless what came from
+            // it last time is to go first. An import from before this was
+            // kept has nothing recorded, and nothing is guessed at.
+            if wantsBookmarks, preview?.bookmarks != 0, let record = ImportRecords.of(source.name) {
+                Rule()
+                let recorded = !record.bookmarkIDs.isEmpty
+                Checked("Replace what came from \(source.name) before",
+                        recorded ? "Its bookmarks from \(record.date.formatted(.dateTime.day().month())) go, and these come fresh; passwords only ever add"
+                                 : "Nothing recorded from \(source.name) yet — only what is new comes",
+                        on: $replaceBookmarks, none: !recorded)
+            }
+            Rule()
+            Checked("History", preview?.places == 0 ? "None in \(source.name)" : "The last \((preview.map { $0.places } ?? 3000).formatted()) places",
+                    count: counted(preview?.places), on: $wantsHistory, none: preview?.places == 0)
+            Rule()
+            Checked("Passwords", !source.importsPasswords ? (!source.passwordsInPasswordsApp ? "Not supported for \(source.name)"
+                                                          : "\(source.name) keeps them in the Passwords app: export them from there and bring in the CSV file") : preview?.passwords == 0 ? "None in \(source.name)" : source.asksForKey
+                 ? "macOS asks once for \(source.name)'s keychain key"
+                 : "Read from \(source.name)'s own files, unless it has a primary password",
+                    count: source.importsPasswords ? counted(preview?.passwords) : nil,
+                    on: $wantsPasswords, none: !source.importsPasswords || preview?.passwords == 0)
             if !extensions.isEmpty {
                 Rule()
-                Line("Extensions", "\(extensions.count) found — installed fresh from the Chrome Web Store, you say yes to each one") {
-                    Switch(on: $wantsExtensions)
-                }
+                Checked("Extensions", "Installed fresh from the Chrome Web Store, you say yes to each one",
+                        count: extensions.count.formatted(), on: $wantsExtensions)
             }
         }
     }
@@ -472,14 +470,12 @@ struct ImportPanel: View {
         return "\(what), \(record.date.formatted(.dateTime.day().month()))"
     }
 
-    /// A kind's switch; off and out of reach when there is none of it.
-    @ViewBuilder
-    private func option(_ on: Binding<Bool>, none: Bool) -> some View {
-        if none {
-            Switch(on: .constant(false)).disabled(true).opacity(0.4)
-        } else {
-            Switch(on: on)
-        }
+
+    /// How many of a kind there are, for the end of its row: nothing while
+    /// it is still being counted, or when there are none.
+    private func counted(_ number: Int?) -> String? {
+        guard let number, number > 0 else { return nil }
+        return number.formatted()
     }
 
     /// The store extensions it has that aren't here already.
