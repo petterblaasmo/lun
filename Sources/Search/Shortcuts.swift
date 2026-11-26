@@ -276,6 +276,10 @@ struct Command: Identifiable {
             $0.switchTabs(backwards: false)
         },
         Command("tabs.previous", "Previous Tab", .tabs, KeyCombo("[", shift: true)) { $0.step(-1) },
+        // Reordering from the keys. With ⌃, so a page's own ⇧ and arrows
+        // (selecting text) are left alone.
+        Command("tabs.moveUp", "Move Tab Up", .tabs, KeyCombo("up", command: false, shift: true, control: true)) { $0.nudgeTab(-1) },
+        Command("tabs.moveDown", "Move Tab Down", .tabs, KeyCombo("down", command: false, shift: true, control: true)) { $0.nudgeTab(1) },
         Command("tabs.search", "Search Tabs…", .tabs, KeyCombo("k")) { browser in
             browser.searchTabsKey()
         },

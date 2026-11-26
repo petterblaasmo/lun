@@ -322,6 +322,12 @@ struct SearchApp: App {
                     .shortcut("tabs.next")
                 Button("Previous Tab") { browser.step(-1) }
                     .shortcut("tabs.previous")
+                Button("Move Tab Up") { browser.nudgeTab(-1) }
+                    .shortcut("tabs.moveUp")
+                    .disabled(browser.active == nil || browser.active?.pin != nil)
+                Button("Move Tab Down") { browser.nudgeTab(1) }
+                    .shortcut("tabs.moveDown")
+                    .disabled(browser.active == nil || browser.active?.pin != nil)
                 Button("Search Tabs…") { browser.summon() }
                     .shortcut("tabs.search")
                 Divider()
