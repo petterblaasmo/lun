@@ -4,8 +4,9 @@ import XCTest
 @testable import Search
 
 /// The floating video's window under two fingers: a swipe too short to be a
-/// flick places it point for point, and a pinch sizes it to where the
-/// fingers lift.
+/// flick places it point for point, a pinch sizes it to where the fingers
+/// lift, and one that begins over it is its own whichever window has the
+/// keys.
 ///
 /// Everything here is arithmetic and a window off every screen handed made-up
 /// events: what a trackpad sends, and how any of it feels, is by hand.
@@ -242,6 +243,63 @@ final class FloatGestureTests: XCTestCase {
             controls.magnify(with: fingers)
             XCTAssertEqual(panel.frame, docked)
         }
+    }
+
+    // MARK: - a pinch finds the window
+
+    /// macOS sends a pinch to the window with the keys, the browser's,
+    /// whatever is under the fingers.
+    func testAPinchBegunOverTheFloatingWindowIsItsOwn() throws {
+        let key = NSWindow(contentRect: NSRect(x: -30400, y: -30400, width: 900, height: 640),
+                           styleMask: [.titled], backing: .buffered, defer: false)
+        key.isReleasedWhenClosed = false
+        defer { key.close() }
+        let web = WKWebView(frame: NSRect(x: 0, y: 0, width: 440, height: 247))
+        web.allowsMagnification = true
+        var gone: Float?
+        try withFloat(flicks: false, page: web) { floater, panel, _ in
+            gone = floater
+            XCTAssertFalse(web.allowsMagnification, "the page in it is not what a pinch zooms")
+            @MainActor func pinch(_ amount: CGFloat, _ part: NSEvent.Phase, at spot: NSPoint) -> Bool {
+                let fingers = Fingers()
+                fingers.kind = .magnify
+                fingers.part = part
+                fingers.pinch = amount
+                fingers.host = key
+                fingers.spot = key.convertPoint(fromScreen: spot)
+                return Float.steer(fingers)
+            }
+            let size = panel.frame.size
+            let over = NSPoint(x: panel.frame.midX, y: panel.frame.midY)
+            XCTAssertTrue(pinch(0, .began, at: over))
+            XCTAssertTrue(pinch(0.25, .changed, at: over))
+            XCTAssertEqual(panel.frame.width, size.width * 1.25, accuracy: 1)
+            XCTAssertEqual(panel.frame.height / panel.frame.width, size.height / size.width, accuracy: 0.01)
+            // Its own while the fingers are down, wherever the pointer is by then.
+            XCTAssertTrue(pinch(-0.2, .changed, at: NSPoint(x: panel.frame.maxX + 300, y: over.y)))
+            XCTAssertEqual(panel.frame.width, size.width, accuracy: 1)
+            XCTAssertTrue(pinch(0, .ended, at: over))
+            XCTAssertEqual(web.magnification, 1)
+
+            // Begun anywhere else, it is the page's, as it always was.
+            let sized = panel.frame
+            let beside = NSPoint(x: panel.frame.maxX + 300, y: panel.frame.midY)
+            XCTAssertFalse(pinch(0, .began, at: beside))
+            XCTAssertFalse(pinch(0.3, .changed, at: beside))
+            XCTAssertFalse(pinch(0, .ended, at: beside))
+            XCTAssertEqual(panel.frame, sized)
+
+            // Closed under the fingers: the rest of that pinch is nobody's,
+            // and the page behind never gets a pinch it didn't see begin.
+            let inside = NSPoint(x: panel.frame.midX, y: panel.frame.midY)
+            XCTAssertTrue(pinch(0, .began, at: inside))
+            floater.drop()
+            XCTAssertTrue(web.allowsMagnification)
+            XCTAssertTrue(pinch(0.3, .changed, at: inside))
+            XCTAssertTrue(pinch(0, .ended, at: inside))
+            XCTAssertFalse(pinch(0, .began, at: inside), "a window that is gone takes none")
+        }
+        XCTAssertEqual(gone?.showing, false)
     }
 
     // MARK: -

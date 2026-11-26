@@ -224,6 +224,48 @@ final class Float {
         )
     }
 
+    /// A trackpad pinch goes to the window with the keys, not to the one
+    /// under the fingers, and this window takes the keys only when clicked:
+    /// a pinch over it went to the browser window behind, and zoomed the
+    /// page there instead of sizing this. So pinches are looked at on their
+    /// way in, and one that begins over a floating window is that window's
+    /// until the fingers lift.
+    private static var pinchWatch: Any?
+    private static weak var pinched: Panel?
+    /// A pinch begun over a floating window is its to the end, even if the
+    /// window closes under the fingers: the page behind would otherwise get
+    /// the rest of a pinch it never saw begin.
+    private static var steering = false
+
+    private static func watchPinches() {
+        guard pinchWatch == nil else { return }
+        pinchWatch = NSEvent.addLocalMonitorForEvents(matching: .magnify) { event in
+            MainActor.assumeIsolated { steer(event) } ? nil : event
+        }
+    }
+
+    /// Whether `event`, a pinch, was a floating window's, and went to it.
+    static func steer(_ event: NSEvent) -> Bool {
+        if event.phase.contains(.began) || event.phase.isEmpty {
+            let spot = event.window.map { $0.convertPoint(toScreen: event.locationInWindow) } ?? NSEvent.mouseLocation
+            // The window on top there: an alert or a popover over the
+            // floating window is the one pinched.
+            // Of Lun's own, front to back: with Lun in front the pinch is
+            // one of its windows' whatever else is on screen.
+            pinched = (NSWindow.windowNumbers(options: []) ?? []).lazy
+                .compactMap { NSApp.window(withWindowNumber: $0.intValue) }
+                .first { $0.isVisible && !$0.ignoresMouseEvents && $0.frame.contains(spot) } as? Panel
+            steering = pinched != nil
+        }
+        guard steering else { return false }
+        pinched?.onPinch?(event)
+        if event.phase.isEmpty || !event.phase.isDisjoint(with: [.ended, .cancelled]) {
+            steering = false
+            pinched = nil
+        }
+        return true
+    }
+
     /// `still`: the video as it was in its tab, cut out of a picture of the
     /// page with the rest of it hidden (see `still(of:picture:page:)`),
     /// shown until the page is laid out at this window's size.
@@ -362,6 +404,8 @@ final class Float {
         controls.onEnter = { [weak self] in self?.refreshControls() }
         ground.addSubview(controls)
         self.controls = controls
+        panel.onPinch = { [weak controls] event in controls?.magnify(with: event) }
+        Float.watchPinches()
 
         panel.contentView = ground
         panel.orderFrontRegardless()
@@ -1251,6 +1295,8 @@ enum Grounded {
 private final class Panel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+    /// A pinch over it, whichever window macOS sent it to (see Float.steer).
+    var onPinch: ((NSEvent) -> Void)?
 }
 
 /// A part of a page, shown at whatever size this view is. The page inside
