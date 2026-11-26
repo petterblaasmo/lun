@@ -78,8 +78,12 @@ final class PaneStage: NSView {
     /// past the window's.
     private var cardSize: (() -> CGSize)?
     private var cardCorner: CGFloat?
+    /// The card in the stage's middle across, or from its leading edge
+    /// (CardClip.centred).
+    private var cardCentred = true
 
-    func clip(card: (() -> CGSize)?, corner: CGFloat, squareTop: Bool = false) {
+    func clip(card: (() -> CGSize)?, corner: CGFloat, squareTop: Bool = false, centred: Bool = true) {
+        cardCentred = centred
         cardSize = card
         for slot in slots { slot.squaresTop = squareTop }
         cardCorner = corner
@@ -96,7 +100,7 @@ final class PaneStage: NSView {
             return CGSize(width: max(0, bounds.width - card.width), height: max(0, bounds.height - card.height))
         } ?? .zero
         // In the stage's middle across, at its top down (StageView.applyCard).
-        let card = CGRect(x: cardShort.width / 2, y: 0, width: max(0, bounds.width - cardShort.width),
+        let card = CGRect(x: cardCentred ? cardShort.width / 2 : 0, y: 0, width: max(0, bounds.width - cardShort.width),
                           height: max(0, bounds.height - cardShort.height))
         let whole = cardShort.width < 0.25 && cardShort.height < 0.25
         let hairline = 1 / max(1, window?.backingScaleFactor ?? 2)
