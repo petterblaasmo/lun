@@ -410,30 +410,35 @@ if [ "$STEP" = "ship" ] && [ ! -f "Search.provisionprofile" ] && [ -z "${SEARCH_
 fi
 if [ -f "Search.provisionprofile" ]; then
   cp "Search.provisionprofile" "$APP/Contents/embedded.provisionprofile"
-  ENTITLEMENTS="Search.passkeys.entitlements"
-  echo "passkeys: profile embedded"
-  # Sync with iCloud (ICloudSync.swift) needs the iCloud entitlements, and
-  # those only open with a profile that carries the container: signed with
-  # them and a profile from before, the app would not start. So they go in
-  # only when the profile names iCloud.com.lunbrowser.lun; otherwise
-  # the build is as before and Settings says it needs a new one. Of the
-  # two keys a profile may or may not carry (the container's environment,
-  # the pushes), only what it does carry is kept.
+  # Signed only with what the profile carries: an entitlement the profile
+  # doesn't grant is an app that won't open. Passkeys need Apple's approval
+  # of the browser entitlement, which may come after the profile does, and
+  # Sync with iCloud needs the profile to name the container
+  # (ICloudSync.swift; Settings says when a new build is needed). Of the
+  # two iCloud keys a profile may or may not carry (the container's
+  # environment, the pushes), only what it does carry is kept.
   PROFILE_PLIST="$(mktemp -t search-profile)"
   security cms -D -i "Search.provisionprofile" > "$PROFILE_PLIST" 2>/dev/null || true
   profile_has() { /usr/libexec/PlistBuddy -c "Print :Entitlements:$1" "$PROFILE_PLIST" >/dev/null 2>&1; }
+  mkdir -p build
   if /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.icloud-container-identifiers" "$PROFILE_PLIST" 2>/dev/null \
       | grep -q "iCloud.com.lunbrowser.lun"; then
-    ENTITLEMENTS="build/Search.icloud.entitlements"
-    mkdir -p build
-    cp "Search.icloud.entitlements" "$ENTITLEMENTS"
+    cp "Search.icloud.entitlements" build/Search.signing.entitlements
     for key in com.apple.developer.icloud-container-environment com.apple.developer.aps-environment; do
-      profile_has "$key" || /usr/libexec/PlistBuddy -c "Delete :$key" "$ENTITLEMENTS" >/dev/null
+      profile_has "$key" || /usr/libexec/PlistBuddy -c "Delete :$key" build/Search.signing.entitlements >/dev/null
     done
     echo "iCloud: the profile carries iCloud.com.lunbrowser.lun, Sync with iCloud is in"
   else
+    cp "Search.passkeys.entitlements" build/Search.signing.entitlements
     echo "iCloud: the profile has no iCloud container, built without Sync with iCloud (Settings says it needs a new build)"
   fi
+  if profile_has com.apple.developer.web-browser.public-key-credential; then
+    echo "passkeys: the profile carries the browser passkey entitlement, passkeys are in"
+  else
+    /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.web-browser.public-key-credential" build/Search.signing.entitlements >/dev/null
+    echo "passkeys: the profile has no browser passkey entitlement yet (Apple approves it on request), built without passkeys"
+  fi
+  ENTITLEMENTS="build/Search.signing.entitlements"
   rm -f "$PROFILE_PLIST"
 fi
 if [ -n "$IDENTITY" ]; then
