@@ -183,6 +183,16 @@ final class Float {
         return NSRect(x: anchor.x - across * wide, y: anchor.y - up * tall, width: wide, height: tall)
     }
 
+    /// `frame` in whole points, its top edge where it was to the nearest
+    /// one. A window's frame is taken out to the pixels around it when it
+    /// isn't on them, a point or so wider at a time, or two on a screen
+    /// with a pixel to the point: a pinch taken in fine steps then grew
+    /// faster than the fingers went, and barely shrank at all.
+    nonisolated static func whole(_ frame: NSRect) -> NSRect {
+        let wide = frame.width.rounded(), tall = frame.height.rounded()
+        return NSRect(x: frame.minX.rounded(), y: frame.maxY.rounded() - tall, width: wide, height: tall)
+    }
+
     /// The part of its page a window of `shape` shows: around the video's
     /// `picture`, of the window's shape, and no larger than holds the
     /// picture whole. In the page's own points, down from its top left. It
@@ -1133,8 +1143,8 @@ final class Float {
             // is what makes a live resize stutter. The next frame is soon
             // enough.
             window.setFrame(
-                Float.sized(was, to: width, around: anchor, shape: window.aspectRatio, least: window.minSize.width,
-                            within: area?.size ?? NSSize(width: 1600, height: 1000)),
+                Float.whole(Float.sized(was, to: width, around: anchor, shape: window.aspectRatio, least: window.minSize.width,
+                                        within: area?.size ?? NSSize(width: 1600, height: 1000))),
                 display: false
             )
         }

@@ -154,6 +154,12 @@ final class FloatGestureTests: XCTestCase {
         XCTAssertEqual(own.height, 494, accuracy: 0.001)
         XCTAssertEqual(Float.sized(rounded, to: 880, around: centre, shape: .zero, least: 260, within: room).height,
                        880 * 247 / 441, accuracy: 0.001, "no shape of its own: the frame's")
+
+        // In whole points, the top edge kept: left to itself a window is
+        // taken out to the pixels around it, wider at every step.
+        XCTAssertEqual(Float.whole(NSRect(x: 99.4, y: 100.3, width: 450.56, height: 252.93)),
+                       NSRect(x: 99, y: 100, width: 451, height: 253))
+        XCTAssertEqual(Float.whole(was), was)
     }
 
     func testTheLastOfAPinchIsTakenAsTheFingersLift() throws {
@@ -166,18 +172,16 @@ final class FloatGestureTests: XCTestCase {
             fingers.part = .changed
             fingers.pinch = 0.012
             controls.magnify(with: fingers)
-            // A window is as wide as a whole number of points.
-            XCTAssertEqual(panel.frame.width, 440 * 1.024, accuracy: 1)
-            let stepped = panel.frame.width
+            // A window is as wide as a whole number of points: 450.56 is 451.
+            XCTAssertEqual(panel.frame.width, 451)
             fingers.pinch = 0.01
             controls.magnify(with: fingers)
-            XCTAssertEqual(panel.frame.width, stepped)
+            XCTAssertEqual(panel.frame.width, 451)
             fingers.part = .ended
             fingers.pinch = 0
             controls.magnify(with: fingers)
-            XCTAssertEqual(panel.frame.width, 440 * 1.024 * 1.01, accuracy: 1, "what was left is taken as they lift")
-            XCTAssertGreaterThan(panel.frame.width, stepped)
-            XCTAssertEqual(panel.frame.width / panel.frame.height, 440.0 / 247, accuracy: 0.01)
+            XCTAssertEqual(panel.frame.width, 455, "what was left is taken as they lift, from 450.56 and not from 451")
+            XCTAssertEqual(panel.frame.height, 255)
 
             // The smallest pinch there is does something.
             let before = panel.frame.width
@@ -187,8 +191,8 @@ final class FloatGestureTests: XCTestCase {
             fingers.part = .ended
             fingers.pinch = 0
             controls.magnify(with: fingers)
-            XCTAssertEqual(panel.frame.width, before * 0.996, accuracy: 1)
-            XCTAssertLessThan(panel.frame.width, before)
+            XCTAssertEqual(panel.frame.width, 453)
+            XCTAssertEqual(before, 455)
         }
     }
 
@@ -203,16 +207,15 @@ final class FloatGestureTests: XCTestCase {
             controls.magnify(with: fingers)
             fingers.part = .changed
             for _ in 0..<99 { controls.magnify(with: fingers) }
-            XCTAssertEqual(panel.frame.width, 440 * pow(1.003, 100), accuracy: 1)
-            XCTAssertEqual(panel.frame.width / panel.frame.height, 440.0 / 247, accuracy: 0.01, "and its shape is the one it had")
+            XCTAssertEqual(panel.frame.width, (440 * pow(1.003, 100)).rounded())
+            XCTAssertEqual(panel.frame.height, (440 * pow(1.003, 100) * 247 / 440).rounded(), "and its shape is the one it had")
             // Out as far as it goes, and held there: back in from that at once.
             fingers.pinch = 5
             controls.magnify(with: fingers)
-            let most = panel.frame.width
-            XCTAssertEqual(most, 1440 * 0.85, accuracy: 1)
+            XCTAssertEqual(panel.frame.width, 1224)
             fingers.pinch = -0.1
             controls.magnify(with: fingers)
-            XCTAssertEqual(panel.frame.width, most * 0.9, accuracy: 1)
+            XCTAssertEqual(panel.frame.width, 1102)
             XCTAssertEqual(web.frame.size, NSSize(width: 1200, height: 700))
         }
     }
@@ -224,8 +227,7 @@ final class FloatGestureTests: XCTestCase {
             fingers.part = .began
             fingers.pinch = 0.005
             controls.magnify(with: fingers)
-            XCTAssertEqual(panel.frame.width, 440 * 1.005, accuracy: 1, "nothing is laid out again: the window follows the fingers")
-            XCTAssertGreaterThan(panel.frame.width, 440)
+            XCTAssertEqual(panel.frame.width, 442, "nothing is laid out again: the window follows the fingers")
             XCTAssertEqual(web.frame.size, NSSize(width: 1200, height: 700))
         }
     }
@@ -273,11 +275,10 @@ final class FloatGestureTests: XCTestCase {
             let over = NSPoint(x: panel.frame.midX, y: panel.frame.midY)
             XCTAssertTrue(pinch(0, .began, at: over))
             XCTAssertTrue(pinch(0.25, .changed, at: over))
-            XCTAssertEqual(panel.frame.width, size.width * 1.25, accuracy: 1)
-            XCTAssertEqual(panel.frame.height / panel.frame.width, size.height / size.width, accuracy: 0.01)
+            XCTAssertEqual(panel.frame.size, NSSize(width: 550, height: 309))
             // Its own while the fingers are down, wherever the pointer is by then.
             XCTAssertTrue(pinch(-0.2, .changed, at: NSPoint(x: panel.frame.maxX + 300, y: over.y)))
-            XCTAssertEqual(panel.frame.width, size.width, accuracy: 1)
+            XCTAssertEqual(panel.frame.size, size)
             XCTAssertTrue(pinch(0, .ended, at: over))
             XCTAssertEqual(web.magnification, 1)
 

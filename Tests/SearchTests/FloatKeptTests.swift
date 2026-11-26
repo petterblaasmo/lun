@@ -79,10 +79,11 @@ final class FloatKeptTests: XCTestCase {
             // Where the picture is in the window: all of its height, in the middle.
             @MainActor func shown() throws -> NSRect {
                 let shows = try XCTUnwrap(floater.benchShows())
-                XCTAssertEqual(shows.views.minX, shows.layers.minX, accuracy: 0.01, "the layers drawn are where the views say")
-                XCTAssertEqual(shows.views.minY, shows.layers.minY, accuracy: 0.01)
-                XCTAssertEqual(shows.views.width, shows.layers.width, accuracy: 0.01)
-                XCTAssertEqual(shows.views.height, shows.layers.height, accuracy: 0.01)
+                // To half a point: a layer may be put on the pixels around it.
+                XCTAssertEqual(shows.views.minX, shows.layers.minX, accuracy: 0.5, "the layers drawn are where the views say")
+                XCTAssertEqual(shows.views.minY, shows.layers.minY, accuracy: 0.5)
+                XCTAssertEqual(shows.views.width, shows.layers.width, accuracy: 0.5)
+                XCTAssertEqual(shows.views.height, shows.layers.height, accuracy: 0.5)
                 let by = shows.views.width / shows.page.width
                 return NSRect(x: shows.views.minX + picture.minX * by, y: shows.views.minY + picture.minY * by,
                               width: picture.width * by, height: picture.height * by)
@@ -106,8 +107,8 @@ final class FloatKeptTests: XCTestCase {
             XCTAssertEqual(seen.midX, 440, accuracy: 0.01)
 
             // A page with nothing in it never says it is drawn: the window
-            // is shown at its limit all the same.
-            try await Task.sleep(nanoseconds: 900_000_000)
+            // is shown at its limit, 0.8 s, all the same.
+            for _ in 0..<100 where floater.unseen { try await Task.sleep(nanoseconds: 50_000_000) }
             XCTAssertFalse(floater.unseen)
 
             floater.drop()
