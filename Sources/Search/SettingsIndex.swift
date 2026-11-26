@@ -124,7 +124,7 @@ enum SettingsIndex {
         "general.default", "general.import", "icloud", "downloads.folder",
         "look", "tabs.layout", "address.shown",
         "tabs.close.after",
-        "search.engine", "search.suggest", "links.little",
+        "search.engine", "search.suggest", "links.peek",
         "arc.setup", "spaces", "newtab.floating",
         "passwords.open", "passwords.save", "passwords.fill",
         "shield", "privacy.forget", "clear.history", "clear.cookies",

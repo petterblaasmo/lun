@@ -6,7 +6,7 @@ import Foundation
 // request and off unless asked for. Lun keeps the ones worth choosing and
 // fixes the rest (26 Nov 2026): no row, nothing in the find field. Most
 // are fixed at what they already did by default, their stored choice put
-// aside so the default is what is read. Twenty-four that were off unless
+// aside so the default is what is read. Twenty-three that were off unless
 // asked for are fixed on instead (`fixed`): each was a better browser than
 // the one without it, and none was worth a switch.
 //
@@ -35,6 +35,11 @@ enum RetiredSettings {
         "bookmarks.side", "arc.import", "launcher.key",
         // From before.
         "address.width", "glyph", "news.updates", "news.iphone",
+        // A link from another app opens in a tab, as in every other browser:
+        // the small window it opened in instead, on by default for a new
+        // install, was a second place for a page to be. The window itself
+        // is still there for whoever asks for it from a tab's menu.
+        "links.little",
         // Always on (see `fixed`).
         "downloads.open", "sidebar.slides", "fold.loadingLine", "sidebar.narrowIcons", "sidebar.player",
         "tabs.pinCounts", "tabs.give", "motion.light", "tabs.frontBeside", "tabs.swipeBackCloses",
@@ -54,7 +59,7 @@ enum RetiredSettings {
         ("tabs.frontBeside", true), ("tabs.swipeBackCloses", true), ("tabs.undoReopens", true),
         ("tabs.popupWindows", true), ("links.little.tabs", true), ("reader.follows", true),
         ("video.keys", true), ("pages.capture", true), ("pins.folders", true), ("field.window", true),
-        ("newtab.arc", true), ("commandbar", true), ("privacy.httpsFirst", true),
+        ("newtab.arc", true), ("commandbar", true),
         ("links.peek.stays", true), ("links.optionSplit", true), ("wheel.smooth", true), ("pages.bounce", true),
     ]
 
@@ -81,6 +86,13 @@ enum RetiredSettings {
         // move the column on its short springs, which is how it was liked.
         // Put aside like the rest, so the day it was on is undone too.
         "sidebar.slides",
+        // Fixed on for a day too, then back to off: a site with no HTTPS
+        // took five seconds or more to load, or never did, while the
+        // attempt over HTTPS ran out (info.cern.ch stayed blank through a
+        // reload). WebKit still upgrades the hosts it knows have HTTPS.
+        "privacy.httpsFirst",
+        // Links from other apps in a small window: off (see `rows`).
+        "links.little",
     ]
 
     /// What's New's switches for the same things, by the title its card
