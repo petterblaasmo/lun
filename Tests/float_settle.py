@@ -7,7 +7,9 @@ YouTube's is: put back in its tab, the page first shows the video at the
 size it had in the little window, and only later at its own. The video is
 floated and landed with the bench's `film float|land` in a hidden probe
 (both windows off every screen), by ⇧⌘P, by switching tabs and by switching
-apps. The bench records every frame the page draws and, beside it, what
+apps, the page laid out at the little window's size (`fit`), as one that
+can't keep its tab's size out there is; float_kept.py holds the page that
+can. The bench records every frame the page draws and, beside it, what
 WebKit has handed over to be drawn and when the covers are up: the video's
 frame over the little window, the page as it was left over the tab. Each
 must come off only once the page has reached the size it stays at, drawn,
@@ -57,7 +59,7 @@ def close(a, b, by=2):
 
 
 def film(action, path, seconds, via="key"):
-    sv.cmd({"do": "film", "action": action, "path": path, "seconds": seconds, "via": via})
+    sv.cmd({"do": "film", "action": action, "path": path, "seconds": seconds, "via": via, "fit": True})
     return json.loads(Path(path + ".json").read_text())
 
 

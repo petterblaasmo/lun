@@ -2562,7 +2562,7 @@ final class Bench {
             }
             if what.contains("tabs") {
                 // Its open tabs and groups, read as the sheet counts them,
-                // then brought in as Bring them in does.
+                // then brought in as Bring Over does.
                 let session = source.preview(profile: profile).session
                 let got = browser.takeSession(session, from: source, profile: profile)
                 out["tabs"] = ["found": session.found, "read": session.tabs, "groups": session.groups.count,
@@ -4042,7 +4042,8 @@ final class Bench {
                     }
                 }
                 browser.appLeft()
-            case "back": browser.appBack()
+            // A hidden probe's window is never the one in front: taken as that.
+            case "back": browser.appBack(in: browser.window)
             default: break
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + (request["wait"] as? Double ?? 0.3)) {
@@ -4185,6 +4186,48 @@ final class Bench {
             }
             let args = request["args"] as? [Double] ?? []
             switch request["action"] as? String {
+            case "shows":
+                // What of the page the window shows: whether the page kept
+                // its tab's size (Float.kept), that size, and where the whole
+                // of its view is in the window, from the top left, as the
+                // views have it and as the layers drawn do.
+                var out = state()
+                out["kept"] = browser.floater.keeps
+                out["unseen"] = browser.floater.unseen
+                if let shows = browser.floater.benchShows() {
+                    func four(_ r: NSRect) -> [Double] { [r.minX, r.minY, r.width, r.height].map { (Double($0) * 100).rounded() / 100 } }
+                    out["page"] = [Double(shows.page.width), Double(shows.page.height)]
+                    out["views"] = four(shows.views)
+                    out["layers"] = four(shows.layers)
+                }
+                answer(out)
+            case "size":
+                // The window made W wide where it is, its shape kept, as a
+                // drag at its corner leaves it.
+                guard args.count == 1, panel.frame.width > 0 else { answer(["error": "float size W"]); return }
+                let f = panel.frame
+                panel.setFrame(NSRect(x: f.minX, y: f.minY, width: args[0], height: args[0] * f.height / f.width), display: false)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { answer(state()) }
+            case "shot":
+                // The window as the window server has it, the video's own
+                // picture included, which no view draws: a PNG at "path".
+                // Asked of the system by name: the call is no longer in the
+                // SDK, and nothing else reads a window nobody can see.
+                guard let path = request["path"] as? String, !path.isEmpty else { answer(["error": "float shot PATH"]); return }
+                typealias Create = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+                guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") else {
+                    answer(["error": "this macOS has no way to read a window back"]); return
+                }
+                let create = unsafeBitCast(symbol, to: Create.self)
+                // This window alone (1 << 3), its own bounds (1 << 0), a pixel a point (1 << 4).
+                guard let image = create(.null, 1 << 3, UInt32(panel.windowNumber), 1 | (1 << 4))?.takeRetainedValue(),
+                      let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]),
+                      (try? data.write(to: URL(fileURLWithPath: path))) != nil
+                else { answer(["error": "nothing read back"]); return }
+                var out = state()
+                out["saved"] = path
+                out["pixels"] = [image.width, image.height]
+                answer(out)
             case "screens":
                 // One made-up screen, or two side by side.
                 Float.benchScreens = request["two"] as? Bool == true
@@ -4385,6 +4428,10 @@ final class Bench {
             // another app coming forward and Search again ("app"). A page the
             // bench serves itself is taken for a player's, for those two.
             let via = request["via"] as? String ?? "key"
+            // "fit": the page laid out at the little window's size, as one
+            // that can't keep its own is (see Float.kept), for the still
+            // and the late player that only that way has.
+            Float.benchFits = request["fit"] as? Bool == true
             let other = browser.tabs.first { $0.id != tab.id && !$0.isBlank && !$0.asleep }
             if via == "switch", out, other == nil { answer(["error": "film float via switch needs another tab"]); return }
             if via != "key", let host = tab.address?.host() { Players.benchHosts.insert(host) }
@@ -4538,6 +4585,9 @@ final class Bench {
                               "in": web.window === hall ? (web.alphaValue == 0 ? "held" : "tab") : web.window == nil ? "none" : "float",
                               "view": [Int(view.width), Int(view.height)], "showing": showing.map { "\(type(of: $0))" },
                               "still": browser.floater.covered ? (browser.floater.coveredByStill ? "frame" : "black") : "none",
+                              // "kept": the page at its tab's size out there;
+                              // "unseen": the little window up, not shown yet.
+                              "kept": browser.floater.keeps, "unseen": browser.floater.unseen,
                               "cover": tab.cover != nil, "drawn": drawn()])
                 guard CACurrentMediaTime() - started < seconds else { return finish(view) }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { watch() }
@@ -4608,7 +4658,7 @@ final class Bench {
                                     case "app":
                                         let away = browser.prefs.floatsAway
                                         browser.prefs.floatsAway = true
-                                        if out { browser.appLeft() } else { browser.appBack() }
+                                        if out { browser.appLeft() } else { browser.appBack(in: browser.window) }
                                         browser.prefs.floatsAway = away
                                     default: browser.toggleFloat()
                                     }
@@ -5676,6 +5726,31 @@ final class Bench {
         case "split":
             splitCommand(request, browser: browser, answer)
 
+        case "edgebar":
+            // Back, forward and the address down from the top edge with the
+            // column folded away (EdgeBar.swift), told where the pointer is
+            // as its own watch tells it: "x" and "y" from the window's top
+            // left ("pressed": with a button down), "gone" from the window,
+            // or "away" to put the card away. Answers whether the card may
+            // come, whether it is down, and where it stands.
+            guard Store.testing else { answer(["error": "edgebar only works on a --test run"]); return }
+            guard let size = (browser.window ?? Links.window)?.contentView?.bounds.size else { answer(["error": "no window"]); return }
+            if request["away"] as? Bool == true { browser.edgeBar.putAway() }
+            // Its watch is there only while it may come: nothing is told
+            // to it otherwise, here either.
+            if browser.edgeBarWanted {
+                if request["gone"] as? Bool == true { browser.edgeBar.pointer(at: nil, in: size, pressed: false) }
+                if let x = request["x"] as? Double, let y = request["y"] as? Double {
+                    browser.edgeBar.pointer(at: CGPoint(x: x, y: y), in: size, pressed: request["pressed"] as? Bool == true)
+                }
+            }
+            let frame = EdgeBar.frame(in: size)
+            DispatchQueue.main.asyncAfter(deadline: .now() + (request["wait"] as? Double ?? 0)) {
+                answer(["wanted": browser.edgeBarWanted, "shown": browser.edgeBar.shown,
+                        "frame": [Double(frame.minX), Double(frame.minY), Double(frame.width), Double(frame.height)],
+                        "window": [Double(size.width), Double(size.height)]])
+            }
+
         case "ui":
             // Open or close the app's own panels, to reproduce what a person
             // did without a person.
@@ -6290,6 +6365,7 @@ final class Bench {
             reply()
         case "swap": browser.swapSplit(); reply()
         case "even": browser.evenSplit(); reply()
+        case "scrollTogether": browser.toggleScrollTogether(); reply()
         case "closeBoth": browser.closeSplit(); reply()
         case "dismiss": browser.dismiss(); reply()
         case "side":
@@ -6382,6 +6458,7 @@ final class Bench {
                     "sizes": pair.sizes,
                     "axis": pair.axis.rawValue,
                     "focused": short(pair.focused),
+                    "together": pair.scrollsTogether,
                 ] as [String: Any]
             },
             "activeID": short(browser.activeID),

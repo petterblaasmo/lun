@@ -77,16 +77,12 @@ private struct AgentStatusFace: View {
         if session.consent.state == .allowed {
             switch style {
             case .icon:
-                Button { AgentControl.shared.stopSession() } label: {
-                    Image(systemName: "stop.circle")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Palette.muted)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .background(ClickSpot { AgentControl.shared.stopButton = $0 })
-                }
-                .buttonStyle(.plain)
-                .shortcutHelp("\(AgentWords.short(session)). Click to stop it.", "file.stopAgent")
+                // The column's other small buttons: lit under the pointer,
+                // giving under the press. It was a bare symbol.
+                IconButton("stop.circle", label: "Stop \(session.client)", glyph: 13, weight: .regular, size: 28, hit: 28,
+                           wash: greys.hover, tip: "") { AgentControl.shared.stopSession() }
+                    .background(ClickSpot { AgentControl.shared.stopButton = $0 })
+                    .shortcutHelp("\(AgentWords.short(session)). Click to stop it.", "file.stopAgent")
             case .row: card
             case .door: pill
             }
@@ -110,7 +106,7 @@ private struct AgentStatusFace: View {
     private var always: some View {
         Text("Always allowed")
             .font(.system(size: 12, weight: session.justAdmitted ? .medium : .regular))
-            .foregroundStyle(session.justAdmitted ? Palette.ink : Palette.muted.opacity(0.8))
+            .foregroundStyle(session.justAdmitted ? Palette.ink : Palette.muted)
             .lineLimit(1)
     }
 
@@ -134,14 +130,14 @@ private struct AgentStatusFace: View {
         .frame(height: AgentStatus.cardHeight(row: prefs.sideRow, auto: session.auto))
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(hovering ? greys.hover : .clear)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .strokeBorder(Palette.hairline, lineWidth: 1)
         )
-        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .onHover { hovering = $0 }
         .help(AgentWords.short(session) + ". Stop disconnects it; its tabs stay.")
         .animation(Motion.quick, value: hovering)
@@ -153,7 +149,7 @@ private struct AgentStatusFace: View {
                 .font(.system(size: prefs.sideTitle))
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .foregroundStyle(hovering ? Palette.ink.opacity(0.7) : Palette.muted)
+                .foregroundStyle(hovering ? Palette.ink : Palette.muted)
             if session.auto { always }
         }
     }
@@ -165,7 +161,7 @@ private struct AgentStatusFace: View {
             Text(session.client)
                 .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
-                .foregroundStyle(hovering ? Palette.ink : Palette.ink.opacity(0.75))
+                .foregroundStyle(hovering ? Palette.ink : Palette.soft)
             if session.auto {
                 Text("·").font(.system(size: 12)).foregroundStyle(Palette.muted)
                 always
@@ -271,15 +267,14 @@ private struct AgentQuestion: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            // Ticked only by a fresh click on it, as Allow is pressed.
-            Toggle("Let it see my open tabs", isOn: Binding(
+            // Ticked only by a fresh click on it, as Allow is pressed. The
+            // spot is as tall as the box is to land on (Ticked), so every
+            // click it gives under is one on the box.
+            Ticked("Let it see my open tabs", on: Binding(
                 get: { session.wantsTabs },
                 set: { _ in AgentControl.shared.toggleTabs(event: NSApp.currentEvent) }))
-                .toggleStyle(.checkbox)
-                .background(ClickSpot { AgentControl.shared.tabsBox = $0 })
-                .font(.system(size: 12))
-                .foregroundStyle(Palette.ink)
-                .padding(.leading, 23)
+                .background(ClickSpot { AgentControl.shared.tabsBox = $0 }.padding(.vertical, -Self.reach))
+                .modifier(Kept())
             // Offered only for a program its signature names (AgentTrust);
             // otherwise, why not.
             if let why = session.noAlways {
@@ -289,44 +284,41 @@ private struct AgentQuestion: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, 23)
             } else {
-                Toggle("Always allow \(session.client)", isOn: Binding(
+                Ticked("Always allow \(session.client)", on: Binding(
                     get: { session.wantsAlways },
                     set: { _ in AgentControl.shared.toggleAlways(event: NSApp.currentEvent) }))
-                    .toggleStyle(.checkbox)
-                    .background(ClickSpot { AgentControl.shared.alwaysBox = $0 })
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.ink)
-                    .padding(.leading, 23)
+                    .background(ClickSpot { AgentControl.shared.alwaysBox = $0 }.padding(.vertical, -Self.reach))
+                    .modifier(Kept())
                     .help(alwaysHelp)
             }
-            HStack(spacing: 12) {
+            // The two pills every other question has: the refusal was bare
+            // words, with nothing under the pointer or the press.
+            HStack(spacing: 8) {
                 Spacer(minLength: 8)
-                Button { AgentControl.shared.answer(allow: false, event: NSApp.currentEvent) } label: {
-                    Text("Don't Allow")
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .contentShape(Rectangle())
-                        .background(ClickSpot { AgentControl.shared.refuseButton = $0 })
-                }
-                Button { AgentControl.shared.answer(allow: true, event: NSApp.currentEvent) } label: {
-                    Text("Allow")
-                        .foregroundStyle(Palette.ground)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Palette.ink, in: Capsule())
-                        .background(ClickSpot { AgentControl.shared.allowButton = $0 })
-                }
+                Pill("Don't Allow", large: true) { AgentControl.shared.answer(allow: false, event: NSApp.currentEvent) }
+                    .background(ClickSpot { AgentControl.shared.refuseButton = $0 })
+                Pill("Allow", filled: true, large: true) { AgentControl.shared.answer(allow: true, event: NSApp.currentEvent) }
+                    .background(ClickSpot { AgentControl.shared.allowButton = $0 })
             }
-            .font(.system(size: 12))
-            .foregroundStyle(Palette.ink)
-            .buttonStyle(.plain)
         }
         .frame(maxWidth: 420, alignment: .leading)
         .padding(16)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.12), radius: 20, y: 6)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
         .padding(.horizontal, 16)
+    }
+
+    /// How far past its box a tick takes a click, over and under (Ticked).
+    private static let reach: CGFloat = 4
+
+    /// A box under the question's words, kept inside the card: the name in
+    /// it is the agent's own word for itself, and may be long.
+    private struct Kept: ViewModifier {
+        func body(content: Content) -> some View {
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .clipped()
+                .padding(.leading, 23)
+        }
     }
 
     private var alwaysHelp: String {

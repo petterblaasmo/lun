@@ -730,6 +730,9 @@ struct SideChoice: View {
     let title: String
     var icon: NSImage?
     var globe = false
+    /// A sign in front of the words, where there is no icon: a warning's.
+    var symbol: String?
+    var symbolTint: Color = Palette.muted
     let count: Int?
     let on: Bool
     let act: () -> Void
@@ -740,6 +743,13 @@ struct SideChoice: View {
         Button(action: act) {
             HStack(spacing: 8) {
                 if globe || icon != nil { Mark(icon: icon, letter: "", size: 16, globe: true) }
+                if let symbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(symbolTint)
+                        .frame(width: 16)
+                        .accessibilityHidden(true)
+                }
                 Text(title)
                     .font(.system(size: 13, weight: on ? .medium : .regular))
                     .foregroundStyle(on || hovering ? Palette.ink : Palette.muted)

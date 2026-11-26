@@ -647,6 +647,13 @@ final class Tab: ObservableObject, Identifiable {
     @Published private(set) var zoom: CGFloat = 1
 
     var onZoom: ((Tab, CGFloat) -> Void)?
+    /// The page went up or down by this much under your hand, or by itself:
+    /// never as the page beside it in a split took it along (see
+    /// Browser.scrollTogether).
+    var onScrollBy: ((Tab, Double) -> Void)?
+    /// Where the page last said it was scrolled to; nil until this
+    /// document's first word.
+    private var lastScroll: Double?
     /// The resolved address under the pointer, or nil when it leaves a link.
     var onLink: ((Tab, String?) -> Void)?
     /// The page took the keys (see PageView.onKeys).
@@ -716,9 +723,10 @@ final class Tab: ObservableObject, Identifiable {
     /// download it and then, on at least some sites, does neither — see
     /// ImageMenu.swift for why this is built rather than patched.
     var onImageMenu: ((Tab, URL) -> Void)?
-    /// WebKit's Copy Image (true) or Download Image (false) chosen over a
-    /// picture that is also a link, done as the image menu does them.
-    var onImageItem: ((Tab, URL, Bool) -> Void)?
+    /// WebKit's Copy Image or Download Image, or Add Image to Photos beside
+    /// them, chosen over a picture that is also a link: done as the image
+    /// menu does them.
+    var onImageItem: ((Tab, URL, ImageAction) -> Void)?
     /// Where the last image right-clicked came from (see ImageMenu.swift).
     var imageFrame: WKFrameInfo? { images.frame }
     var searchName: (() -> String?)?
@@ -876,6 +884,12 @@ final class Tab: ObservableObject, Identifiable {
     /// what you were just reading is what you are most likely to want back.
     /// Written into the session, so a tab's time away counts across quits.
     private(set) var touched = Date()
+    /// The document a look for sleep last found something typed in and not
+    /// sent (Browser.sleep). A page is only asked as it is about to be let
+    /// go, so this is what the tab's menu has to say why it stayed awake.
+    var typedIn: UInt64?
+    /// Whether that look was at the page the tab still shows.
+    var holdsTyped: Bool { built != nil && typedIn == documentGeneration }
     /// When it was last let go of: unpinned, taken out of its group, its
     /// name taken away. Kept apart from `touched`, which says when you last
     /// looked, for ⌃Tab and for where ⌘W on a pin lands; letting go of a
@@ -1035,9 +1049,9 @@ final class Tab: ObservableObject, Identifiable {
         web.searchName = { [weak self] in self?.searchName?() }
         web.translating = { [weak self] in self.map { $0.translator != nil && $0.translation?.failed != true } ?? false }
         web.onTranslate = { [weak self] in self?.toggleTranslation() }
-        web.onImage = { [weak self] url, copy in
+        web.onImage = { [weak self] url, action in
             guard let self else { return }
-            self.onImageItem?(self, url, copy)
+            self.onImageItem?(self, url, action)
         }
         web.onSearch = { [weak self] text in
             guard let self else { return }
@@ -1607,7 +1621,13 @@ final class Tab: ObservableObject, Identifiable {
 
     /// Called from the page, a few dozen times a second at most — the script
     /// already waits for a frame before it says anything.
-    func scrolled(to y: Double, of ceiling: Double, screens: Double? = nil) {
+    func scrolled(to y: Double, of ceiling: Double, screens: Double? = nil,
+                  first: Bool = false, echo: Bool = false) {
+        // A new document's first word is where it starts, not a move, nor
+        // is any before a hand has been on it (ScrollRelay.script); an echo
+        // is a move the page beside it made here.
+        if let step = Tab.step(from: lastScroll, to: y, first: first, echo: echo) { onScrollBy?(self, step) }
+        lastScroll = y
         if let screens { self.screens = (max(1, screens) * 10).rounded() / 10 }
         // In hundredths, and only when that changes. The page reports once a
         // frame while it scrolls — 120 times a second on a 120 Hz screen — and
@@ -1615,6 +1635,14 @@ final class Tab: ObservableObject, Identifiable {
         // core on the thread WebKit needs to put the scrolled page on screen.
         let fraction = ceiling > 0 ? (min(1, max(0, y / ceiling)) * 100).rounded() / 100 : 0
         if fraction != reading { reading = fraction }
+    }
+
+    /// How far a page's word of its scroll says it went by its own: nothing
+    /// for a document's first word, for an echo of Scroll Together, or for a
+    /// word that says it stayed where it was.
+    nonisolated static func step(from last: Double?, to y: Double, first: Bool, echo: Bool) -> Double? {
+        guard !first, !echo, let last, y.isFinite, y != last else { return nil }
+        return y - last
     }
 
     /// `batch`: one of many pages asked for together (a folder of bookmarks
@@ -2271,6 +2299,7 @@ final class Tab: ObservableObject, Identifiable {
     /// whatever the page left behind — timers, video, sockets.
     func close() {
         onZoom = nil
+        onScrollBy = nil
         onLink = nil
         onPick = nil
         onPickEnd = nil
@@ -2754,13 +2783,7 @@ final class PageView: WKWebView {
         // does. Told of the picture just before this menu, for this menu only.
         if let image = keptImage {
             keptImage = nil
-            for (id, action) in [("WKMenuItemIdentifierCopyImage", #selector(copyImage(_:))),
-                                 ("WKMenuItemIdentifierDownloadImage", #selector(downloadImage(_:)))] {
-                guard let item = menu.items.first(where: { $0.identifier?.rawValue == id }) else { continue }
-                item.target = self
-                item.action = action
-                item.representedObject = image
-            }
+            PageView.dress(menu, for: image, target: self)
         }
         // The bench's linkmenu: the item it names is chosen as the menu
         // comes up, the way a hand would choose it, and the menu goes.
@@ -2899,15 +2922,40 @@ final class PageView: WKWebView {
     /// The picture under the right-click, when this menu is WebKit's over
     /// one (see ImageRelay), or nil.
     var keptImage: URL?
-    /// Copy Image (true) or Download Image (false), this app's own.
-    var onImage: ((URL, Bool) -> Void)?
+    /// Copy Image, Download Image or Add Image to Photos, this app's own.
+    var onImage: ((URL, ImageAction) -> Void)?
 
     @objc private func copyImage(_ item: NSMenuItem) {
-        if let url = item.representedObject as? URL { onImage?(url, true) }
+        if let url = item.representedObject as? URL { onImage?(url, .copy) }
     }
 
     @objc private func downloadImage(_ item: NSMenuItem) {
-        if let url = item.representedObject as? URL { onImage?(url, false) }
+        if let url = item.representedObject as? URL { onImage?(url, .download) }
+    }
+
+    @objc private func addImageToPhotos(_ item: NSMenuItem) {
+        if let url = item.representedObject as? URL { onImage?(url, .photos) }
+    }
+
+    /// WebKit's menu over the picture at `image`: its Copy Image and
+    /// Download Image sent to `target` to be done this app's way, and Add
+    /// Image to Photos put under Download Image, as this app's own picture
+    /// menu has it. A menu with no Download Image is none for a picture,
+    /// and gets no Photos either.
+    static func dress(_ menu: NSMenu, for image: URL, target: PageView) {
+        for (id, action) in [("WKMenuItemIdentifierCopyImage", #selector(copyImage(_:))),
+                             ("WKMenuItemIdentifierDownloadImage", #selector(downloadImage(_:)))] {
+            guard let item = menu.items.first(where: { $0.identifier?.rawValue == id }) else { continue }
+            item.target = target
+            item.action = action
+            item.representedObject = image
+        }
+        guard let at = menu.items.firstIndex(where: { $0.identifier?.rawValue == "WKMenuItemIdentifierDownloadImage" }) else { return }
+        let photos = NSMenuItem(title: Browser.addToPhotosTitle, action: #selector(addImageToPhotos(_:)), keyEquivalent: "")
+        photos.identifier = NSUserInterfaceItemIdentifier("SearchAddImageToPhotos")
+        photos.target = target
+        photos.representedObject = image
+        menu.insertItem(photos, at: at + 1)
     }
 
     /// Open Link in Split View: the same action, the tab it makes marked to
@@ -3852,27 +3900,69 @@ final class ScrollRelay: NSObject, WKScriptMessageHandler {
               let ceiling = body["max"] as? Double
         else { return }
         let screens = body["screens"] as? Double
-        MainActor.assumeIsolated { tab?.scrolled(to: y, of: ceiling, screens: screens) }
+        let first = body["first"] as? Bool ?? false
+        let echo = body["echo"] as? Bool ?? false
+        MainActor.assumeIsolated { tab?.scrolled(to: y, of: ceiling, screens: screens, first: first, echo: echo) }
     }
+
+    /// Run in a page that follows the one beside it (Browser.scrollTogether):
+    /// down by `dy` at once, whatever the page's own scroll-behavior, and
+    /// marked where that left it, for the page's next word to be known as
+    /// an echo. Not marked when it could go no further: nothing will be
+    /// said of a scroll that didn't happen, and a mark left standing would
+    /// swallow your own next one that ended there.
+    static func follow(by dy: Double) -> String {
+        """
+        (function () {
+          var was = window.scrollY;
+          window.scrollBy({ top: \(dy), left: 0, behavior: 'instant' });
+          if (window.scrollY !== was) window.\(mark) = window.scrollY;
+        })(); 0
+        """
+    }
+
+    /// Where Scroll Together last put a page, kept on its window in
+    /// Search's own world, out of the page's sight.
+    static let mark = "__officeTogether"
 
     /// Reports at most once a frame, and passively, so a page that scrolls
     /// smoothly without us keeps scrolling smoothly with us.
     static let script = """
     (function () {
       var waiting = false;
-      function tell() {
+      // Whether a hand has been on this document: a wheel, a key, a press.
+      // Until one has, what moves it is the page settling in — its place
+      // put back after a reload or Back, a #place gone to, its own script —
+      // and its word of that says where it is, not that it was moved (see
+      // Tab.step). Asked only until the first.
+      var hand = false;
+      var hands = ['wheel', 'keydown', 'mousedown', 'touchstart'];
+      function touched() {
+        hand = true;
+        hands.forEach(function (kind) { window.removeEventListener(kind, touched, true); });
+      }
+      hands.forEach(function (kind) { window.addEventListener(kind, touched, { capture: true, passive: true }); });
+      function tell(first) {
         var root = document.documentElement;
         var y = window.scrollY || root.scrollTop || 0;
         var ceiling = Math.max(1, (root.scrollHeight || 0) - window.innerHeight);
         var screens = (root.scrollHeight || 0) / Math.max(1, window.innerHeight);
-        window.webkit.messageHandlers.\(name).postMessage({ y: y, max: ceiling, screens: screens });
+        // Where Scroll Together last put this page (see follow): still
+        // there, this scroll was that one, not yours.
+        var put = window.\(mark);
+        window.\(mark) = null;
+        var echo = put != null && Math.abs(y - put) < 1;
+        window.webkit.messageHandlers.\(name).postMessage({ y: y, max: ceiling, screens: screens,
+                                                             first: !!first || !hand, echo: echo });
       }
       window.addEventListener('scroll', function () {
         if (waiting) return;
         waiting = true;
-        requestAnimationFrame(function () { waiting = false; tell(); });
+        requestAnimationFrame(function () { waiting = false; tell(false); });
       }, { passive: true });
-      tell();
+      // Back from the back-forward cache, the page starts over where it is.
+      window.addEventListener('pageshow', function (e) { if (e.persisted) tell(true); });
+      tell(true);
     })();
     """
 }

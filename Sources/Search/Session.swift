@@ -63,6 +63,9 @@ enum Session {
         var sizes: [Double]
         /// The page last focused, by its place in `tabs`.
         var focused: Int?
+        /// Scroll Together on (TabSplit.scrollsTogether): absent when off,
+        /// and from files written before there was one.
+        var together: Bool?
     }
 
     /// The first space's is the session there always was; each other space
@@ -187,7 +190,7 @@ extension Session.Shape {
 }
 
 extension Session.Split {
-    private enum Keys: String, CodingKey { case tabs, axis, sizes, focused, left, right, fraction }
+    private enum Keys: String, CodingKey { case tabs, axis, sizes, focused, together, left, right, fraction }
 
     /// Leniently: an axis this version doesn't know is drawn side by side,
     /// and the first shape Split View was written in on main — a left, a
@@ -206,6 +209,7 @@ extension Session.Split {
         }
         axis = (try? c.decodeIfPresent(TabSplit.Axis.self, forKey: .axis)) ?? .horizontal
         focused = try? c.decodeIfPresent(Int.self, forKey: .focused)
+        together = try? c.decodeIfPresent(Bool.self, forKey: .together)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -214,5 +218,6 @@ extension Session.Split {
         try c.encode(axis, forKey: .axis)
         try c.encode(sizes, forKey: .sizes)
         try c.encodeIfPresent(focused, forKey: .focused)
+        try c.encodeIfPresent(together, forKey: .together)
     }
 }

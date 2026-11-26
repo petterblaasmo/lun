@@ -34,15 +34,31 @@ final class DesignTokensTests: XCTestCase {
         return found.sorted()
     }
 
-    /// What floats takes an elevation. The few shadows left are not cards:
-    /// the column sliding out (Fold), a sticker's own (HomeStickers), the
-    /// unread badge, the switch's knob; and three kept as they are for now:
-    /// the downloads card and the tab offers, whose windows leave their
-    /// shadow just the room it has, and the agent's question.
+    /// How many lines match in each file that has any, comments left out.
+    private func counts(matching pattern: String) throws -> [String: Int] {
+        Dictionary(try lines(matching: pattern).map { (String($0.split(separator: ":")[0]), 1) }, uniquingKeysWith: +)
+    }
+
+    /// What floats takes an elevation. The shadows left are each named
+    /// here with why, and how many its file has: one more in any of them
+    /// fails as one in a new file does. The three a window is too small
+    /// for, or too small themselves, say so where they are drawn.
     func testAShadowIsAnElevation() throws {
-        let kept: Set<String> = ["Fold.swift", "HomeStickers.swift", "UnreadBadge.swift", "Settings.swift",
-                                 "DownloadsFloat.swift", "TabOffers.swift", "AgentBanner.swift"]
-        XCTAssertEqual(try lines(matching: #"\.shadow\("#, except: kept), [], "Use .elevated(…) or .carriedShadow(…), or add an elevation")
+        let own: [String: (shadows: Int, why: String)] = [
+            "Fold.swift": (2, "the column slid out over the page: a side's shadow, not a card's, cast one way"),
+            "HomeStickers.swift": (1, "a sticker's die-cut edge, a filter inside its own drawing"),
+            "UnreadBadge.swift": (1, "the unread badge: a point of shadow to lift it off an icon"),
+            "Settings.swift": (1, "the switch's knob: an elevation's hairline is a pale rim round it in the dark"),
+            "DownloadsFloat.swift": (1, "the downloads card: its window is 24 points larger, less than .float needs"),
+            "TabOffers.swift": (1, "the tab offers: their window is 8 points larger, less than .float needs"),
+        ]
+        let found = try counts(matching: #"\.shadow\("#)
+        for (file, count) in found.sorted(by: { $0.key < $1.key }) {
+            XCTAssertEqual(count, own[file]?.shadows ?? 0, "\(file): use .elevated(…) or .carriedShadow(…), or name it here with why")
+        }
+        for (file, kept) in own where found[file] == nil {
+            XCTFail("\(file) has no shadow of its own any more (\(kept.why)): take it off this list")
+        }
     }
 
     func testRedIsThePalettes() throws {
@@ -51,15 +67,53 @@ final class DesignTokensTests: XCTestCase {
     }
 
     func testTheRingAndTheButtonsGreyAreThePalettes() throws {
-        XCTAssertEqual(try lines(matching: #"Palette\.ink\.opacity\(0\.35\)|Palette\.ink\.opacity\(0\.07\)|Palette\.ink\.opacity\(0\.16\)"#,
-                                 except: ["AgentBanner.swift"]), [],
+        XCTAssertEqual(try lines(matching: #"Palette\.ink\.opacity\(0\.35\)|Palette\.ink\.opacity\(0\.07\)|Palette\.ink\.opacity\(0\.16\)"#), [],
                        "Palette.ring, Palette.fill or Palette.drop")
+    }
+
+    /// Ink a step back is Palette.soft, and under the pointer a title is
+    /// ink itself: neither is ink at 0.7 or 0.75 typed by hand. Two are
+    /// still typed, in files that other pull requests were rewriting when
+    /// the name was given; each is one word to change once they are in.
+    func testInkAStepBackIsThePalettes() throws {
+        let waiting: Set<String> = ["SplitView.swift", "BookmarksBar.swift"]
+        XCTAssertEqual(try lines(matching: #"Palette\.ink\.opacity\(0\.75?\)"#, except: waiting), [], "Palette.soft, or Palette.ink under the pointer")
+        let left = try counts(matching: #"Palette\.ink\.opacity\(0\.75?\)"#)
+        for file in waiting {
+            XCTAssertLessThanOrEqual(left[file] ?? 0, 1, "\(file): no more than the one that was there")
+        }
+    }
+
+    /// The Mac's accent colour says one of a few things, and nothing else
+    /// wears it: these are the places, each a state and not a decoration.
+    /// A new use is a decision; it goes here with what it says.
+    func testTheAccentColourSaysAState() throws {
+        let says: [String: (uses: Int, what: String)] = [
+            "AddressLine.swift": (1, "the address field has the keys"),
+            "SpaceSwipe.swift": (1, "a space's name field has the keys"),
+            "PinFolderViews.swift": (1, "where a carried pin would land"),
+            "Fold.swift": (1, "a page is loading, with the column folded away"),
+            "AgentBanner.swift": (2, "a coding agent is working: on its card, and on its tab"),
+            "Snap.swift": (1, "the part of a page being captured"),
+            "MeCard.swift": (1, "a box just filled in from your card"),
+            "SiteCard.swift": (1, "the line of a menu under the pointer, as the Mac's own menus have it"),
+        ]
+        let found = try counts(matching: #"accentColor|controlAccentColor"#)
+        XCTAssertEqual(found, says.mapValues(\.uses), "The accent colour is for a state: see what each of these says")
     }
 
     /// 7 and 11 were nobody's corner: a control's is 6, a row's 8, a
     /// card's or a field's 10.
     func testNoCornerIsBetweenTheHouses() throws {
-        XCTAssertEqual(try lines(matching: #"cornerRadius: (7|11)\b"#, except: ["AgentBanner.swift"]), [])
+        XCTAssertEqual(try lines(matching: #"cornerRadius: (7|11)\b"#), [])
+    }
+
+    /// The corners that were typed and are named now: what floats from a
+    /// field has the float's 14 (the launcher, the space chooser, the tab
+    /// offers), the field in the middle of the window its own 20, and a
+    /// ring three points out from a field is the field's corner and three.
+    func testTheLargerCornersAreNamed() throws {
+        XCTAssertEqual(try lines(matching: #"cornerRadius: (13|14|18|20)\b"#), [], "Radius.float, Radius.middle, or Radius.card + 3 for a ring")
     }
 
     func testTheCornersGrowWithWhatTheyRound() {
@@ -67,6 +121,7 @@ final class DesignTokensTests: XCTestCase {
         XCTAssertLessThan(Radius.row, Radius.card)
         XCTAssertLessThan(Radius.card, Radius.float)
         XCTAssertLessThan(Radius.float, Radius.panel)
+        XCTAssertLessThan(Radius.panel, Radius.middle)
         XCTAssertEqual(Radius.card, Metrics.cardRadius, "A card of rows and the page's card are one corner")
     }
 

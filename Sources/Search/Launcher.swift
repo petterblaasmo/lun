@@ -558,6 +558,7 @@ private struct LauncherView: View {
             }
         }
         .padding(6)
+        // Floating, as the field over it is, for the same reason (LauncherPanel.margin).
         .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
         .transition(.card(from: .top))
     }

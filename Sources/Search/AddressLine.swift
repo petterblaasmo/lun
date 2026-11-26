@@ -348,7 +348,8 @@ struct AddressCard: View {
         .elevated(.float, in: RoundedRectangle(cornerRadius: untouched ? 10 : 16, style: .continuous))
         .overlay {
             if untouched {
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                // Three points out from the field, so three rounder (Radius).
+                RoundedRectangle(cornerRadius: Radius.card + 3, style: .continuous)
                     .strokeBorder(Color(nsColor: .controlAccentColor), lineWidth: 2)
                     .padding(-3)
                     .allowsHitTesting(false)
