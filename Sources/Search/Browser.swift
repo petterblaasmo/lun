@@ -414,6 +414,9 @@ final class Browser: NSObject, ObservableObject {
     /// When the folded column last put back in is off the page: the end of
     /// its slide, on the system's uptime clock.
     var columnGoneAt: TimeInterval = 0
+    /// Back, forward and the address down from the top edge while the
+    /// column is folded away (EdgeBar.swift).
+    let edgeBar = EdgeBarState()
     /// ⌘S on its way to folding the column: the page already has the room,
     /// the column has not moved yet (see Browser.toggleFold).
     @Published var foldingAway = false
