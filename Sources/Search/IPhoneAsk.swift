@@ -146,19 +146,9 @@ struct IPhoneAskLine: View {
     /// "Get the beta · Not now".
     private var choices: some View {
         HStack(spacing: 6) {
-                        Button { asking = true } label: {
-                            Text(IPhoneAsk.action).underline()
-                        }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(Palette.ink)
+                        TextLink(IPhoneAsk.action, tint: Palette.ink, underlined: true) { asking = true }
                         Text(verbatim: "·").font(.system(size: 12)).foregroundStyle(Palette.muted)
-                        Button { IPhoneAsk.dismiss() } label: {
-                            Text(IPhoneAsk.notNow)
-                        }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(Palette.muted)
+                        TextLink(IPhoneAsk.notNow) { IPhoneAsk.dismiss() }
         }
         .lineLimit(1)
         .fixedSize()

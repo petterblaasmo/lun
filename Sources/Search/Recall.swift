@@ -302,22 +302,24 @@ struct HistoryPanel: View {
         @State private var hovering = false
 
         var body: some View {
-            HStack(spacing: 10) {
-                Mark(icon: Favicons.shared.cached(for: trace.url), letter: "", size: 16, globe: true)
-                Text(trace.title.isEmpty ? Address.withoutWWW(trace.address) : trace.title)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Palette.ink)
-                    .lineLimit(1)
-                    .layoutPriority(1)
-                Text(Address.withoutWWW(trace.address))
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.muted)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer(minLength: 8)
-                if hovering {
-                    Quick("Remove", tint: .red.opacity(0.75), act: forget)
-                } else {
+            // The row is the button that opens the visit; forgetting it is
+            // a cross at its end, beside the count and the time and not in
+            // their place: a red Remove stood where they had been as soon
+            // as the pointer came.
+            RowButton(hovering: $hovering, action: go) {
+                HStack(spacing: 10) {
+                    Mark(icon: Favicons.shared.cached(for: trace.url), letter: "", size: 16, globe: true)
+                    Text(trace.title.isEmpty ? Address.withoutWWW(trace.address) : trace.title)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.ink)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                    Text(Address.withoutWWW(trace.address))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 8)
                     if trace.count > 1 {
                         Text("\(trace.count) visits")
                             .font(.system(size: 12))
@@ -333,14 +335,16 @@ struct HistoryPanel: View {
                         .monospacedDigit()
                         .fixedSize()
                 }
+                .padding(.leading, 14)
+                .frame(height: 36)
+            } trailing: {
+                // Its room is kept while it is out of sight, so the time
+                // doesn't step aside for it.
+                IconButton("xmark", label: "Remove from History", glyph: 9, weight: .semibold, size: 22, action: forget)
+                    .opacity(hovering ? 1 : 0)
+                    .padding(.leading, 4)
+                    .padding(.trailing, 8)
             }
-            .padding(.horizontal, 14)
-            .frame(height: 36)
-            .background(hovering ? Palette.fillHover : .clear)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: go)
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
         }
     }
 }
@@ -535,6 +539,7 @@ struct DownloadsPanel: View {
         let keep: Keep
         let open: () -> Void
         @State private var image: NSImage?
+        @State private var hovering = false
 
         var body: some View {
             Button(action: open) {
@@ -549,13 +554,20 @@ struct DownloadsPanel: View {
                     }
                     .frame(width: 150, height: 96)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    // Under the pointer the picture gets an edge: nothing
+                    // said it was a button.
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Palette.ink.opacity(hovering ? 0.35 : 0), lineWidth: 1)
+                    )
                     FadingLine(text: keep.name).font(.system(size: 12)).foregroundStyle(Palette.ink)
                     Text(When.day(keep.date)).font(.system(size: 12)).foregroundStyle(Palette.muted)
                 }
                 .frame(width: 150, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(Gives())
+            .hovers($hovering)
             .modifier(DragOut(keep: keep))
             .task(id: keep.path) {
                 let url = keep.url
@@ -835,57 +847,65 @@ struct DownloadsPanel: View {
         }
 
         var body: some View {
-            HStack(spacing: 12) {
-                Text((keep.name as NSString).pathExtension.prefix(4).uppercased())
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(Palette.muted)
-                    .frame(width: 26, height: 32)
-                    .elevated(.lift, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-                    .opacity(keep.stillThere ? 1 : 0.5)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(keep.name)
-                        .font(.system(size: 13))
-                        .foregroundStyle(keep.stillThere ? Palette.ink : Palette.muted)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    if !keep.stillThere {
-                        Text("Moved or deleted").font(.system(size: 12)).foregroundStyle(Palette.muted)
-                    } else if !wide {
-                        Text(keep.from.isEmpty ? When.said(keep.date) : "\(keep.from) · \(When.said(keep.date))")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Palette.muted)
+            // The row is the button that opens the file, where there still
+            // is one; Show in Finder and Remove stand beside it. One whose
+            // file has gone can only be removed, and doesn't light as if it
+            // opened.
+            RowButton(hovering: $hovering, works: keep.stillThere, action: open) {
+                HStack(spacing: 12) {
+                    Text((keep.name as NSString).pathExtension.prefix(4).uppercased())
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(Palette.muted)
+                        .frame(width: 26, height: 32)
+                        .elevated(.lift, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                        .opacity(keep.stillThere ? 1 : 0.5)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(keep.name)
+                            .font(.system(size: 13))
+                            .foregroundStyle(keep.stillThere ? Palette.ink : Palette.muted)
                             .lineLimit(1)
+                            .truncationMode(.middle)
+                        if !keep.stillThere {
+                            Text("Moved or deleted").font(.system(size: 12)).foregroundStyle(Palette.muted)
+                        } else if !wide {
+                            Text(keep.from.isEmpty ? When.said(keep.date) : "\(keep.from) · \(When.said(keep.date))")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Palette.muted)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    if wide && !hovering {
+                        HStack(spacing: 8) {
+                            if !keep.from.isEmpty { SiteMark(host: keep.from, size: 14) }
+                            Text(keep.from).lineLimit(1).truncationMode(.middle)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(width: Self.from)
+                        Text(bytes).monospacedDigit().frame(width: Self.size, alignment: .trailing)
+                        Text(Calendar.current.isDateInToday(keep.date) ? When.clock(keep.date) : When.day(keep.date))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .frame(width: Self.added, alignment: .trailing)
                     }
                 }
-                Spacer(minLength: 8)
+                .padding(.leading, 14)
+                .padding(.trailing, hovering ? 0 : 14)
+                .frame(minHeight: 46)
+            } trailing: {
                 if hovering {
-                    if keep.stillThere { Quick("Show in Finder", act: reveal) }
-                    Quick("Remove", tint: .red.opacity(0.75), act: forget)
-                } else if wide {
-                    HStack(spacing: 8) {
-                        if !keep.from.isEmpty { SiteMark(host: keep.from, size: 14) }
-                        Text(keep.from).lineLimit(1).truncationMode(.middle)
-                        Spacer(minLength: 0)
+                    HStack(spacing: 12) {
+                        if keep.stillThere { Quick("Show in Finder", act: reveal) }
+                        Quick("Remove", tint: .red.opacity(0.75), act: forget)
                     }
-                    .frame(width: Self.from)
-                    Text(bytes).monospacedDigit().frame(width: Self.size, alignment: .trailing)
-                    Text(Calendar.current.isDateInToday(keep.date) ? When.clock(keep.date) : When.day(keep.date))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .frame(width: Self.added, alignment: .trailing)
+                    .padding(.leading, 12)
+                    .padding(.trailing, 14)
                 }
             }
             .font(.system(size: 12))
             .foregroundStyle(Palette.muted)
-            .padding(.horizontal, 14)
-            .frame(minHeight: 46)
-            .background(hovering ? Palette.fillHover : .clear)
-            .contentShape(Rectangle())
             .contextMenu { if let address = keep.address { CopyAddress(address: address) } }
             .modifier(DragOut(keep: keep))
-            .onTapGesture { if keep.stillThere { open() } }
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
         }
     }
 

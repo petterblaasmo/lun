@@ -827,6 +827,7 @@ struct SiteCard: View {
             }
             .padding(.horizontal, 12)
             .frame(height: 40)
+            .turnsItsSwitch(title)
         }
     }
 

@@ -259,7 +259,8 @@ struct TabBar: View {
                                     .fill(plussed ? Palette.hover : .clear)
                             )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(Gives(to: 0.88, dims: false))
+                    .accessibilityLabel("New Tab")
                     .shortcutHelp("New Tab", "file.newTab")
                     .hovers($plussed)
                     .padding(.leading, stands ? 4 : 0)

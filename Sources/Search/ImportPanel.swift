@@ -644,27 +644,23 @@ struct ImportPanel: View {
         let can: String
         let chosen: Bool
         let pick: () -> Void
-        @State private var hovering = false
 
         var body: some View {
-            HStack(spacing: 12) {
-                Circle()
-                    .strokeBorder(chosen ? Palette.ink : Palette.faint, lineWidth: chosen ? 4.5 : 1.2)
-                    .frame(width: 14, height: 14)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name).font(.system(size: 13)).foregroundStyle(Palette.ink)
-                    Text(detail).font(.system(size: 12)).foregroundStyle(Palette.muted).monospacedDigit()
-                    Text(can).font(.system(size: 12)).foregroundStyle(Palette.muted)
+            RowButton(selected: chosen, action: pick) {
+                HStack(spacing: 12) {
+                    Circle()
+                        .strokeBorder(chosen ? Palette.ink : Palette.faint, lineWidth: chosen ? 4.5 : 1.2)
+                        .frame(width: 14, height: 14)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(name).font(.system(size: 13)).foregroundStyle(Palette.ink)
+                        Text(detail).font(.system(size: 12)).foregroundStyle(Palette.muted).monospacedDigit()
+                        Text(can).font(.system(size: 12)).foregroundStyle(Palette.muted)
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(hovering ? Palette.fillHover : .clear)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: pick)
-            .onHover { hovering = $0 }
-            .animation(Motion.quick, value: hovering)
         }
     }
 }
