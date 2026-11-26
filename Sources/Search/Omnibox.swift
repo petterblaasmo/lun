@@ -450,7 +450,7 @@ private struct SiteOfferRow: View {
         .background {
             if hovering { RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Palette.hover) }
         }
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Search \(site.name), press Tab")
     }

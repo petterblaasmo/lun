@@ -152,7 +152,7 @@ struct BookmarksBar: View {
                 .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hovering ? Palette.hover : .clear))
                 .contentShape(Rectangle())
                 .onTapGesture(perform: act)
-                .onHover { hovering = $0 }
+                .hovers($hovering)
                 .help("More bookmarks")
                 .accessibilityLabel("More Bookmarks")
                 .accessibilityAddTraits(.isButton)
@@ -210,7 +210,7 @@ struct BookmarksBar: View {
             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hovering ? Palette.hover : .clear))
             .contentShape(Rectangle())
             .onTapGesture(perform: act)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .help(Item.tip(node, iconsOnly: iconsOnly))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(node.label)
@@ -380,7 +380,7 @@ struct SideBookmarks: View {
                     MiddleClick(command: true) { browser.openAll(node) }
                 }
             }
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .contextMenu { BookmarkActions(browser: browser, bookmarks: bookmarks, node: node) }
             .help(compact ? title : (node.url ?? node.title))
             .accessibilityElement(children: .ignore)

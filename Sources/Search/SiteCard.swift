@@ -271,6 +271,7 @@ enum SiteCardPanel {
             panel.setFrame(frame, display: true)
         }
         self.panel = panel
+        Motion.arrive(panel)
         resign = NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { SiteCardPanel.hide() }
         }
@@ -285,9 +286,11 @@ enum SiteCardPanel {
         if let clicks { NSEvent.removeMonitor(clicks) }
         clicks = nil
         guard let panel else { return }
-        panel.parent?.removeChildWindow(panel)
-        panel.orderOut(nil)
         self.panel = nil
+        Motion.leave(panel) {
+            panel.parent?.removeChildWindow(panel)
+            panel.orderOut(nil)
+        }
     }
 
     private final class Panel: NSPanel {

@@ -97,7 +97,10 @@ final class RecordingIndicator: ObservableObject {
         let panel = ownPanel()
         panel.fit()
         guard !Store.testing else { return }
-        if !panel.isVisible { panel.orderFrontRegardless() }
+        if !panel.isVisible {
+            panel.orderFrontRegardless()
+            Motion.arrive(panel)
+        }
     }
 
     private func isLent(_ web: WKWebView) -> Bool { panel?.holds(web) == true }

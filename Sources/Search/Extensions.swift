@@ -2637,7 +2637,7 @@ private struct ExtensionButtons: View {
                     .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .help(button.label)
         }
     }
@@ -2865,7 +2865,7 @@ private struct ExtensionMenu: View {
                 let id = button.id
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { extensions.press(id, in: browser) }
             }
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .help(button.label)
             .contextMenu { ExtensionActions(id: button.id, name: button.name, browser: browser, extensions: extensions) }
         }
@@ -2889,7 +2889,7 @@ private struct ExtensionMenu: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .help(help)
         }
     }
@@ -2917,7 +2917,7 @@ private struct ExtensionMenu: View {
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
             .contentShape(Rectangle())
             .onTapGesture(perform: act)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
         }
     }
 }

@@ -784,7 +784,7 @@ struct FetchDoor: View {
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .shortcutHelp("Downloads", "history.downloads")
             .background(ButtonSpot { spot.view = $0; if browser.downloadsHanging { float(true) } })
             .onChange(of: browser.downloadsHanging) { _, on in float(on) }

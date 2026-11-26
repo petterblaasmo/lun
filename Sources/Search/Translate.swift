@@ -1021,7 +1021,7 @@ struct TranslateSign: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .help(TranslateMenu.heading(mark))
             .accessibilityLabel(TranslateMenu.heading(mark))
             .popover(isPresented: $showing, hangingFrom: .bottom) {
@@ -1104,7 +1104,7 @@ struct TranslateMenu: View {
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
             .contentShape(Rectangle())
             .onTapGesture(perform: act)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
         }
     }
 }

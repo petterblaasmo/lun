@@ -120,7 +120,7 @@ struct PasswordsPanel: View {
                 .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .accessibilityAddTraits(on ? .isSelected : [])
         }
     }

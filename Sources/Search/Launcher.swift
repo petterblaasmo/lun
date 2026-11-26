@@ -480,8 +480,10 @@ final class LauncherPanel: NSPanel {
         if let area = Self.area {
             setFrameOrigin(NSPoint(x: area.midX - frame.width / 2, y: area.maxY - area.height * Self.drop - frame.height))
         }
+        let wasUp = isVisible
         orderFrontRegardless()
         makeKey()
+        if !wasUp { Motion.arrive(self) }
     }
 
     /// How tall what it holds can be there: from its top down to the foot
@@ -747,7 +749,7 @@ struct LauncherKeyBox: View {
             }
             .buttonStyle(.plain)
             .help("Click, then press the key. ⌫ takes it away")
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .onDisappear(perform: stop)
         }
     }

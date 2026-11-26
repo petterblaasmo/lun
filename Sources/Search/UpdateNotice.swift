@@ -98,7 +98,7 @@ struct UpdateNoticeRow: View {
                     .strokeBorder(Palette.hairline, lineWidth: 1)
             )
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .contextMenu {
                 Button(UpdateNotice.button(shown.kind)) { UpdateNotice.act(shown.kind) }
                 Button("Hide") { prefs.updateHiddenBuild = shown.build }
@@ -149,7 +149,7 @@ struct UpdateNoticePill: View {
             }
             .buttonStyle(.plain)
             .focusable(false)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .contextMenu {
                 Button(UpdateNotice.button(shown.kind)) { UpdateNotice.act(shown.kind) }
                 Button("Hide") { prefs.updateHiddenBuild = shown.build }
@@ -192,7 +192,7 @@ struct CardButton<Spot: View>: View {
         }
         .buttonStyle(.plain)
         .focusable(false)
-        .onHover { hovering = $0 }
+        .hovers($hovering)
     }
 }
 
@@ -218,7 +218,7 @@ private struct UpdateNoticeCross: View {
         }
         .buttonStyle(.plain)
         .focusable(false)
-        .onHover { hovering = $0 }
+        .hovers($hovering)
         .help("Hide until the next version")
     }
 }

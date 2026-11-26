@@ -151,7 +151,7 @@ struct PopupSign: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .help(tab.blockedPopups.count == 1 ? "Pop-up blocked" : "\(tab.blockedPopups.count) pop-ups blocked")
             .accessibilityLabel("Pop-up blocked")
             .popover(isPresented: $showing, hangingFrom: .bottom) {
@@ -228,7 +228,7 @@ struct BlockedPopupsMenu: View {
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Palette.wash : .clear))
             .contentShape(Rectangle())
             .onTapGesture(perform: act)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
         }
     }
 }

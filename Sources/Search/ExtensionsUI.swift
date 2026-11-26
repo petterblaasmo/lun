@@ -257,7 +257,7 @@ struct ExtensionsPage: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(hovering ? Palette.hover : .clear)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
             .contextMenu { actions(context) }
         }
 

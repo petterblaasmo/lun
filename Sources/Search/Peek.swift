@@ -302,7 +302,7 @@ struct PeekPanel: View {
             }
             .buttonStyle(.plain)
             .help(help)
-            .onHover { hovering = $0 }
+            .hovers($hovering)
         }
     }
 }
