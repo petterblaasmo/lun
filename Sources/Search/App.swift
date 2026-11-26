@@ -691,10 +691,24 @@ struct ContentView: View {
                 .padding(.leading, sideOnRight ? 0 : roomed.width)
                 .padding(.trailing, sideOnRight ? roomed.width : 0)
                 .padding(.top, roomed.height)
+                // The page is laid out once for each ⌘S (make(room:)), wider
+                // or narrower than the card while the column moves, and
+                // carried so that it stays in the middle of the card across,
+                // at every frame: what is in the middle of a page stays in
+                // the middle of what is seen of it, as it would were the page
+                // resized all the way. It was kept at the column's edge
+                // instead: what was on it went off to one side with the
+                // column, and jumped back when the page was laid out again.
+                // Down, its top stays at the card's top, as before.
+                //
+                // In two: where the card is now, which moves with the column,
+                // and where the page was laid out, which changes at once and
+                // must not take the first one's motion with it.
                 // On whole pixels as it slides: between them, the page was
                 // drawn resampled, soft, for the length of the slide.
-                .modifier(PixelOffset(offset: CGSize(width: sideOnRight ? farGap - laidFar : chrome.width - roomed.width,
-                                                     height: chrome.height - roomed.height),
+                .modifier(PixelOffset(offset: CGSize(width: (cardLeading - cardTrailing) / 2, height: chrome.height),
+                                      scale: displayScale))
+                .modifier(PixelOffset(offset: CGSize(width: -(laidLeading - laidTrailing) / 2, height: -roomed.height),
                                       scale: displayScale))
                 .modifier(CardEdge(on: (cards && !browser.prefs.splitView) || topCard, insets: cardInsets,
                                    corner: cardCorner, scale: displayScale))
@@ -888,6 +902,14 @@ struct ContentView: View {
     /// The far gap the page is laid out to leave (see `farRoom`).
     private var laidFar: CGFloat { farRoom ?? farGap }
 
+    /// What the card leaves at each side right now, animated with the
+    /// column, and what the page was laid out to leave there: the page is
+    /// carried by half the difference, so it stays in the card's middle.
+    private var cardLeading: CGFloat { sideOnRight ? farGap : chrome.width }
+    private var cardTrailing: CGFloat { sideOnRight ? chrome.width : farGap }
+    private var laidLeading: CGFloat { sideOnRight ? laidFar : roomed.width }
+    private var laidTrailing: CGFloat { sideOnRight ? roomed.width : laidFar }
+
     /// The column's width: the setting, or where its edge is while held.
     private var sideWidth: CGFloat { edges.side ?? browser.prefs.columnWidth }
 
@@ -952,9 +974,13 @@ struct ContentView: View {
         browser.prefs.sidebar && browser.prefs.sidePosition == .right
     }
 
-    /// Chrome going away gives the page its room at once, the page sliding
-    /// out from under it at its new size. Chrome arriving slides over a page
-    /// still at its old size, which gives up the room once the slide is over.
+    /// Chrome going away gives the page its room at once, before it moves.
+    /// Chrome arriving slides over a page still at its old size, which gives
+    /// up the room once the slide is over: laid out again while it slid,
+    /// WebKit drew the page late and its bare ground showed (fold_flash.py).
+    /// Either way the page is carried in the middle of the card meanwhile
+    /// (see the stage's offsets), so what is in its middle stays there when
+    /// it is laid out again, where it used to jump back from one side.
     /// A column being dragged wider or narrower is followed as it goes.
     private func make(room new: CGSize, after old: CGSize) {
         let now = roomed
