@@ -8,7 +8,7 @@ import SwiftUI
 ///
 /// What each browser holds is counted as the sheet opens, off the main
 /// thread and from its files alone — no key is asked for and nothing is
-/// decrypted, so nothing prompts until Bring them in is pressed. Then macOS
+/// decrypted, so nothing prompts until Bring Over is pressed. Then macOS
 /// asks once for that browser's key, if it keeps one.
 struct ImportPanel: View {
     @ObservedObject var browser: Browser
@@ -117,7 +117,8 @@ struct ImportPanel: View {
     }
 
     var body: some View {
-        Plate("Bring Things Over", line: "Nothing in the other browser changes. Passwords go into your Mac’s keychain.", width: 580, close: { browser.bringingIn = nil }) {
+        Plate("Bring Things Over", line: "Bookmarks, history, passwords and extensions from another browser. Nothing there changes. Passwords go into your Mac’s keychain.",
+              width: 580, close: { browser.bringingIn = nil }) {
             // As tall as it needs to be, and scrolling past what the window
             // can hold: many browsers, or a small window.
             ViewThatFits(in: .vertical) {
@@ -162,7 +163,7 @@ struct ImportPanel: View {
                         }
                         Pill("Show passwords") { browser.lead(to: InternalPage(.passwords)) }
                     } else if let source = pick {
-                        Pill(bringing ? "Bringing…" : "Bring them in", filled: true) { bring(from: source) }
+                        Pill(bringing ? "Bringing…" : "Bring Over", filled: true) { bring(from: source) }
                             .disabled(bringing || !(wantsPasswords || wantsBookmarks || wantsHistory || (wantsExtensions && !fresh(source).isEmpty)
                                                      || (wantsArc && arcCounts[key(source, profile(of: source))] != nil)
                                                      || (wantsTabs && bringsTabs(source))))
