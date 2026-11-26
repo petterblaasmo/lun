@@ -12,8 +12,9 @@ tab is uncovered as soon as the page is itself again, with no late player to
 wait for. The little window shows the part of the page the picture is in,
 at its own size and resized: by where the views and the layers put it, and
 by the window read back from the window server, the video's own picture
-included. A page pinched larger can't keep its size, and is laid out at the
-window's as before, under a still (float_settle.py holds that way).
+included, and nothing else: the page has a banner outside its body, over
+its lower part. A page pinched larger can't keep its size, and is laid out
+at the window's as before, under a still (float_settle.py holds that way).
 """
 import functools
 import json
@@ -54,6 +55,12 @@ var v=document.querySelector('video'); v.srcObject=c.captureStream(25);
 // (Isolate.real), and a muted one is what WebKit stops out of sight.
 v.muted=false; v.play().then(function(){setTimeout(function(){v.muted=true},400);});
 var p=document.getElementById('player'), later=null, resizes=0;
+// A consent manager's banner, hung on the root beside the body in a closed
+// shadow of its own, where it says it is visible (Vimeo's): over the lower
+// part of the page, and of the little window if it shows there.
+var consent=document.createElement('div');
+consent.attachShadow({mode:'closed'}).innerHTML='<div style="visibility:visible;position:fixed;left:0;right:0;bottom:0;height:40%;background:#fff;z-index:2147483647">We use cookies</div>';
+document.documentElement.appendChild(consent);
 function fit(){var w=Math.round(innerWidth*0.6);p.style.width=w+'px';p.style.height=Math.round(w*9/16)+'px';}
 fit();
 addEventListener('resize',function(){resizes++;clearTimeout(later);later=setTimeout(fit,400);});

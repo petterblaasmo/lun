@@ -1669,6 +1669,14 @@ enum Isolate {
         // them over the video, the player bar's buttons stacked (idea 933).
         'html.office-floating body *:not([data-office-float]):not(:has([data-office-float])):not(#office-float-art)',
         ':not(.player-timedtext):not(.player-timedtext *) { visibility:hidden !important }',
+        // And what a page keeps outside its body. A consent manager hangs
+        // its banner on the root itself, beside the body, in a shadow of its
+        // own (Vimeo's does): none of the rules for the body reached it, and
+        // it lay over the video in the little window, or filled it. Clear
+        // as well as hidden: what is inside a shadow can make itself
+        // visible again, and nothing in there undoes its host's opacity.
+        'html.office-floating > *:not(head):not(body):not([data-office-float]):not(:has([data-office-float])) {',
+        'visibility:hidden !important; opacity:0 !important; pointer-events:none !important}',
         'html.office-floating [data-office-float] {',
         'visibility:visible !important; position:fixed !important;',
         'left:0 !important; top:0 !important; right:0 !important; bottom:0 !important;',

@@ -146,6 +146,37 @@ def main():
         t.ok("twitch-chat: returning opens the chat folded away while floating", shut is False and opened is True, (shut, opened))
         sv.sp("close", id=tab)
 
+        # What a page keeps outside its body stays out of the window: a
+        # consent manager's banner, hung on the root beside the body in a
+        # closed shadow of its own, where it says it is visible whatever is
+        # said of its host (Vimeo's). It lay over the video.
+        tab = sv.sp("open", url=f"{base}/plain.html")["resultID"]
+        playing = "(function(){var v=document.querySelector('video');return !!v&&!v.paused&&v.readyState>=2})()"
+        for _ in range(40):
+            if sv.cmd({"do": "eval", "id": tab, "js": playing})["value"] is True: break
+            time.sleep(0.25)
+        sv.cmd({"do": "eval", "id": tab, "js": """(function () {
+          var host = document.createElement('div'); host.id = 'consent';
+          host.attachShadow({mode: 'closed'}).innerHTML =
+            '<div style="visibility:visible;position:fixed;left:0;right:0;bottom:0;height:45%;background:#fff;z-index:2147483647">We use cookies</div>';
+          document.documentElement.appendChild(host);
+          return 1;
+        })()"""})
+        under = """(function () {
+          var hit = document.elementFromPoint(innerWidth / 2, innerHeight - 30), s = getComputedStyle(document.getElementById('consent'));
+          return JSON.stringify({hit: hit ? hit.tagName + '#' + hit.id : null, opacity: s.opacity, visibility: s.visibility});
+        })()"""
+        before = json.loads(sv.cmd({"do": "eval", "id": tab, "js": under})["value"])
+        sv.cmd({"do": "eval", "id": tab, "js": isolate, "world": "search"})
+        out = json.loads(sv.cmd({"do": "eval", "id": tab, "js": under})["value"])
+        t.ok("outside the body: a banner on the root is over the page until the video floats", before == {"hit": "DIV#consent", "opacity": "1", "visibility": "visible"}, before)
+        t.ok("outside the body: floating, it is hidden and clear, and the video is what is there", out == {"hit": "VIDEO#", "opacity": "0", "visibility": "hidden"}, out)
+        sv.cmd({"do": "eval", "id": tab, "js": restore, "world": "search"})
+        time.sleep(1.5)
+        back = json.loads(sv.cmd({"do": "eval", "id": tab, "js": under})["value"])
+        t.ok("outside the body: back in its tab, the banner is as it was", back == before, back)
+        sv.sp("close", id=tab)
+
         # The mark on the video is defended (Isolate.on): put back when a
         # player takes it off or rebuilds itself, and looked for when
         # something changes — not four times a second, changed or not. The
