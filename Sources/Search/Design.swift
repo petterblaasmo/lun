@@ -350,6 +350,9 @@ enum Radius {
     static let card: CGFloat = 10
     static let float: CGFloat = 14
     static let panel: CGFloat = 16
+    /// The address field alone in the middle of the window: rounder than a
+    /// panel, as it is the one thing there.
+    static let middle: CGFloat = 20
 }
 
 /// Three heights over the ground, one shadow each: a card lying on the column

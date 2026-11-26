@@ -108,11 +108,12 @@ final class DesignTokensTests: XCTestCase {
         XCTAssertEqual(try lines(matching: #"cornerRadius: (7|11)\b"#), [])
     }
 
-    /// What floats from a field over the page has the float's corner by
-    /// name (the launcher, the space chooser, the tab offers): nothing
-    /// types 14.
-    func testWhatFloatsFromAFieldTakesTheFloatsCorner() throws {
-        XCTAssertEqual(try lines(matching: #"cornerRadius: 14\b"#), [], "Radius.float")
+    /// The corners that were typed and are named now: what floats from a
+    /// field has the float's 14 (the launcher, the space chooser, the tab
+    /// offers), the field in the middle of the window its own 20, and a
+    /// ring three points out from a field is the field's corner and three.
+    func testTheLargerCornersAreNamed() throws {
+        XCTAssertEqual(try lines(matching: #"cornerRadius: (13|14|18|20)\b"#), [], "Radius.float, Radius.middle, or Radius.card + 3 for a ring")
     }
 
     func testTheCornersGrowWithWhatTheyRound() {
@@ -120,6 +121,7 @@ final class DesignTokensTests: XCTestCase {
         XCTAssertLessThan(Radius.row, Radius.card)
         XCTAssertLessThan(Radius.card, Radius.float)
         XCTAssertLessThan(Radius.float, Radius.panel)
+        XCTAssertLessThan(Radius.panel, Radius.middle)
         XCTAssertEqual(Radius.card, Metrics.cardRadius, "A card of rows and the page's card are one corner")
     }
 
