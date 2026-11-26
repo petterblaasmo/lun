@@ -1413,7 +1413,7 @@ final class Settling {
         guard web.responds(to: selector) else { return then() }
         typealias Call = @convention(c) (AnyObject, Selector, @escaping @convention(block) () -> Void) -> Void
         unsafeBitCast(web.method(for: selector), to: Call.self)(web, selector) {
-            MainActor.assumeIsolated { then() }
+            MainActor.assumeIsolated { Web.keepPastCallback(web); then() }
         }
     }
 

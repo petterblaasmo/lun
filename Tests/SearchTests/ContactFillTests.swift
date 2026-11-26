@@ -421,7 +421,11 @@ final class ContactFillTests: XCTestCase {
 
         let phones = MeCard.offers(from: card, for: "tel")
         XCTAssertEqual(phones.map(\.title), ["+44 20 7946 0000"])
-        XCTAssertEqual(phones.first?.detail, "Ada Lovelace · Mobile")
+        // The label in the Mac's own language, as Contacts shows it: "Mobile"
+        // in English, "Mobil" in Norwegian.
+        let mobile = CNLabeledValue<NSString>.localizedString(forLabel: CNLabelPhoneNumberMobile)
+        XCTAssertFalse(mobile.contains("$"), "the label's name, not the raw \(CNLabelPhoneNumberMobile)")
+        XCTAssertEqual(phones.first?.detail, "Ada Lovelace · " + mobile.prefix(1).uppercased() + mobile.dropFirst())
         XCTAssertEqual(MeCard.offers(from: card, for: "tel-national").first?.title, "20 7946 0000", "without the country's code")
         XCTAssertEqual(MeCard.offers(from: card, for: "country").first?.title, "United Kingdom", "a country by its name")
         XCTAssertEqual(MeCard.offers(from: card, for: "street-address").first?.title, "12 St James's Square, Flat 3")
