@@ -7463,7 +7463,9 @@ final class Browser: NSObject, ObservableObject {
     }
 
     private func liftAway() {
-        liftedAway = !floater.showing && pictured == nil
+        // One still out from a leave it has not come back from yet (appBack,
+        // on another desktop) is still to go home.
+        liftedAway = liftedAway || (!floater.showing && pictured == nil)
         lift(active, quietly: true, otherwise: otherPane)
     }
 
@@ -7473,16 +7475,34 @@ final class Browser: NSObject, ObservableObject {
     }
 
     /// Back, and still on the tab it came from: into the tab again.
+    ///
+    /// Not while this window is on another desktop than the one in view.
+    /// The little window is on every desktop, and Lun can be made the app
+    /// in front on one where that is all there is of it. The video went
+    /// home then, to a window on a desktop nobody was looking at, and you
+    /// were taken back to that desktop after it. It stays out until its
+    /// window's desktop is the one in view (desktopChanged).
     func appBack() {
         stopAwayWatch()
+        guard window?.isOnActiveSpace ?? true else { return }
         defer { liftedAway = false }
         if liftedAway, let id = floating, id == activeID { land() }
         if liftedAway, let id = pictured, id == activeID { unpicture() }
     }
 
+    /// Another desktop has come into view. Back on this window's own, with
+    /// Lun in front, a video that left with the app goes home, as appBack
+    /// would have sent it had the window been in view then.
+    func desktopChanged(active: Bool = NSApp.isActive) {
+        guard liftedAway, active else { return }
+        appBack()
+    }
+
     /// ⌘⇧P, for lifting one out by hand.
     func toggleFloat() {
         guard spaceFloat.pending == nil else { return }
+        // Out or home by hand from here on: not one to send home on its own.
+        liftedAway = false
         if floater.showing {
             land()
             return

@@ -1327,6 +1327,7 @@ struct ContentView: View {
             }
             .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.activeSpaceDidChangeNotification)) { _ in
                 if browser.prefs.keepsWindow, browser.tabs.contains(where: \.immersed) { immersing() }
+                browser.desktopChanged()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
                 if let window, (note.object as? NSWindow) === window {
