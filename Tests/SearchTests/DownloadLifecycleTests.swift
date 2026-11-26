@@ -23,16 +23,6 @@ final class DownloadLifecycleTests: XCTestCase {
         super.setUp()
     }
 
-    override class func tearDown() {
-        Disk.drain()
-        if let world = Store.world {
-            let suite = "com.lunbrowser.lun.test.\(world)"
-            UserDefaults.standard.removePersistentDomain(forName: suite)
-            try? FileManager.default.removeItem(at: Store.folder)
-        }
-        super.tearDown()
-    }
-
     override func setUp() async throws {
         try await super.setUp()
         _ = NSApplication.shared

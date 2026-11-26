@@ -23,6 +23,19 @@ enum Web {
     /// the page's own world, and nothing there leads back to it.
     @MainActor static let world = WKContentWorld.world(name: "Search")
 
+    /// Called first thing in a `_doAfterNextPresentationUpdate:` block: the
+    /// view outlives WebKit's call by one turn of the run loop. WebKit keeps
+    /// the view for as long as the call is waiting and lets go of it as the
+    /// call returns, which is inside its display link telling its observers
+    /// of a refresh. A view closed meanwhile (a tab gone a moment after it
+    /// drew) was freed right there, its own observer taken out of the list
+    /// being walked, and the process died in
+    /// DisplayLink::notifyObserversDisplayDidRefresh (issue 98: 1 run in 4
+    /// of HandoffTests to WakeLatencyTests, 0 in 30 with this).
+    @MainActor static func keepPastCallback(_ web: WKWebView) {
+        DispatchQueue.main.async { withExtendedLifetime(web) {} }
+    }
+
     /// Every handler of Search's taken off a controller: in its own world,
     /// and in the page's, where they all were before 24 Sep 2026 — a tab
     /// opened by a link inherits its opener's configuration, handlers
@@ -3337,7 +3350,10 @@ final class PageView: WKWebView {
         let once = { if !done { done = true; then() } }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { once() }
         typealias After = @convention(c) (AnyObject, Selector, @escaping @convention(block) () -> Void) -> Void
-        unsafeBitCast(method(for: presented), to: After.self)(self, presented) { DispatchQueue.main.async { once() } }
+        unsafeBitCast(method(for: presented), to: After.self)(self, presented) { [self] in
+            MainActor.assumeIsolated { Web.keepPastCallback(self) }
+            DispatchQueue.main.async { once() }
+        }
     }
 
     /// How long the page takes to fade in, and so how long a picture over it
