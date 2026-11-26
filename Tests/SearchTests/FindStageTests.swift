@@ -123,8 +123,8 @@ final class FindStageTests: XCTestCase {
     }
 
     private func closePoint(in bar: NSHostingView<FindBar>, narrow: Bool = false) -> NSPoint {
-        // The 24pt X sits inside 14pt outer and 8pt (6pt when narrow) inner trailing padding.
-        NSPoint(x: bar.bounds.maxX - 14 - (narrow ? 6 : 8) - 12, y: 32)
+        // The 28pt X sits inside 12pt outer and 6pt inner trailing padding.
+        NSPoint(x: bar.bounds.maxX - 12 - 6 - 14, y: 32)
     }
 
     private func assertControlsHit(in bar: NSHostingView<FindBar>, stage: PaneStage,
@@ -136,17 +136,17 @@ final class FindStageTests: XCTestCase {
         let fieldPoint = field.convert(NSPoint(x: 2, y: field.bounds.midY), to: stage.superview)
         let fieldHit = stage.hitTest(fieldPoint)
         XCTAssertTrue(fieldHit === bar || fieldHit?.isDescendant(of: bar) == true, "Find field must keep its click")
-        let beforeField = field.convert(NSPoint(x: -24, y: field.bounds.midY), to: stage)
+        let beforeField = field.convert(NSPoint(x: -52, y: field.bounds.midY), to: stage)
         XCTAssertNil(bar.hitTest(beforeField), "empty space left of the pill must pass through after resizing")
         let close = closePoint(in: bar, narrow: narrow)
         let labels = ["Close Find on Page", "Search options"] + (narrow ? [] : ["Next match", "Previous match"])
         for (index, label) in labels.enumerated() {
-            let point = bar.convert(NSPoint(x: close.x - CGFloat(index) * 30, y: close.y), to: stage.superview)
+            let point = bar.convert(NSPoint(x: close.x - CGFloat(index) * 32, y: close.y), to: stage.superview)
             let hit = stage.hitTest(point)
             XCTAssertTrue(hit === bar || hit?.isDescendant(of: bar) == true, "\(label) must keep its click")
         }
         for point in [NSPoint(x: 2, y: 32), NSPoint(x: bar.bounds.midX, y: 2),
-                      NSPoint(x: bar.bounds.maxX - 15, y: 13), NSPoint(x: bar.bounds.maxX - 2, y: 32),
+                      NSPoint(x: bar.bounds.maxX - 13, y: 13), NSPoint(x: bar.bounds.maxX - 2, y: 32),
                       NSPoint(x: bar.bounds.midX, y: bar.bounds.maxY - 2)] {
             XCTAssertNil(bar.hitTest(bar.convert(point, to: stage)), "empty padding must pass through")
         }

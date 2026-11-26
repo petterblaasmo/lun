@@ -506,7 +506,7 @@ final class PaneStage: NSView {
                     findWidth = page.width
                     bar.rootView.availableWidth = page.width
                 }
-                let width = min(390, page.width)
+                let width = min(440, page.width)
                 bar.frame = CGRect(x: page.maxX - width, y: page.minY,
                                    width: width, height: min(60, page.height))
             }

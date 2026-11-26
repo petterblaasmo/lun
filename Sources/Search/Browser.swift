@@ -9985,6 +9985,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         // A page that never arrived: the tab says where it was going, as
         // WebKit's error has it (idea 1080), before the failure goes up.
         if provisional { tab?.failed(at: nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) }
+        tab?.failureCode = code
         tab?.failure = message(for: code)
     }
 

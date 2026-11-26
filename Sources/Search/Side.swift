@@ -629,8 +629,6 @@ struct SideBar: View {
                     VStack(spacing: 0) {
                         Spacer(minLength: 0)
                         NewSpaceCard(browser: browser)
-                        Spacer(minLength: 0)
-                        Spacer(minLength: 0)
                     }
                     .frame(maxHeight: .infinity)
                 }

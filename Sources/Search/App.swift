@@ -1006,15 +1006,8 @@ struct ContentView: View {
             // A coding agent's question; never anything over the page once
             // it is answered (AgentBanner).
             AgentBar(browser: browser)
-            if let ask = browser.asking {
-                Group {
-                    if ask.screen { ScreenQuestion(browser: browser, ask: ask) }
-                    else { CaptureQuestion(browser: browser, ask: ask) }
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-            if let offer = browser.offering {
-                PasswordOffer(browser: browser, offer: offer)
+            if let ask = browser.asking, ask.screen {
+                ScreenQuestion(browser: browser, ask: ask)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             StoreOffer(browser: browser)
@@ -1027,6 +1020,32 @@ struct ContentView: View {
         .animation(Motion.settle, value: browser.veiling)
         .animation(Motion.settle, value: browser.asking)
         .animation(Motion.settle, value: browser.offering)
+    }
+
+    /// What the site asks, and the password to save: under its address, where
+    /// what it is asked of is said. With no address in sight, at the top of
+    /// the page, in the middle.
+    private var siteQuestions: some View {
+        let beside = browser.prefs.sidebar && !browser.folded && !browser.prefs.iconColumn && fullscreenTab == nil
+        let row = addressRow > 0
+        return VStack(alignment: beside && sideOnRight ? .trailing : .leading, spacing: 8) {
+            if let ask = browser.asking, !ask.screen {
+                CaptureQuestion(browser: browser, ask: ask)
+                    .transition(.scale(scale: 0.97, anchor: .top).combined(with: .opacity))
+            }
+            if let offer = browser.offering {
+                PasswordOffer(browser: browser, offer: offer)
+                    .transition(.scale(scale: 0.97, anchor: .top).combined(with: .opacity))
+            }
+        }
+        .padding(.top, beside ? Metrics.strip + (browser.prefs.addressLine ? browser.prefs.sideRow + 8 : 0)
+                 : row ? band + addressRow + 4 : band + 12)
+        .padding(.horizontal, beside ? Metrics.sideInset : row ? farGap + 8 : 0)
+        .frame(maxWidth: .infinity, maxHeight: .infinity,
+               alignment: beside ? (sideOnRight ? .topTrailing : .topLeading) : row ? .topLeading : .top)
+        .animation(Motion.settle, value: browser.asking)
+        .animation(Motion.settle, value: browser.offering)
+        .ignoresSafeArea()
     }
 
     /// The address field: raised over a page by ⌘L or ⌘K, and standing on its
@@ -1155,6 +1174,7 @@ struct ContentView: View {
                 }
             }
             .overlay(alignment: .bottom) { bars }
+            .overlay { siteQuestions }
             .overlay {
                 // Over the page only: the column, the strip and the bookmarks
                 // bar stay as they are, uncovered and in reach.
@@ -1333,16 +1353,14 @@ struct ContentView: View {
                         .foregroundStyle(Palette.muted)
                 }
             }
-                .font(.system(size: 12))
+                .font(.system(size: 13))
                 .contentShape(Capsule())
                 .onTapGesture {
                     if let file = browser.announcedFile { NSWorkspace.shared.activateFileViewerSelecting([file]) }
                 }
-                .padding(.horizontal, 15)
-                .padding(.vertical, 9)
-                .background(Palette.ground, in: Capsule())
-                .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
-                .shadow(color: .black.opacity(0.10), radius: 18, y: 6)
+                .padding(.horizontal, 18)
+                .frame(height: 36)
+                .elevated(.float, in: Capsule())
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .animation(Motion.settle, value: browser.announcement)
         }

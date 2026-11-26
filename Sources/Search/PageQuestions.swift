@@ -6,63 +6,48 @@ struct CaptureQuestion: View {
     let ask: Browser.CaptureAsk
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) { question; actions }.fixedSize()
-            VStack(alignment: .leading, spacing: 12) {
-                question
-                ViewThatFits(in: .horizontal) {
-                    actions.fixedSize()
-                    VStack(alignment: .leading, spacing: 10) { buttons }
-                }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                SiteMark(host: ask.host, size: 16)
+                    .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 3 }
+                Text(ask.wants == "location" ? "\(ask.host) wants your location"
+                     : ask.wants == "notifications" ? "\(ask.host) wants to send you notifications"
+                     // Safari's question, in fewer words: a yes lets the framed
+                     // site know you were on this one.
+                     : ask.wants == "cookies" ? "\(ask.host) wants to use its cookies and website data on \(ask.under), which also lets it see you were there"
+                     : "\(ask.host) wants to use your \(ask.wants)")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) { Spacer(minLength: 0); buttons }
+                VStack(alignment: .trailing, spacing: 6) { buttons }.frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
-        .font(.system(size: 12))
-        .buttonStyle(.plain)
-        .padding(.leading, 16)
-        .padding(.trailing, 10)
-        .padding(.vertical, 9)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.12), radius: 20, y: 6)
-    }
-
-    private var question: some View {
-        HStack(spacing: 12) {
-            Image(systemName: ask.wants == "location" ? "location" : ask.wants == "microphone" ? "mic" : ask.wants == "notifications" ? "bell"
-                  : ask.wants == "cookies" ? "person.crop.circle" : "video")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Palette.muted)
-            Text(ask.wants == "location" ? "\(ask.host) wants to know your location"
-                 : ask.wants == "notifications" ? "\(ask.host) wants to send you notifications"
-                 // Safari's question, in fewer words: a yes lets the framed
-                 // site know you were on this one.
-                 : ask.wants == "cookies" ? "\(ask.host) wants to use its cookies and website data on \(ask.under), which also lets it see you were there"
-                 : "\(ask.host) wants to use your \(ask.wants)")
-                .font(.system(size: 12.5))
-                .foregroundStyle(Palette.ink)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var actions: some View {
-        HStack(spacing: 12) { buttons }
+        .padding(14)
+        .frame(width: ask.once && ask.keeps ? 360 : 280)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder
     private var buttons: some View {
-        Button { ask.once ? browser.allowCaptureOnce() : browser.allowCapture() } label: {
-            Text(ask.once ? "Allow once" : "Allow")
-                .foregroundStyle(Palette.ground)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 5)
-                .background(Palette.ink, in: Capsule())
-        }
+        Pill("Don't allow", large: true) { browser.denyCapture() }
         if ask.once, ask.keeps {
-            Button("Always allow") { browser.allowCapture() }
-                .foregroundStyle(Palette.ink)
+            Pill("Always allow", large: true) { browser.allowCapture() }
         }
-        Button("Don't allow") { browser.denyCapture() }
-            .foregroundStyle(Palette.muted)
+        Pill(ask.once ? "Allow once" : "Allow", filled: true, large: true) { ask.once ? browser.allowCaptureOnce() : browser.allowCapture() }
+    }
+}
+
+/// A site by its icon, or a globe until there is one.
+struct SiteMark: View {
+    let host: String
+    var size: CGFloat = 16
+
+    var body: some View {
+        Mark(icon: Favicons.shared.cached(host) ?? Favicons.shared.cached("www." + host), letter: "", size: size, globe: true)
     }
 }
 
@@ -129,52 +114,56 @@ struct PasswordOffer: View {
     let offer: Browser.Offer
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) { question; actions }.fixedSize()
-            VStack(alignment: .leading, spacing: 12) {
-                question
-                ViewThatFits(in: .horizontal) {
-                    actions.fixedSize()
-                    VStack(alignment: .leading, spacing: 10) { buttons }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                SiteMark(host: offer.login.host, size: 28)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(offer.changed ? "Update your password?" : "Save your password?")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Palette.ink)
+                    Text("For \(offer.login.host), in your Mac’s keychain")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            VStack(spacing: 0) {
+                if !offer.login.user.isEmpty {
+                    line("Username", offer.login.user)
+                    Rectangle().fill(Palette.rule).frame(height: 1).padding(.horizontal, 12)
+                }
+                line("Password", String(repeating: "•", count: max(8, min(16, offer.login.password.count))))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Password, hidden")
+            }
+            .background(Palette.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            HStack(spacing: 6) {
+                if !offer.changed {
+                    Button("Never here") { browser.neverOffer() }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Palette.muted)
+                        .padding(.horizontal, 12)
+                }
+                Spacer(minLength: 0)
+                Pill("Not now", large: true) { browser.dropOffer() }
+                Pill(offer.changed ? "Update" : "Save", filled: true, large: true) { browser.keepOffer() }
+            }
         }
-        .font(.system(size: 12))
-        .buttonStyle(.plain)
-        .padding(.leading, 16)
-        .padding(.trailing, 12)
-        .padding(.vertical, 9)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.12), radius: 20, y: 6)
+        .padding(18)
+        .frame(width: 340)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private var question: some View {
-        let login = offer.login
-        return Text(offer.changed
-             ? "Update the password for \(login.user) on \(login.host)?"
-             : (login.user.isEmpty
-                ? "Save this password for \(login.host)?"
-                : "Save the password for \(login.user) on \(login.host)?"))
-            .font(.system(size: 12.5))
-            .foregroundStyle(Palette.ink)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private var actions: some View { HStack(spacing: 12) { buttons } }
-
-    @ViewBuilder
-    private var buttons: some View {
-        Button(offer.changed ? "Update" : "Save") { browser.keepOffer() }
-            .foregroundStyle(Palette.ground)
-            .padding(.horizontal, 11)
-            .padding(.vertical, 5)
-            .background(Palette.ink, in: Capsule())
-        Button("Not now") { browser.dropOffer() }
-            .foregroundStyle(Palette.muted)
-        if !offer.changed {
-            Button("Never here") { browser.neverOffer() }
-                .foregroundStyle(Palette.muted)
+    private func line(_ name: String, _ value: String) -> some View {
+        HStack(spacing: 12) {
+            Text(name).foregroundStyle(Palette.muted).frame(width: 76, alignment: .leading)
+            Text(value).foregroundStyle(Palette.ink).lineLimit(1).truncationMode(.middle)
+            Spacer(minLength: 0)
         }
+        .font(.system(size: 13))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 }
