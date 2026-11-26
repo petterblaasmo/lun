@@ -1,3 +1,4 @@
+import os
 import SwiftUI
 import WebKit
 import Combine
@@ -9992,6 +9993,8 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         }
     }
 
+    private static let loadLog = Logger(subsystem: "com.lunbrowser.lun", category: "Pages")
+
     private func fail(_ webView: WKWebView, _ error: Error, provisional: Bool = false) {
         let tab = tab(for: webView) ?? littleTab(for: webView)
         tab?.uncover()
@@ -10011,6 +10014,10 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         // as in Safari, while the video plays. Answered as a failure, it
         // covered the playing video with "The page didn't load".
         guard !(nsError.domain == "WebKitErrorDomain" && code == 204) else { return }
+        // Said in the system log, as a page's process ending is (Dialogs):
+        // "it didn't load until I reloaded" can then be traced to why. The
+        // kind of failure only, never the site.
+        Browser.loadLog.info("A page didn't load: \(nsError.domain, privacy: .public) \(code, privacy: .public), \(provisional ? "before it arrived" : "while it arrived", privacy: .public)")
         // A page that never arrived: the tab says where it was going, as
         // WebKit's error has it (idea 1080), before the failure goes up.
         if provisional { tab?.failed(at: nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) }
