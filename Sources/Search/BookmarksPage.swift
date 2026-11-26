@@ -163,8 +163,8 @@ struct BookmarksPanel: View {
     /// What a folder holds, in words: "2 folders, 7 bookmarks".
     static func summary(folders: Int, sites: Int) -> String {
         let parts = [
-            folders == 0 ? nil : folders == 1 ? "1 folder" : "\(folders) folders",
-            sites == 0 ? nil : sites == 1 ? "1 bookmark" : "\(sites) bookmarks",
+            folders == 0 ? nil : folders == 1 ? "1 folder" : "\(folders.formatted()) folders",
+            sites == 0 ? nil : sites == 1 ? "1 bookmark" : "\(sites.formatted()) bookmarks",
         ].compactMap { $0 }
         return parts.isEmpty ? "Empty" : parts.joined(separator: ", ")
     }
@@ -882,7 +882,7 @@ struct BookmarksPanel: View {
                         Mark(icon: nil, letter: "", size: 16)
                             .overlay(Image(systemName: "folder.fill").font(.system(size: 9.5)).foregroundStyle(Palette.muted))
                     } else {
-                        Mark(icon: Favicons.shared.cached(for: node.address), letter: String((node.host ?? "•").prefix(1)).uppercased(), size: 16)
+                        Mark(icon: Favicons.shared.cached(for: node.address), letter: "", size: 16, globe: true)
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(node.label)
