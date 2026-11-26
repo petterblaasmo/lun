@@ -9923,6 +9923,13 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
             window?.close()
             return
         }
+        // A tab you opened yourself is not the page's to close. WebKit lets
+        // a page close any tab whose history is one page long, and a sign-in
+        // that comes back by redirects leaves exactly that: a landing page
+        // that calls close() whether or not a script opened it took the tab
+        // away before the sign-in was kept, and any page could do the same
+        // to a tab just opened. Only a tab a page opened closes itself.
+        guard tab.opener != nil else { return }
         // Back to whoever opened it, so you land where you started the sign-in
         // rather than wherever the row happens to put you.
         if let opener = tab.opener, let home = tabs.first(where: { $0.id == opener }) {
