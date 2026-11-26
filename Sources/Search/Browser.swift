@@ -77,6 +77,9 @@ final class Browser: NSObject, ObservableObject {
                 DispatchQueue.main.async { held.forEach { $0.present() } }
             }
             guard oldValue != activeID else { return }
+            // In front now: its page, if it was waiting its turn out of
+            // sight, loads at once (LoadTurns).
+            if let activeID { tabs.first { $0.id == activeID }?.hurry() }
             cameFrom = (oldValue, ProcessInfo.processInfo.systemUptime)
             followPeek()
             // Going to another tab ends a page's run of links (see
@@ -6818,7 +6821,8 @@ final class Browser: NSObject, ObservableObject {
         if mayWait, !foreground, prefs.lazyTabs, page == nil {
             tab.restore(url: url, title: "")
         } else {
-            tab.go(to: url)
+            // One of many (`mayWait`) lets a link opened on its own go first.
+            tab.go(to: url, batch: mayWait)
         }
         if foreground {
             leaving()
