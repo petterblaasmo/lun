@@ -34,10 +34,15 @@ final class SpaceLookPreviewTests: XCTestCase {
         _ = NSApplication.shared
         let browser = Browser(record: WindowRecord())
         defer { browser.closeAll() }
-        let previous = (browser.prefs.usesSpaces, browser.prefs.glass)
-        defer { (browser.prefs.usesSpaces, browser.prefs.glass) = previous }
+        let previous = (browser.prefs.usesSpaces, browser.prefs.glass, browser.prefs.sidebar)
+        defer { (browser.prefs.usesSpaces, browser.prefs.glass, browser.prefs.sidebar) = previous }
         browser.prefs.usesSpaces = true
         browser.prefs.glass = false
+        // The column, which the colour below is drawn as. With the tabs across
+        // the top (the first run's layout) the page is a card the tabs stand
+        // on, and the preview wears the frame around it instead; this passed
+        // only after a test that had left the column on (issue 98).
+        browser.prefs.sidebar = true
         let id = browser.space.id
         let was = (browser.space.colour, browser.space.strength)
         defer { browser.restoreLook(id, colour: was.0, gradient: nil, strength: was.1) }
