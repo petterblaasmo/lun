@@ -61,7 +61,9 @@ ALWAYS = {"splitView", "tabs.groups", "panel.sites", "translate.pages", "tabs.ke
 # words that found them find some other row or nothing.
 RETIRED = {"downloads.button", "toolbar.left", "glyph", "tabs.reading", "tabs.newAfterLast", "tabs.lazy",
            "tabs.shortcuts", "tabs.address", "reader.twins", "float.style", "fullscreen.escapeTwice",
-           "fullscreen.keepsWindow", "pages.120.mode", "pins.home", "pins.peek", "passkeys", "swipe.history"}
+           "fullscreen.keepsWindow", "pages.120.mode", "pins.home", "pins.peek", "passkeys", "swipe.history",
+           # Fixed on (RetiredSettings.fixed).
+           "tabs.give", "motion.light", "tabs.popupWindows", "reader.follows", "commandbar"}
 BEFORE = {k: v for k, v in BEFORE.items() if k not in RETIRED}
 
 
@@ -93,7 +95,7 @@ def case_reachable(t):
     t.ok("results carry section and group", found and all(i["page"] and i["groupTitle"] for i in found), found)
     t.ok("…in Browsing › Video", any(i["page"] == "browsing" and i["groupTitle"] == "Video" for i in found))
     shown = [i for i in items if not i["findOnly"]]
-    t.ok("about a hundred rows in the sections", 85 <= len(shown) <= 105, len(shown))
+    t.ok("about seventy rows in the sections", 65 <= len(shown) <= 80, len(shown))
     t.ok("eight sections, Themes part of Appearance", len(every["pages"]) == 8 and "themes" not in every["pages"], every["pages"])
     sv.cmd({"do": "ui", "show": "search://settings/themes"}); time.sleep(0.6)
     t.ok("search://settings/themes opens Appearance", settings()["settingsPage"] == "appearance", settings()["settingsPage"])

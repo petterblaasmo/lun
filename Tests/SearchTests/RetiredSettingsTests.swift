@@ -47,10 +47,36 @@ final class RetiredSettingsTests: XCTestCase {
         XCTAssertEqual(store.object(forKey: RetiredSettings.aside("tabs.compact")) as? Bool, true)
     }
 
+    func testTheFixedOnesAreWrittenOn() throws {
+        let name = "fixed-\(UUID().uuidString)"
+        let store = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { store.removePersistentDomain(forName: name) }
+        store.set("tab", forKey: "downloads.open")
+        store.set(false, forKey: "tabs.give")
+
+        RetiredSettings.settle(store)
+        XCTAssertEqual(RetiredSettings.fixed.count, 25)
+        for (key, _) in RetiredSettings.fixed where key != "downloads.open" {
+            XCTAssertEqual(store.object(forKey: key) as? Bool, true, key)
+        }
+        XCTAssertEqual(store.string(forKey: "downloads.open").flatMap(DownloadsOpening.init), .popover)
+        // What was chosen before is kept aside; what was never set has nothing to keep.
+        XCTAssertEqual(store.string(forKey: RetiredSettings.aside("downloads.open")), "tab")
+        XCTAssertEqual(store.object(forKey: RetiredSettings.aside("tabs.give")) as? Bool, false)
+        XCTAssertNil(store.object(forKey: RetiredSettings.aside("commandbar")))
+
+        // Again: already as fixed, nothing more is put aside.
+        RetiredSettings.settle(store)
+        XCTAssertEqual(store.string(forKey: RetiredSettings.aside("downloads.open")), "tab")
+    }
+
     func testEveryRetiredKeyBelongedToARetiredRow() {
         // A key of a row that is still drawn must never be put aside.
         let kept = Set(SettingsIndex.items.flatMap(\.keys))
         XCTAssertTrue(kept.isDisjoint(with: RetiredSettings.keys), "\(kept.intersection(RetiredSettings.keys))")
+        let fixed = Set(RetiredSettings.fixed.map(\.key))
+        XCTAssertTrue(kept.isDisjoint(with: fixed), "\(kept.intersection(fixed))")
+        XCTAssertTrue(fixed.isDisjoint(with: RetiredSettings.keys), "fixed on and put aside at once")
     }
 
     func testEightPagesAndTheOldNamesStillOpenOne() {
@@ -78,7 +104,7 @@ final class RetiredSettingsTests: XCTestCase {
             let rows = SettingsIndex.groups(of: page).flatMap { SettingsIndex.items(in: $0.id) }
             let first = rows.filter { essential.contains($0.id) }
             XCTAssertTrue((3...7).contains(first.count), "\(page.rawValue): \(first.count)")
-            XCTAssertLessThanOrEqual(rows.count - first.count, 20, page.rawValue)
+            XCTAssertLessThanOrEqual(rows.count - first.count, 12, page.rawValue)
         }
     }
 
@@ -128,6 +154,6 @@ final class RetiredSettingsTests: XCTestCase {
             let rows = SettingsIndex.groups(of: page).flatMap { SettingsIndex.items(in: $0.id) }
             print("ROWS \(page.rawValue) \(rows.count): \(rows.map(\.id).joined(separator: " "))")
         }
-        XCTAssertLessThanOrEqual(drawn.count, 100)
+        XCTAssertLessThanOrEqual(drawn.count, 75)
     }
 }

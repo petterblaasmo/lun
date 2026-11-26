@@ -507,7 +507,7 @@ enum SettingsIndex {
         // Spaces & Pins
         .init(id: "arc.setup", group: "arc", icon: "wand.and.stars",
               title: "Set Up Like Arc", detail: "Tabs on the left, spaces, pinned rows, and Arc's habits, like closing tabs after 12 hours",
-              more: "Also turns on New tab in a floating field, Float the video on its own, Swipe back closes a tab a link opened, and Peek at a link with a Shift-click. Only what is off changes. Undo puts back what you had.",
+              more: "Also turns on New tab in a floating field, Float the video on its own, and Peek at a link with a Shift-click. Only what is off changes. Undo puts back what you had.",
               words: ["arc", "the browser company", "auto archive", "archive", "peek", "picture in picture", "swipe back"]),
         .init(id: "arc.import", group: "arc", icon: "square.and.arrow.down",
               title: "Bring Arc's spaces and pins over", detail: "Your spaces, pinned tabs and folders, read from Arc on this Mac",
