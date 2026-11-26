@@ -480,46 +480,42 @@ struct SideBar: View {
     /// double-click it to put it back. The whole edge takes the pointer; on
     /// it, a small pill shows in the middle (see Grip) so the edge says it
     /// can be taken before it is. Edge to edge, the pill sits on the page's
-    /// hairline; as cards, in the gap before the page.
+    /// hairline; as cards, in the gap before the page. The pointer and the
+    /// pull are taken by a view of AppKit's own laid over it (EdgeHandle),
+    /// so the left-right arrows stay for as long as the edge is held.
     private var edge: some View {
         EdgeGrip(lit: onEdge || grabbed != nil)
             .offset(x: onFrame ? 0 : onRight ? -4 : 4)
             .frame(width: 9)
             .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .onHover { over in
-                onEdge = over
-                if over { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
-            }
-            .gesture(
-                DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                    .onChanged { value in
-                        // Taken from the strip, as if a little short of the
-                        // line: a short pull brings the titles back, where
-                        // the strip's own width would need a long one.
-                        if grabbed == nil { grabbed = strip ? Metrics.narrowLine - SideBar.stripPull : prefs.columnWidth }
-                        let delta = onRight ? -value.translation.width : value.translation.width
-                        let wanted = (grabbed ?? prefs.columnWidth) + delta
-                        let held = SideBar.held(wanted, narrows: prefs.narrowsToIcons)
-                        if held.narrow != prefs.narrowed, prefs.narrowsToIcons {
-                            withAnimation(Motion.glide) { prefs.narrowed = held.narrow }
-                        }
-                        live = held.width
-                        onDrag(live)
+            .overlay(EdgeHandle(
+                hover: { onEdge = $0 },
+                pulled: { across in
+                    // Taken from the strip, as if a little short of the
+                    // line: a short pull brings the titles back, where
+                    // the strip's own width would need a long one.
+                    if grabbed == nil { grabbed = strip ? Metrics.narrowLine - SideBar.stripPull : prefs.columnWidth }
+                    let delta = onRight ? -across : across
+                    let wanted = (grabbed ?? prefs.columnWidth) + delta
+                    let held = SideBar.held(wanted, narrows: prefs.narrowsToIcons)
+                    if held.narrow != prefs.narrowed, prefs.narrowsToIcons {
+                        withAnimation(Motion.glide) { prefs.narrowed = held.narrow }
                     }
-                    .onEnded { _ in
-                        if let live { prefs.sideWidth = live }
-                        live = nil
-                        grabbed = nil
-                        onDrag(nil)
+                    live = held.width
+                    onDrag(live)
+                },
+                ended: {
+                    if let live { prefs.sideWidth = live }
+                    live = nil
+                    grabbed = nil
+                    onDrag(nil)
+                },
+                twice: {
+                    withAnimation(Motion.settle) {
+                        prefs.narrowed = false
+                        prefs.sideWidth = Metrics.side
                     }
-            )
-            .modifier(OneClick(double: true) {
-                withAnimation(Motion.settle) {
-                    prefs.narrowed = false
-                    prefs.sideWidth = Metrics.side
-                }
-            })
+                }))
             .animation(Motion.quick, value: onEdge)
     }
 
