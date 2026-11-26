@@ -323,6 +323,33 @@ final class SpeedBenchTests: XCTestCase {
         record("openingWithSpaces", ["ms": median(times)])
     }
 
+    /// A save as closing a tab, moving one or pinning one asks for it
+    /// (Browser.writeSession(now: true)): what the main thread spends before
+    /// it has the window back, with 20, 100 and 300 tabs in the row.
+    func testSessionSave() throws {
+        for count in [20, 100, 300] {
+            let browser = makeBrowser(tabs: count, record: nil)
+            // Once, so the folder is there and the pins are settled.
+            browser.writeSession(now: true)
+            Disk.drain()
+            var times: [Double] = []
+            for _ in 0..<200 {
+                let start = CACurrentMediaTime()
+                browser.writeSession(now: true)
+                times.append((CACurrentMediaTime() - start) * 1000)
+                // Each save alone: the one before it is on disk.
+                Disk.drain()
+            }
+            let sorted = times.sorted()
+            record("sessionSave\(count)", ["ms": median(times), "worstMs": sorted[sorted.count - 1],
+                                           "p95Ms": sorted[Int(Double(sorted.count) * 0.95)]])
+            XCTAssertEqual(Session.read(space: browser.spaceID).tabs.count, browser.tabs.filter(browser.kept).count,
+                           "and the row is on disk")
+            browser.closeAll()
+            browsers.removeAll { $0 === browser }
+        }
+    }
+
     // MARK: - helpers
 
     private func record(_ name: String, _ values: [String: Double]) {
