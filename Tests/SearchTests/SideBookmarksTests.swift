@@ -42,11 +42,12 @@ final class SideBookmarksTests: XCTestCase {
         let prefs = Preferences()
         prefs.bookmarksInSidebar = true
         XCTAssertFalse(prefs.sideBookmarks, "the bar hidden is hidden in the column too")
-        let item = try! XCTUnwrap(SettingsIndex.item("bookmarks.side"))
-        XCTAssertFalse(SettingsIndex.applies(item, prefs), "out of its section, dimmed in search, under a hidden bar")
+        // One choice in Lun, on the bar's own row (BookmarksPlace).
+        XCTAssertNil(SettingsIndex.item("bookmarks.side"))
+        XCTAssertEqual(prefs.bookmarksPlace, .off)
         prefs.bookmarksBar = true
         XCTAssertTrue(prefs.sideBookmarks)
-        XCTAssertTrue(SettingsIndex.applies(item, prefs))
+        XCTAssertEqual(prefs.bookmarksPlace, .side)
     }
 
     func testTheBarAboveThePageKeepsItsOwnSwitch() {

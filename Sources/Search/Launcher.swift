@@ -411,9 +411,10 @@ final class Launcher: NSObject, ObservableObject, NSWindowDelegate {
             let browser = Browsers.ensureWindow()
             browser.show(page)
             Self.bringUp(browser)
-        } else if Shared.prefs.launcherLittle {
+        } else if Shared.prefs.launcherLittle || Shared.prefs.littleLinks {
             // In a small window over the app you're in, as a link from
-            // another app can open (Settings › From any app).
+            // another app opens: its own switch is gone (RetiredSettings),
+            // and "in a small window" is said once, in Settings › Browsing.
             Links.openLittle(url, for: target)
             return
         } else if let open = openTab(for: url, in: target) {

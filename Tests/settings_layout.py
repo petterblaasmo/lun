@@ -7,8 +7,9 @@ split_view.py's harness in a world of its own (bld-set2-<checkout>): started
 hidden, driven through ./bench's socket, everything removed afterwards.
 Nothing here makes, shows or brings forward a window.
 
-- every setting Settings had before the rework is still reachable from the
-  find field, by words someone would type, or says it is always on now;
+- every setting Settings kept is reachable from the find field, by words
+  someone would type, or says it is always on now; the switches Lun took out
+  (RetiredSettings.swift) are in no row and found by no words;
 - the merged controls write the keys the two switches did;
 - new defaults reach only keys nobody touched;
 - an explicit off on a switch that left Settings stays off.
@@ -56,6 +57,14 @@ ALWAYS = {"splitView", "tabs.groups", "panel.sites", "translate.pages", "tabs.ke
           "pins.shared", "pins.numberBack", "switcher.keys", "links.show", "float.flicks"}
 
 
+# Taken out of Settings in Lun and fixed at their default: no row, and the
+# words that found them find some other row or nothing.
+RETIRED = {"downloads.button", "toolbar.left", "glyph", "tabs.reading", "tabs.newAfterLast", "tabs.lazy",
+           "tabs.shortcuts", "tabs.address", "reader.twins", "float.style", "fullscreen.escapeTwice",
+           "fullscreen.keepsWindow", "pages.120.mode", "pins.home", "pins.peek", "passkeys", "swipe.history"}
+BEFORE = {k: v for k, v in BEFORE.items() if k not in RETIRED}
+
+
 def settings(**f): return sv.cmd({"do": "settings", **f})
 def read(key):
     out = subprocess.run(["defaults", "read", sv.SUITE, key], capture_output=True, text=True)
@@ -78,16 +87,21 @@ def case_reachable(t):
         if hit and key in ALWAYS:
             t.ok(f"…and says {key} is always there", hit[0]["note"] and hit[0]["findOnly"], hit[0])
     t.ok("no key is left out of the rows", set(BEFORE) - {"auto.install"} <= keys, set(BEFORE) - keys)
+    t.ok("no retired key is in a row", not (RETIRED & keys), RETIRED & keys)
     # Every result names its section and group.
     found = settings(find="video")["found"]
     t.ok("results carry section and group", found and all(i["page"] and i["groupTitle"] for i in found), found)
     t.ok("…in Browsing › Video", any(i["page"] == "browsing" and i["groupTitle"] == "Video" for i in found))
     shown = [i for i in items if not i["findOnly"]]
-    t.ok("about a hundred and forty rows in the sections", 105 <= len(shown) <= 150, len(shown))
-    t.ok("eleven sections, Themes among them (#1318)", len(every["pages"]) == 11 and "themes" in every["pages"], every["pages"])
+    t.ok("about a hundred rows in the sections", 85 <= len(shown) <= 105, len(shown))
+    t.ok("eight sections, Themes part of Appearance", len(every["pages"]) == 8 and "themes" not in every["pages"], every["pages"])
+    sv.cmd({"do": "ui", "show": "search://settings/themes"}); time.sleep(0.6)
+    t.ok("search://settings/themes opens Appearance", settings()["settingsPage"] == "appearance", settings()["settingsPage"])
+    sv.cmd({"do": "ui", "show": "search://settings/passwords"}); time.sleep(0.6)
+    t.ok("search://settings/passwords opens Privacy & Passwords", settings()["settingsPage"] == "privacy", settings()["settingsPage"])
     # Old addresses land in the new sections.
     sv.cmd({"do": "ui", "show": "search://settings/shortcuts"}); time.sleep(0.6)
-    t.ok("search://settings/shortcuts opens Keyboard & Mouse", settings()["settingsPage"] == "keyboard",
+    t.ok("search://settings/shortcuts opens Shortcuts", settings()["settingsPage"] == "keyboard",
          settings()["settingsPage"])
     sv.cmd({"do": "ui", "show": "search://settings/downloads"}); time.sleep(0.6)
     t.ok("search://settings/downloads opens General", settings()["settingsPage"] == "general")

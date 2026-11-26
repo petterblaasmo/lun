@@ -215,7 +215,7 @@ struct AccountList: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("Turns on Apple Passwords and pairs with a code from your Mac. Settings › Passwords turns it off.")
+                .help("Turns on Apple Passwords and pairs with a code from your Mac. Settings › Privacy & Passwords turns it off.")
                 Button(action: never) {
                     Image(systemName: "xmark")
                         .font(.system(size: 7.5, weight: .semibold))

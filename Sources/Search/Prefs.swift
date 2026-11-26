@@ -1297,6 +1297,9 @@ final class Preferences: ObservableObject {
         // writes a line that would make it look like one from before.
         SyncDefault.settle(store, ranBefore: SidebarDefault.ranBefore(in: Store.folder))
         Preferences.settleLittleLinks(in: store)
+        // The switches Lun took out of Settings read as their defaults. Not
+        // in a test run: the tests of what those switches do set them first.
+        if !Store.testing { RetiredSettings.settle(store) }
         navigationLeft = store.bool(forKey: "toolbar.left")
         compactStrip = store.bool(forKey: "tabs.compact")
         // Carried over from when there were four ways of holding the browser
@@ -1359,7 +1362,9 @@ final class Preferences: ObservableObject {
         glassClear = (store.object(forKey: "window.glass.clear") as? Double).map { min(1, max(0, $0)) } ?? 0.5
         glassStyle = store.string(forKey: "window.glass.style").flatMap(GlassStyle.init) ?? .frosted
         liquidTabs = store.bool(forKey: "tabs.liquid")
-        glyph = store.string(forKey: "glyph").flatMap(Glyph.init) ?? .icons
+        // Site icons for everyone: its row is gone (RetiredSettings), and
+        // the key is left where it is, as the mark of an install from before.
+        glyph = Store.testing ? store.string(forKey: "glyph").flatMap(Glyph.init) ?? .icons : .icons
         engine = store.string(forKey: "search.engine").flatMap(Engine.init) ?? .standard
         customEngine = store.string(forKey: "search.custom") ?? ""
         customSuggest = store.string(forKey: "search.customSuggest") ?? ""
@@ -1401,7 +1406,9 @@ final class Preferences: ObservableObject {
         showsTabShortcuts = store.bool(forKey: "tabs.shortcuts")
         showsReading = store.bool(forKey: "tabs.reading")
         showsPinCounts = store.bool(forKey: "tabs.pinCounts")
-        highContrastText = store.bool(forKey: "tabs.highContrast")
+        // The Mac's own Increase Contrast decides, where a switch of Lun's
+        // did (RetiredSettings); followContrast keeps it in step.
+        highContrastText = store.bool(forKey: "tabs.highContrast") || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         // On for everyone who never touched it (Drice, 24 Oct 2026, on
         // Security's advice); a choice made before stands.
         showsAddress = store.object(forKey: "tabs.address") as? Bool ?? true
@@ -1595,6 +1602,20 @@ final class Preferences: ObservableObject {
         // Left behind by an assistant this browser no longer has.
         for key in ["mind.model", "mind.effort", "mind.acting", "mind.width", "mind.open"] {
             store.removeObject(forKey: key)
+        }
+        if !Store.testing { followContrast() }
+    }
+
+    /// Increase Contrast turned on or off in System Settings while Lun
+    /// runs: the tabs' titles follow at once.
+    private func followContrast() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                let wants = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+                if let self, self.highContrastText != wants { self.highContrastText = wants }
+            }
         }
     }
 

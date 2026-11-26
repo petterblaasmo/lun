@@ -220,6 +220,8 @@ enum WhatsNew {
         Toggle(title: "Scroll with the middle button", detail: "Click the wheel, then move the mouse to scroll, as on Windows.",
                since: "1.0.3", get: { $0.autoScroll }, set: { $0.autoScroll = $1 }),
     ]
+    // Not the ones Lun took out of Settings: there is nothing to turn on.
+    .filter { !RetiredSettings.offers.contains($0.title) }
 
     static let releases: [Release] = [
         Release(version: "1.0.20"),

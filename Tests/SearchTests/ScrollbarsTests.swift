@@ -29,6 +29,7 @@ final class ScrollbarsTests: XCTestCase {
     func testOffByDefault() {
         let store = UserDefaults(suiteName: "scrollbars-\(UUID().uuidString)")!
         XCTAssertFalse(store.bool(forKey: "scrollbars.fade"))
-        XCTAssertNotNil(SettingsIndex.items.first { $0.id == "scrollbars.fade" })
+        // The Mac's own setting decides in Lun: no row for it (RetiredSettings).
+        XCTAssertNil(SettingsIndex.items.first { $0.id == "scrollbars.fade" })
     }
 }

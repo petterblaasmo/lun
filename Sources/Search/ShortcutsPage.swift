@@ -42,10 +42,10 @@ struct ShortcutsPage: View {
 
     private var numbersNote: String {
         if prefs.usesSpaces && prefs.spacesOnCommand {
-            return "The ninth is the last. ⌘1–⌘9 switch spaces: Settings › Spaces & Pins"
+            return "The ninth is the last. ⌘1–⌘9 switch spaces: Settings › Tabs & Spaces"
         }
         return prefs.usesSpaces
-            ? "The ninth is the last. To switch spaces with them instead: Settings › Spaces & Pins"
+            ? "The ninth is the last. To switch spaces with them instead: Settings › Tabs & Spaces"
             : "The ninth is the last. With spaces on, they can switch spaces instead"
     }
 
@@ -143,7 +143,7 @@ private struct FixedKey: View {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .strokeBorder(Palette.hairline, lineWidth: 1)
             )
-            .help("Set in Settings › Spaces & Pins")
+            .help("Set in Settings › Tabs & Spaces")
     }
 }
 
@@ -218,7 +218,7 @@ private struct KeyBox: View {
         guard combo.isUsable else { return say("Add ⌘, ⌥ or ⌃") }
         // ⌘1–⌘9 (or ⌃1–⌃9) pick tabs: the whole set moves, with its switch.
         guard !combo.isTabNumber else {
-            return say(browser.prefs.usesSpaces ? "Picks a tab — see Spaces & Pins" : "Picks a tab")
+            return say(browser.prefs.usesSpaces ? "Picks a tab — see Tabs & Spaces" : "Picks a tab")
         }
         guard !KeyCombo.isReserved(combo) else { return say("Can’t be changed") }
         // The switcher stays up while its key's ⌃, ⌥ or ⌘ is held, and
