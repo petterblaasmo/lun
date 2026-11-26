@@ -139,10 +139,11 @@ def shown(t, name, out, tab):
     t.ok(f"{name}: the picture is as large as it goes whole in the window, in the middle", close(seen, want, 1.5),
          {"seen": [round(n, 1) for n in seen], "want": [round(n, 1) for n in want], "window": window})
     t.ok(f"{name}: a point of the page is as wide as it is tall", abs(views[2] / page[0] - views[3] / page[1]) < 0.002, shows)
-    shot = sv.cmd({"do": "float", "action": "shot", "path": f"{out}/{name.replace(' ', '-').replace(',', '')}.png"})
-    if shot.get("error"):
+    try:
+        shot = sv.cmd({"do": "float", "action": "shot", "path": f"{out}/{name.replace(' ', '-').replace(',', '')}.png"})
+    except RuntimeError as none:
         # Nothing to read a window back with: said, and not counted.
-        print(f"  --   {name}: the window could not be read back ({shot['error']})")
+        print(f"  --   {name}: the window could not be read back ({none})")
         return
     right, found = quarters(shot["saved"])
     t.ok(f"{name}: the window read back shows the picture whole, live", right and close(found["size"], window, 1), found)
