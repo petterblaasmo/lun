@@ -55,6 +55,11 @@ try:
         t.ok(f"{name}: the page never past the window's edge", over <= 0.5, over)
         widths = p["pageWidths"]
         t.ok(f"{name}: the page laid out at most once more", len(widths) <= 2, widths)
+        # In Lun: the page is carried in the middle of what is seen of it,
+        # at every frame, so nothing in its middle goes off to one side
+        # with the column and jumps back when the page is laid out again.
+        off = max(abs((f["page"][0] + f["page"][2] / 2) - (f["card"][0] + f["card"][2] / 2)) for f in tr if "page" in f)
+        t.ok(f"{name}: the page's middle stays in the card's middle", off <= 1.5, off)
         rest = max(f["column"] for f in tr)
         lag = max(abs(f["lights"] - (f["column"] - rest)) for f in tr if not f["lightsHidden"])
         t.ok(f"{name}: the buttons ride the column's frames", lag <= 9, lag)
