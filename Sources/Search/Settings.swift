@@ -365,6 +365,20 @@ struct SettingsPanel: View {
         }
     }
 
+    /// Every site's answer about the camera, the microphone, where you are
+    /// and notifications, forgotten at once: asked first, since it can't be
+    /// undone and one press did it. A site's own answers are reset one by
+    /// one in the list under this row.
+    private func forgetChoices() {
+        guard !Store.testing else { return browser.forgetCaptureChoices() }
+        let alert = NSAlert()
+        alert.messageText = "Forget every site's answers?"
+        alert.informativeText = "Each site will ask again before it uses the camera, the microphone or your location, or sends notifications."
+        alert.addButton(withTitle: "Forget")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn { browser.forgetCaptureChoices() }
+    }
+
     /// In its section, a dependent row is there only while it counts.
     private func shown(_ item: SettingsItem) -> Bool { SettingsIndex.applies(item, prefs) }
 
@@ -866,7 +880,7 @@ struct SettingsPanel: View {
         case "privacy.gpc": Switch(on: $prefs.sendsPrivacySignal)
         case "privacy.httpsFirst": Switch(on: $prefs.triesHTTPSFirst)
         case "notifications.ask": Switch(on: $prefs.siteNotifications)
-        case "privacy.forget": Pill("Forget choices") { browser.forgetCaptureChoices() }
+        case "privacy.forget": Pill("Forget Choices…") { forgetChoices() }
         case "clear.history": Pill("Clear") { browser.clearHistory() }
         case "clear.cookies": Pill("Sign out of everything") { browser.clearSites() }
         case "clear.cache": Pill("Clear") { browser.clearCache() }

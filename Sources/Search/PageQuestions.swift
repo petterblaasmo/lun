@@ -71,39 +71,20 @@ struct ScreenQuestion: View {
                     .foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            HStack(spacing: 12) {
-                Button { browser.denyShare() } label: {
-                    Text("Don't allow")
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 7)
-                        .contentShape(Rectangle())
-                }
+            // The buttons every other question has: these three were words
+            // with nothing under the pointer or the press.
+            HStack(spacing: 8) {
+                Pill("Don't Allow", large: true) { browser.denyShare() }
                 Spacer(minLength: 8)
                 // A window gives away less than a whole screen: it is the
                 // one drawn as the answer.
-                Button { browser.shareScreen() } label: {
-                    Text("Share a Screen")
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 7)
-                        .contentShape(Rectangle())
-                }
-                Button { browser.shareWindow() } label: {
-                    Text("Share a Window")
-                        .foregroundStyle(Palette.ground)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(Palette.ink, in: Capsule())
-                }
+                Pill("Share a Screen", large: true) { browser.shareScreen() }
+                Pill("Share a Window", filled: true, large: true) { browser.shareWindow() }
             }
-            .font(.system(size: 12))
-            .foregroundStyle(Palette.ink)
-            .buttonStyle(.plain)
         }
         .frame(maxWidth: 400, alignment: .leading)
         .padding(18)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.12), radius: 20, y: 6)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .padding(.horizontal, 16)
     }
 }
@@ -112,6 +93,8 @@ struct ScreenQuestion: View {
 struct PasswordOffer: View {
     @ObservedObject var browser: Browser
     let offer: Browser.Offer
+    /// The pointer is over Never here.
+    @State private var never = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -141,10 +124,11 @@ struct PasswordOffer: View {
             HStack(spacing: 6) {
                 if !offer.changed {
                     Button("Never here") { browser.neverOffer() }
-                        .buttonStyle(.plain)
+                        .buttonStyle(Gives())
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Palette.muted)
+                        .foregroundStyle(never ? Palette.ink : Palette.muted)
                         .padding(.horizontal, 12)
+                        .hovers($never)
                 }
                 Spacer(minLength: 0)
                 Pill("Not now", large: true) { browser.dropOffer() }
