@@ -201,7 +201,7 @@ struct BlockedPopupsMenu: View {
                     browser.allowPopups(from: tab)
                     done()
                 }
-                .help(tab.shy ? "Only until this private tab closes" : "Settings › Privacy lists the sites you allow")
+                .help(tab.shy ? "Only until this private tab closes" : "Settings › Privacy & Passwords lists the sites you allow")
                 .padding(6)
             }
         }

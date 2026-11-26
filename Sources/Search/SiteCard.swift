@@ -463,7 +463,7 @@ struct SiteCard: View {
                         }
                     }
                     if !prefs.siteNotifications {
-                        note("Notifications are off in Settings › Privacy.")
+                        note("Notifications are off in Settings › Privacy & Passwords.")
                     }
                     if [CaptureChoices.Kind.camera, .microphone, .location, .notifications].contains(where: { CaptureChoices.choice($0, origin: origin) == .different }) {
                         note("Saved two ways for this site. Pick one to keep.")

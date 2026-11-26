@@ -227,7 +227,7 @@ struct ArchivePanel: View {
 
     private var empty: String {
         browser.prefs.tabLife.interval == nil
-            ? "Tabs never close by themselves (Settings › Tabs)."
+            ? "Tabs never close by themselves (Settings › Tabs & Spaces)."
             : "Nothing yet. Tabs Lun closes for you land here."
     }
 

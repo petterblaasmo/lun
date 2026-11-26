@@ -402,7 +402,7 @@ struct ImportPanel: View {
                 if wantsArc, arc.pinned > 0, !browser.prefs.listsPins {
                     Rule()
                     Line("Keep them as pinned rows",
-                         "As in \(source.name): each pinned page a row with its name, under your pins. Turned on, it stays in Settings › Spaces & Pins › Pinned rows"
+                         "As in \(source.name): each pinned page a row with its name, under your pins. Turned on, it stays in Settings › Tabs & Spaces › Pinned rows"
                          + (browser.prefs.sidebar ? "" : "; rows show with the tabs down the side")) {
                         Pill("Turn on pinned rows") {
                             withAnimation(Motion.glide) { browser.prefs.listsPins = true }
@@ -414,7 +414,7 @@ struct ImportPanel: View {
                 if wantsArc, arc.pinned > 0, browser.prefs.listsPins, !browser.prefs.pinFolders {
                     Rule()
                     Line("Keep its folders as folders",
-                         "As in \(source.name): each folder of pinned pages a folder of rows, nested as it was, rather than a tab group. Turned on, it stays in Settings › Spaces & Pins › Folders in pinned rows") {
+                         "As in \(source.name): each folder of pinned pages a folder of rows, nested as it was, rather than a tab group. Turned on, it stays in Settings › Tabs & Spaces › Folders in pinned rows") {
                         Pill("Turn on folders") {
                             withAnimation(Motion.glide) { browser.prefs.pinFolders = true }
                         }
