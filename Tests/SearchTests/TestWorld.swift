@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import XCTest
 import NoWindows
@@ -20,6 +21,10 @@ import NoWindows
 ///
 /// Every test class that needs the world calls `TestWorld.enter()` in its
 /// class setUp, in place of setting SEARCH_PROBE itself.
+///
+/// The world is one, but each test starts in it as the first did (see
+/// `reset`): what a test leaves behind in the settings, the session files
+/// or the pins is not there for the next.
 enum TestWorld {
     /// Where the run's home is: Store.folder is under it. In /tmp rather
     /// than the per-user temporary folder, whose long path would put the
@@ -47,14 +52,54 @@ enum TestWorld {
             // none — so saving writes the windows open and nothing more.
             try? FileManager.default.removeItem(at: Store.file("windows.json"))
             Browsers.restoreOnce()
+            KeptSettings.take()
         }
         XCTestObservationCenter.shared.addTestObserver(Cleanup.shared)
+    }
+
+    /// Before each test: the world as the run found it, where a test can
+    /// leave it otherwise and the next can tell (issue 98).
+    ///
+    /// - The settings, every one (KeptSettings).
+    /// - The session files. A test's window is the first of its profile, so
+    ///   its tabs are the profile's session files, and the next test's window
+    ///   opened with them: five tabs asked for, nineteen in the row.
+    /// - The pins, which every window of a space shows.
+    ///
+    /// TEST_LEAKS=1 prints what each test had left changed, by name.
+    @MainActor
+    static func reset(after last: String?) {
+        var left = KeptSettings.putBack().map { "setting \($0)" }
+        Disk.drain()
+        let folder = Store.folder
+        for name in (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        where name.hasPrefix("session") && name.hasSuffix(".json") {
+            try? FileManager.default.removeItem(at: folder.appendingPathComponent(name))
+            left.append(name)
+        }
+        for space in Array(Pins.bySpace.keys) {
+            Pins.forget(space)
+            left.append("pins")
+        }
+        Disk.drain()
+        if let last, !left.isEmpty, ProcessInfo.processInfo.environment["TEST_LEAKS"] != nil {
+            print("LEFT by \(last): \(left.joined(separator: ", "))")
+        }
     }
 
     /// The world removed once the run is over: its folder, and its settings,
     /// which macOS keeps in ~/Library/Preferences whatever the home.
     private final class Cleanup: NSObject, XCTestObservation {
         static let shared = Cleanup()
+        private var last: String?
+
+        func testCaseWillStart(_ testCase: XCTestCase) {
+            MainActor.assumeIsolated { TestWorld.reset(after: last) }
+        }
+
+        func testCaseDidFinish(_ testCase: XCTestCase) {
+            last = testCase.name
+        }
 
         func testBundleDidFinish(_ testBundle: Bundle) {
             Disk.drain()

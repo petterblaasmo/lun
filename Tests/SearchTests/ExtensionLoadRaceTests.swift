@@ -38,7 +38,9 @@ final class ExtensionLoadRaceTests: XCTestCase {
         defer { extensions.remove(id) }
 
         extensions.installFolder(at: source, confirm: false)
-        let installed = try await waitForContext(id, extensions)
+        // An install waits out WebKit's first 5.5 s (Extensions.install), so
+        // as the first extension test of a run this one waits that long too.
+        let installed = try await waitForContext(id, extensions, limit: 15)
         XCTAssertTrue(installed, "the installed extension never loaded")
         XCTAssertEqual(loaded(id, extensions), 1)
 

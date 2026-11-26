@@ -8,7 +8,9 @@ import XCTest
 @MainActor
 final class SideBookmarksTests: XCTestCase {
     override class func setUp() {
-        setenv("SEARCH_PROBE", "side-bookmarks-\(getpid())", 1)
+        // The run's one world: named here, run alone, this class had a world
+        // of its own in the person's Library, left there afterwards.
+        TestWorld.enter()
         super.setUp()
     }
 

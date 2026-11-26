@@ -20,14 +20,6 @@ final class HandoffTests: XCTestCase {
         super.setUp()
     }
 
-    override class func tearDown() {
-        if let world = Store.world {
-            UserDefaults.standard.removePersistentDomain(forName: "com.lunbrowser.lun.test.\(world)")
-            try? FileManager.default.removeItem(at: Store.folder)
-        }
-        super.tearDown()
-    }
-
     override func setUp() async throws {
         try await super.setUp()
         _ = NSApplication.shared
