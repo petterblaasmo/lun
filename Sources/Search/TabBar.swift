@@ -792,13 +792,14 @@ struct Helm: View {
             Wheel(browser: browser, tab: tab, vertical: vertical)
         } else {
             // Nowhere to go and nothing to reload: the doors stay in place,
-            // greyed, so the row doesn't shift when a tab arrives.
+            // dimmed as any button that can't be pressed (Door), so the row
+            // doesn't shift when a tab arrives.
             Helm.stack(vertical) {
                 if !browser.prefs.hidesBack { Door(icon: "chevron.left") {} }
                 if !browser.prefs.hidesForward { Door(icon: "chevron.right") {} }
                 if !browser.prefs.hidesReload { Door(icon: "arrow.clockwise") {} }
             }
-            .opacity(0.3)
+            .disabled(true)
             .allowsHitTesting(false)
         }
     }
@@ -821,12 +822,10 @@ struct Helm: View {
                 if !browser.prefs.hidesBack {
                     Door(icon: "chevron.left", help: "Back", shortcut: "tabs.back", held: { Rewind.menu(tab, back: true) }) { browser.back() }
                         .disabled(!back)
-                        .opacity(back ? 1 : 0.3)
                 }
                 if !browser.prefs.hidesForward {
                     Door(icon: "chevron.right", help: "Forward", shortcut: "tabs.forward", held: { Rewind.menu(tab, back: false) }) { browser.forward() }
                         .disabled(!forward)
-                        .opacity(forward ? 1 : 0.3)
                 }
                 // Reload, or stop while it is still coming.
                 if !browser.prefs.hidesReload {
@@ -839,7 +838,6 @@ struct Helm: View {
                     if tab.loading { tab.stop() } else { browser.reload() }
                 }
                 .disabled(!tab.isWeb)
-                .opacity(tab.isWeb ? 1 : 0.3)
                 // The menu's second item is the reason for it: ⇧⌘R has no
                 // button. Nothing to offer while the door is Stop.
                 .contextMenu {
