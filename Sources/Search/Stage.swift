@@ -759,7 +759,8 @@ final class CallWatch: NSObject {
 }
 
 /// What there is to say when the page never came. One line, and the only thing
-/// worth offering — another go.
+/// worth offering — another go. A second line in the message is a hint,
+/// drawn smaller under it.
 struct Trouble: View {
     let message: String
     /// The page it is about and the window it is in: without one, a small
@@ -773,12 +774,14 @@ struct Trouble: View {
     private var host: String? { tab?.shownURL?.host().map(Address.withoutWWW) }
     private var code: Int { tab?.failureCode ?? 0 }
     private var offline: Bool { code == NSURLErrorNotConnectedToInternet }
+    /// The message's own lines: a second one is a hint (DNSRetryPolicy).
+    private var lines: [String] { message.split(separator: "\n", maxSplits: 1).map(String.init) }
 
     /// What happened, said of the site where it is the site's.
     private var title: String {
-        guard let host else { return message }
+        guard let host else { return lines.first ?? message }
         switch code {
-        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed: return "No site at \(host)"
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed: return "Couldn’t find \(host)"
         case NSURLErrorNotConnectedToInternet: return "No connection"
         case NSURLErrorNetworkConnectionLost: return "The connection was lost"
         case NSURLErrorTimedOut: return "\(host) isn’t answering"
@@ -789,7 +792,11 @@ struct Trouble: View {
     }
 
     private var detail: String? {
+        guard host != nil else { return lines.count > 1 ? lines[1] : nil }
         switch code {
+        // Tried again by itself in a moment (DNSRetry), and said so.
+        case NSURLErrorCannotFindHost where message == DNSRetryPolicy.trying,
+             NSURLErrorDNSLookupFailed where message == DNSRetryPolicy.trying: return "Trying again…"
         case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed: return "Check the address for a mistake, or look for the site on the web."
         case NSURLErrorNotConnectedToInternet: return "Your Mac isn’t connected to the internet."
         case NSURLErrorNetworkConnectionLost: return "It was cut off while the page was on its way."

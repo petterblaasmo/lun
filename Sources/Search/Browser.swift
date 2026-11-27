@@ -8831,6 +8831,12 @@ final class Browser: NSObject, ObservableObject {
         // An address typed (or finished from what was typed), not a search:
         // kept under the name it was typed by if the site sends you elsewhere.
         let typedAddress = picked == nil && (ending != nil || Address.url(from: typed) != nil)
+        // Typed as it is, with no scheme, and nothing picked or finished
+        // from the list: the field's guess at an address, not one you
+        // confirmed. If it can't be found, it isn't tried again by itself
+        // unless you have been there before (DNSRetry).
+        let guessed = picked == nil && ending == nil && siteChip == nil
+            && !typed.contains("://") && Address.url(from: typed) != nil
         var going: Tab?
         if launching || fromSwitcher, !aside {
             // The floating new tab: what was typed gets a tab of its own, and
@@ -8848,6 +8854,7 @@ final class Browser: NSObject, ObservableObject {
             going?.go(to: url)
         }
         if typedAddress, let going { typedTo[going.id] = (url, Date()) }
+        if guessed, let going { going.dnsRetry.typedGuess(url) }
         editing = false
         typed = ""
     }
@@ -8963,6 +8970,18 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
                PopupGesture.leavesDocument(to: action.request.url, from: webView.url,
                                            reload: action.navigationType == .reload, method: action.request.httpMethod) {
                 self?.popupTab(for: webView)?.popupGesture.clear()
+            }
+            // Where the tab's own frame is going, and how: a site that
+            // can't be found is tried again only for a plain GET (DNSRetry).
+            if policy == .allow, action.targetFrame?.isMainFrame == true, let url = action.request.url,
+               let tab = self?.tab(for: webView) ?? self?.littleTab(for: webView) {
+                tab.dnsRetry.going(to: url, method: action.request.httpMethod,
+                                   form: [.formSubmitted, .formResubmitted].contains(action.navigationType))
+                if DNSRetry.failsForTest(url) {
+                    decisionHandler(.cancel, preferences)
+                    self?.failForTest(webView, url)
+                    return
+                }
             }
             if policy == .allow, action.targetFrame?.isMainFrame ?? true, let url = action.request.url {
                 let shy = self?.tab(for: webView)?.shy == true || !webView.configuration.websiteDataStore.isPersistent
@@ -10280,13 +10299,35 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         // WebKit's error has it (idea 1080), before the failure goes up.
         if provisional { tab?.failed(at: nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) }
         tab?.failureCode = code
+        // A site that couldn't be found may be there a moment later: tried
+        // again by itself, as Chrome does, and said honestly (DNSRetry).
+        if let tab, DNSRetryPolicy.isLookupFailure(code),
+           let failing = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? tab.failedAt {
+            let history = history(of: tab)
+            tab.failure = tab.dnsRetry.failed(failing) { host in
+                (history.visits(to: [host])[host] ?? 0) > 0
+            }
+            return
+        }
+        tab?.dnsRetry.stop()
         tab?.failure = message(for: code)
+    }
+
+    /// A load the test asked to fail on its lookup (DNSRetry.testFailures):
+    /// refused, then failed as WebKit would have failed it.
+    private func failForTest(_ webView: WKWebView, _ url: URL) {
+        DispatchQueue.main.async { [weak self, weak webView] in
+            guard let self, let webView else { return }
+            let error = NSError(domain: NSURLErrorDomain, code: NSURLErrorCannotFindHost,
+                                userInfo: [NSURLErrorFailingURLErrorKey: url])
+            self.fail(webView, error, provisional: true)
+        }
     }
 
     private func message(for code: Int) -> String {
         switch code {
         case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
-            return "No site at that address."
+            return DNSRetryPolicy.gaveUp
         case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
             return "No connection."
         case NSURLErrorTimedOut:
