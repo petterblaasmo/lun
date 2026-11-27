@@ -1464,8 +1464,8 @@ final class Preferences: ObservableObject {
         hidesProfileDoor = store.bool(forKey: "foot.profile.hidden")
         tabLife = TabLife(rawValue: store.integer(forKey: "tabs.close.after")) ?? .never
         sleepPace = SleepPace.chosen
-        // On for everyone who never touched it (Drice, 25 Nov 2026).
-        showsLoadingLine = store.object(forKey: "fold.loadingLine") as? Bool ?? true
+        // Off unless turned on by hand (Drice, 27 Nov 2026, 221e0ba7).
+        showsLoadingLine = store.bool(forKey: "fold.loadingLine")
         lazyTabs = store.bool(forKey: "tabs.lazy")
         newTabAfterLast = store.bool(forKey: "tabs.newAfterLast")
         keepWindowAfterLast = store.bool(forKey: "tabs.keepWindow")

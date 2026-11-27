@@ -15,10 +15,11 @@ final class DefaultsOnTests: XCTestCase {
 
     static let keys = ["tabs.undoReopens", "video.keys", "tabs.popupWindows", "tabs.frontBeside",
                        "tabs.swipeBackCloses", "wheel.smooth", "reader.follows", "pages.capture", "sites.styles",
-                       "home.grid", "fold.loadingLine", Motion.lightKey, "pins.folders", "commandbar",
+                       "home.grid", Motion.lightKey, "pins.folders", "commandbar",
                        "sidebar.player", "tabs.pinCounts"]
-    /// Still off unless turned on.
-    static let offKeys = ["search.suggest", "pages.bounce", "passwords.fill.prove", "tabs.lazy", "links.little.tabs"]
+    /// Still off unless turned on. The loading line was on from 25 Nov
+    /// 2026 until 27 Nov (221e0ba7): it showed by itself.
+    static let offKeys = ["fold.loadingLine", "search.suggest", "pages.bounce", "passwords.fill.prove", "tabs.lazy", "links.little.tabs"]
     /// On upstream, off in Lun (RetiredSettings): a site with no HTTPS
     /// waited for the attempt over HTTPS to run out, and the floating
     /// video's minimize was retired at its default.
@@ -35,7 +36,6 @@ final class DefaultsOnTests: XCTestCase {
          "pages.capture": prefs.capturesPages,
          "sites.styles": prefs.sitesStyles && SiteStyles.shared.on,
          "home.grid": prefs.homeGrid,
-         "fold.loadingLine": prefs.showsLoadingLine,
          Motion.lightKey: prefs.lightMotion,
          "pins.folders": prefs.pinFolders,
          "commandbar": prefs.commandBar,
@@ -63,6 +63,7 @@ final class DefaultsOnTests: XCTestCase {
         XCTAssertFalse(fresh.bounces)
         XCTAssertFalse(fresh.asksBeforeFilling)
         XCTAssertFalse(fresh.lazyTabs)
+        XCTAssertFalse(fresh.showsLoadingLine, "the loading line, off unless turned on")
         XCTAssertFalse(fresh.linksFindTabs)
         XCTAssertFalse(fresh.triesHTTPSFirst || HTTPSFirst.on, "Try HTTPS first, off in Lun")
         XCTAssertFalse(fresh.floatMinimizes || Float.minimizes, "minimize the floating video, off in Lun")
