@@ -2037,6 +2037,12 @@ private struct PinSquare: View, Equatable {
             }
         }
         .animation(Motion.quick, value: peek?.id)
+        // Its page plays sound, or was muted: the icons-only tile's speaker,
+        // in the same corner, a press muting it (idea 1328).
+        .overlay(alignment: .bottomTrailing) {
+            if CornerSpeaker.shows(for: tab), !lettering { CornerSpeaker(tab: tab) }
+        }
+        .animation(Motion.quick, value: CornerSpeaker.shows(for: tab))
         .contentShape(RoundedRectangle(cornerRadius: scale * 10 / 32, style: .continuous))
         .modifier(TabPress(enabled: !lettering && !pickedAmongOthers, active: live, selected: $selectedOnPress) {
             browser.clearTabSelection()
