@@ -19,7 +19,7 @@ final class FullScreenTitleTests: XCTestCase {
         let url = URL(string: "https://www.youtube.com/watch?v=x")
         XCTAssertEqual(FullScreenTitle.label(title: "Big Buck Bunny - YouTube", url: url), "Big Buck Bunny - YouTube")
         XCTAssertEqual(FullScreenTitle.label(title: "  ", url: url), "www.youtube.com")
-        XCTAssertEqual(FullScreenTitle.label(title: nil, url: nil), "Search")
+        XCTAssertEqual(FullScreenTitle.label(title: nil, url: nil), "Lun")
     }
 
     /// WebKit's full-screen window is borderless with no title: named, the
