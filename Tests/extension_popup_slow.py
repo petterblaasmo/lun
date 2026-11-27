@@ -3,7 +3,7 @@
 speck meanwhile (idea 1179), in a hidden probe.
 
 Build first (`./build.sh`), then `python3 Tests/extension_popup_slow.py`.
-It runs a copy of build/Search.app under a bundle id of its own, hidden, in
+It runs a copy of build/Lun.app under a bundle id of its own, hidden, in
 a world of its own; the copy, its WebKit folders and the world are removed
 afterwards.
 
@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-popup-slow")
-BUNDLE = "com.officecommun.search.popupslow"
+BUNDLE = "com.lunbrowser.lun.popupslow"
 work = Path(tempfile.mkdtemp(prefix="search-popupslow-"))
 
 POPUP = """<!doctype html><html><head><title>p</title><style>body{margin:0}</style></head>
@@ -45,8 +45,8 @@ NEVER_JS = "new Promise(() => {});"
 
 
 def probe_copy():
-    app = work / "Search.app"
-    shutil.copytree(Path(sv.ROOT, "build", "Search.app"), app, symlinks=True)
+    app = work / "Lun.app"
+    shutil.copytree(Path(sv.ROOT, "build", "Lun.app"), app, symlinks=True)
     subprocess.run(["/usr/libexec/PlistBuddy", "-c", f"Set :CFBundleIdentifier {BUNDLE}", str(app / "Contents/Info.plist")], check=True)
     (app / "Contents/embedded.provisionprofile").unlink(missing_ok=True)
     subprocess.run(["codesign", "-f", "-s", "-", "--entitlements", str(Path(sv.ROOT, "Search.entitlements")), "--deep", str(app)],

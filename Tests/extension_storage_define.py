@@ -3,7 +3,7 @@
 page it runs in (idea 1199), in a hidden probe.
 
 Build first (`./build.sh`), then `python3 Tests/extension_storage_define.py`.
-A copy of build/Search.app under a bundle id of its own runs hidden in a
+A copy of build/Lun.app under a bundle id of its own runs hidden in a
 world of its own (split_view.py's harness); all of it is removed afterwards.
 
 WebKit's web process crashes, a null read in JSStorage::defineOwnProperty,
@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import split_view as sv  # noqa: E402
 
 sv.use("extension-storage-define")
-BUNDLE = "com.officecommun.search.storagedefine"
+BUNDLE = "com.lunbrowser.lun.storagedefine"
 work = Path(tempfile.mkdtemp(prefix="search-storagedefine-"))
 
 # What both scripts run in the page, as Fabric's capture.js does, then a
@@ -87,8 +87,8 @@ BASE = f"http://127.0.0.1:{srv.server_port}"
 
 
 def probe_copy():
-    app = work / "Search.app"
-    shutil.copytree(Path(sv.ROOT, "build", "Search.app"), app, symlinks=True)
+    app = work / "Lun.app"
+    shutil.copytree(Path(sv.ROOT, "build", "Lun.app"), app, symlinks=True)
     subprocess.run(["/usr/libexec/PlistBuddy", "-c", f"Set :CFBundleIdentifier {BUNDLE}", str(app / "Contents/Info.plist")], check=True)
     (app / "Contents/embedded.provisionprofile").unlink(missing_ok=True)
     subprocess.run(["codesign", "-f", "-s", "-", "--entitlements", str(Path(sv.ROOT, "Search.entitlements")), "--deep", str(app)],
