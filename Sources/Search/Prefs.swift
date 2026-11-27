@@ -737,6 +737,12 @@ final class Preferences: ObservableObject {
         didSet { store.set(capturesPages, forKey: "pages.capture") }
     }
 
+    /// Capture… only copies the picture, with no PNG left in the downloads
+    /// folder (idea 1250). Off unless asked for: by default it does both.
+    @Published var copiesCapturesOnly: Bool {
+        didSet { store.set(copiesCapturesOnly, forKey: "pages.capture.copyOnly") }
+    }
+
     /// Your own style for a site, Edit Site Style… in the View menu (see
     /// SiteStyles.swift). Off unless asked for; off, the styles are kept.
     @Published var sitesStyles: Bool {
@@ -1557,6 +1563,7 @@ final class Preferences: ObservableObject {
         darkensPages = dusk
         Dusk.shared.on = dusk
         capturesPages = store.bool(forKey: "pages.capture")
+        copiesCapturesOnly = store.bool(forKey: "pages.capture.copyOnly")
         let styles = store.bool(forKey: "sites.styles")
         sitesStyles = styles
         SiteStyles.shared.on = styles
