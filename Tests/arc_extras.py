@@ -76,10 +76,39 @@ def screenshot(folder, name, marked):
 def main():
     t = sv.T()
     try:
-        sv.setup()
+        sv.setup(**{"developer.local": True})
         sv.launch()
-        # The tab in front while the pin is looked at.
+
+        # --- Developer Mode -------------------------------------------------
         local = open_tab(f"http://127.0.0.1:{PORT}/dev")
+        r = sv.cmd({"do": "devmode", "id": local})
+        t.ok("dev: on by itself for 127.0.0.1", r["on"] and r["local"], r)
+        t.ok("dev: the command exists", r["command"], r)
+        named = open_tab(f"http://localhost:{PORT}/dev?x=1")
+        t.ok("dev: on by itself for localhost", sv.cmd({"do": "devmode", "id": named})["on"])
+
+        r = sv.cmd({"do": "devmode", "id": local, "set": False})
+        t.ok("dev: off by hand, kept for the site", not r["on"] and r["sites"] == {"127.0.0.1": False}, r)
+        r = sv.cmd({"do": "devmode", "id": local, "toggle": True})
+        t.ok("dev: the command turns it back on, nothing kept", r["on"] and r["sites"] == {}, r)
+
+        before = len(asked("/dev"))
+        sv.cmd({"do": "devmode", "id": local, "reload": True})
+        wait(lambda: len(asked("/dev")) > before, 5)
+        plain = asked("/dev")[before:]
+        t.ok("dev: a plain reload asks the server", len(plain) == 1, plain)
+        t.ok("dev: … without no-cache", plain and "no-cache" not in plain[0][1] + plain[0][2], plain)
+
+        r = sv.cmd({"do": "devmode", "id": local, "cache": True})
+        t.ok("dev: cache off for the site", r["cacheOff"], r)
+        before = len(asked("/dev"))
+        sv.cmd({"do": "devmode", "id": local, "reload": True})
+        wait(lambda: len(asked("/dev")) > before, 5)
+        fresh = asked("/dev")[before:]
+        t.ok("dev: with the cache off, ⌘R's reload skips it (no-cache)",
+             fresh and "no-cache" in fresh[0][1] + fresh[0][2], fresh)
+        sv.cmd({"do": "devmode", "id": local, "cache": False})
+
 
         # --- A pin's glance -------------------------------------------------
         # An ordinary tab, not a bench one: bench tabs never sleep.
