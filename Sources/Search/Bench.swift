@@ -1,5 +1,6 @@
 import AppKit
 import AuthenticationServices
+import Combine
 import LocalAuthentication
 import SwiftUI
 import WebKit
@@ -478,6 +479,14 @@ final class Bench {
                 // Steps of a notch: positions it went through before the next.
                 answer(["positions": seen, "last": seen.last?[1] ?? -1, "smooth": WheelGlide.on])
             }
+
+        case "mute":
+            // The tab's speaker turned off, as its button would: for probes,
+            // whose media must never be heard. Only on a SEARCH_PROBE run.
+            guard Store.testing else { answer(["error": "mute only works on a --test run"]); return }
+            guard let tab = find(request, in: browser) else { answer(missing(request)); return }
+            if !tab.muted { tab.toggleMute() }
+            answer(["muted": tab.muted])
 
         case "sleep":
             // Now rather than after half an hour, but past every other check
@@ -1596,6 +1605,55 @@ final class Bench {
             }
             walk(0)
 
+        case "passes":
+            // Each pass of the main run loop for "seconds", with the views
+            // that count themselves (Bench.count) drawn again in it, and how
+            // many times the window (Browser) and its tabs said they changed:
+            // what a navigation costs the window (Tests/nav_click.py). Test
+            // runs only.
+            guard Store.testing else { answer(["error": "passes is for test runs"]); return }
+            let seconds = request["seconds"] as? Double ?? 3
+            let start = CFAbsoluteTimeGetCurrent()
+            var told: [Double] = []
+            var tabsTold = 0
+            var watching: [AnyCancellable] = [browser.objectWillChange.sink { _ in
+                told.append(((CFAbsoluteTimeGetCurrent() - start) * 1000).rounded())
+            }]
+            for tab in browser.tabs { watching.append(tab.objectWillChange.sink { _ in tabsTold += 1 }) }
+            Bench.bodies = [:]
+            var drawn: [String: Int] = [:]
+            var woke: CFAbsoluteTime = 0
+            // The main thread's own time on a processor in each pass: far
+            // under the pass's length, it was ready but kept waiting.
+            var wokeCPU: UInt64 = 0
+            var passes: [[String: Any]] = []
+            let wake = CFRunLoopObserverCreateWithHandler(nil, CFRunLoopActivity.afterWaiting.rawValue, true, CFIndex.min) { _, _ in
+                woke = CFAbsoluteTimeGetCurrent()
+                wokeCPU = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+            }
+            let rest = CFRunLoopObserverCreateWithHandler(nil, CFRunLoopActivity.beforeWaiting.rawValue, true, CFIndex.max) { _, _ in
+                let now = CFAbsoluteTimeGetCurrent()
+                let began = woke > 0 ? woke : start
+                let cpu = wokeCPU > 0 ? Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - wokeCPU) / 1e6 : 0
+                wokeCPU = 0
+                var pass: [String: Any] = ["at": ((began - start) * 1000).rounded(), "ms": ((now - began) * 10000).rounded() / 10,
+                                           "cpu": (cpu * 10).rounded() / 10]
+                for (name, n) in Bench.bodies where n != drawn[name, default: 0] {
+                    pass[name] = n - drawn[name, default: 0]
+                }
+                drawn = Bench.bodies
+                passes.append(pass)
+                woke = 0
+            }
+            let observers = [wake, rest].compactMap { $0 }
+            for observer in observers { CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+                for observer in observers { CFRunLoopRemoveObserver(CFRunLoopGetMain(), observer, .commonModes) }
+                watching.removeAll()
+                answer(["passes": passes, "browserTold": told, "tabsTold": tabsTold,
+                        "loading": browser.tabs.filter(\.loading).count])
+            }
+
         case "paceframes":
             guard Store.testing else { answer(["error": "paceframes is for test runs"]); return }
             PaceFrames.run(browser, request, answer)
@@ -1665,6 +1723,176 @@ final class Bench {
                 answer(["folded": browser.folded, "pageBefore": before, "passes": passes, "lights": lights ?? NSNull(),
                         "slides": browser.prefs.slidesColumn, "covers": Bench.foldCovers,
                         "coveredAfter": web.subviews.filter { $0 is FoldCover }.count])
+            }
+
+        case "bodies":
+            // How many times each counted body was drawn (Bench.count) since
+            // the last ask, and cleared. Test runs only.
+            guard Store.testing else { answer(["error": "bodies is for test runs"]); return }
+            let counts = Bench.bodies
+            Bench.bodies = [:]
+            answer(["bodies": counts])
+
+        case "perfwatch":
+            // Tests/perf_many_tabs.py: the main run loop's passes for
+            // `seconds`, summed up, with the app's CPU over them, what is
+            // built and alive, and PerfLog's record from the launch on.
+            // Test runs only.
+            guard Store.testing else { answer(["error": "perfwatch is for test runs"]); return }
+            let seconds = min(20, request["seconds"] as? Double ?? 3)
+            let cpu0 = PerfLog.cpuMs()
+            let done = Bench.timePasses(for: seconds, from: CFAbsoluteTimeGetCurrent())
+            done { passes in
+                let pages = Web.pages.allObjects
+                let pids = Set(pages.compactMap { $0.value(forKey: "_webProcessIdentifier") as? Int }.filter { $0 > 0 })
+                let ask: (NSObject?, String) -> Int = { object, name in
+                    guard let object, object.responds(to: NSSelectorFromString(name)) else { return 0 }
+                    return object.value(forKey: name) as? Int ?? 0
+                }
+                var out = PerfLog.summary(passes)
+                out["cpuMs"] = ((PerfLog.cpuMs() - cpu0) * 10).rounded() / 10
+                out["seconds"] = seconds
+                out["webPids"] = pids.sorted()
+                out["gpu"] = pages.map { ask($0, "_gpuProcessIdentifier") }.first { $0 > 0 } ?? 0
+                out["network"] = pages.map { ask($0.configuration.websiteDataStore, "_networkProcessIdentifier") }.first { $0 > 0 } ?? 0
+                out["tabs"] = browser.tabs.count
+                out["inRows"] = Browsers.all.reduce(0) { $0 + $1.tabs.count + $1.parkedTabs.count }
+                out["built"] = Browsers.all.reduce(0) { $0 + ($1.tabs + $1.parkedTabs).filter { $0.built != nil }.count }
+                out["asleep"] = Browsers.all.reduce(0) { $0 + ($1.tabs + $1.parkedTabs).filter { $0.asleep }.count }
+                out["log"] = PerfLog.state()
+                answer(out)
+            }
+
+        case "perftimed":
+            // Another bench command ("inner"), with the main run loop's
+            // passes from just before it for `seconds`: how long the call
+            // held the main thread, and what it set off after. Test runs only.
+            guard Store.testing else { answer(["error": "perftimed is for test runs"]); return }
+            guard let inner = request["inner"] as? [String: Any] else { answer(["error": "perftimed needs inner"]); return }
+            let seconds = min(10, request["seconds"] as? Double ?? 0.8)
+            let cpu0 = PerfLog.cpuMs()
+            let start = CFAbsoluteTimeGetCurrent()
+            let done = Bench.timePasses(for: seconds, from: start)
+            var reply: [String: Any] = [:]
+            var call = 0.0
+            handle(inner) { r in
+                reply = r
+                call = ((CFAbsoluteTimeGetCurrent() - start) * 10000).rounded() / 10
+            }
+            done { passes in
+                var out = PerfLog.summary(passes)
+                out["callMs"] = call
+                out["cpuMs"] = ((PerfLog.cpuMs() - cpu0) * 10).rounded() / 10
+                out["reply"] = reply
+                answer(out)
+            }
+
+        case "perfkeyspace":
+            // A space switch from the keyboard, timed from the key press until
+            // the space is taken (landedMs), its page is in the window
+            // (pageMs) and the column has stopped working (settledMs: the end
+            // of the last pass over 4 ms), within `seconds`. "index": ⌃N
+            // (⌘N with "cmd") posted through the app's event queue as `press`
+            // does, so the menus' key equivalents see it; "step": ±1, Next or
+            // Previous Space as its command runs it (no key by default).
+            // "glide": the slide a window on screen makes. Test runs only.
+            guard Store.testing else { answer(["error": "perfkeyspace is for test runs"]); return }
+            let seconds = min(10, request["seconds"] as? Double ?? 2)
+            let from = browser.spaceID
+            let start = CFAbsoluteTimeGetCurrent()
+            var landed: Double?, page: Double?, ahead: Double?, settled = 0.0, longest = 0.0, busy = 0.0, woke: CFAbsoluteTime = 0
+            let ms = { (t: CFAbsoluteTime) in ((t - start) * 10000).rounded() / 10 }
+            let wake = CFRunLoopObserverCreateWithHandler(nil, CFRunLoopActivity.afterWaiting.rawValue, true, CFIndex.min) { _, _ in
+                woke = CFAbsoluteTimeGetCurrent()
+            }
+            let sleep = CFRunLoopObserverCreateWithHandler(nil, CFRunLoopActivity.beforeWaiting.rawValue, true, CFIndex.max) { _, _ in
+                let now = CFAbsoluteTimeGetCurrent()
+                let began = woke > 0 ? woke : start
+                let pass = (now - began) * 1000
+                busy += pass
+                longest = max(longest, pass)
+                if pass > 4 { settled = ms(now) }
+                woke = 0
+                MainActor.assumeIsolated {
+                    if landed == nil, browser.spaceID != from { landed = ms(now) }
+                    // The new space's page on the stage ahead of its rows (a slide), or with them.
+                    if ahead == nil, browser.pageAhead != nil || landed != nil { ahead = ms(now) }
+                    if landed != nil, page == nil, let web = browser.active?.built, web.window === browser.window,
+                       !web.isHiddenOrHasHiddenAncestor {
+                        page = ms(now)
+                    }
+                }
+            }
+            let observers = [wake, sleep].compactMap { $0 }
+            for o in observers { CFRunLoopAddObserver(CFRunLoopGetMain(), o, .commonModes) }
+            SpaceSwipe.glidesHidden = request["glide"] as? Bool ?? false
+            if let step = request["step"] as? Int {
+                browser.stepSpace(step)
+            } else if let code = request["code"] as? Int, let chars = request["chars"] as? String {
+                // Any key, as `press` posts it: Next / Previous Space on a
+                // key of its own, the way a person runs it.
+                var flags: NSEvent.ModifierFlags = []
+                for name in request["mods"] as? [String] ?? [] {
+                    switch name {
+                    case "cmd": flags.insert(.command)
+                    case "shift": flags.insert(.shift)
+                    case "ctrl": flags.insert(.control)
+                    case "opt": flags.insert(.option)
+                    default: break
+                    }
+                }
+                for type in [NSEvent.EventType.keyDown, .keyUp] {
+                    if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags,
+                                                    timestamp: ProcessInfo.processInfo.systemUptime,
+                                                    windowNumber: browser.window?.windowNumber ?? 0, context: nil,
+                                                    characters: chars, charactersIgnoringModifiers: chars,
+                                                    isARepeat: false, keyCode: UInt16(code)) {
+                        NSApp.postEvent(event, atStart: false)
+                    }
+                }
+            } else {
+                let n = max(1, min(9, request["index"] as? Int ?? 2))
+                let codes: [UInt16] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
+                let flags: NSEvent.ModifierFlags = request["cmd"] as? Bool == true ? .command : .control
+                for type in [NSEvent.EventType.keyDown, .keyUp] {
+                    if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags,
+                                                    timestamp: ProcessInfo.processInfo.systemUptime,
+                                                    windowNumber: browser.window?.windowNumber ?? 0, context: nil,
+                                                    characters: "\(n)", charactersIgnoringModifiers: "\(n)",
+                                                    isARepeat: false, keyCode: codes[n - 1]) {
+                        NSApp.postEvent(event, atStart: false)
+                    }
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+                SpaceSwipe.glidesHidden = false
+                for o in observers { CFRunLoopRemoveObserver(CFRunLoopGetMain(), o, .commonModes) }
+                answer(["landedMs": landed.map { $0 as Any } ?? NSNull(), "pageMs": page.map { $0 as Any } ?? NSNull(),
+                        "aheadMs": ahead.map { $0 as Any } ?? NSNull(), "settledMs": settled, "longestMs": (longest * 10).rounded() / 10, "busyMs": (busy * 10).rounded() / 10,
+                        "space": browser.space.name, "tabs": browser.tabs.count])
+            }
+
+        case "perfselect":
+            // The Nth tab of the row (loose or pinned, as the row has them)
+            // picked, timed as perftimed times a command. Test runs only.
+            guard Store.testing else { answer(["error": "perfselect is for test runs"]); return }
+            let index = request["index"] as? Int ?? 0
+            guard browser.tabs.indices.contains(index) else { answer(["error": "no tab \(index)", "tabs": browser.tabs.count]); return }
+            let tab = browser.tabs[index]
+            let wasBuilt = tab.built != nil
+            let seconds = min(10, request["seconds"] as? Double ?? 0.8)
+            let cpu0 = PerfLog.cpuMs()
+            let start = CFAbsoluteTimeGetCurrent()
+            let done = Bench.timePasses(for: seconds, from: start)
+            browser.select(tab)
+            let call = ((CFAbsoluteTimeGetCurrent() - start) * 10000).rounded() / 10
+            done { passes in
+                var out = PerfLog.summary(passes)
+                out["callMs"] = call
+                out["cpuMs"] = ((PerfLog.cpuMs() - cpu0) * 10).rounded() / 10
+                out["wasBuilt"] = wasBuilt
+                out["pinned"] = tab.pin != nil
+                answer(out)
             }
 
         case "spacetime":
@@ -2094,6 +2322,9 @@ final class Bench {
                         let start = CACurrentMediaTime()
                         var loading: Double?
                         let watch = tab.$loading.first(where: { $0 }).sink { _ in loading = (CACurrentMediaTime() - start) * 1000 }
+                        // When Return went, on the clock a page's
+                        // performance.timeOrigin is on (Tests/mem_at_rest.py).
+                        out["submittedAt"] = Date().timeIntervalSince1970 * 1000
                         browser.submit()
                         out["returned"] = (CACurrentMediaTime() - start) * 1000
                         Bench.whenResting(since: start) { rested in
@@ -2674,6 +2905,23 @@ final class Bench {
                         "kept": took.kept, "skipped": took.skipped, "cancelled": took.cancelled,
                         "total": browser.bookmarks.count, "top": browser.bookmarks.roots.map(\.title), "saved": browser.saved.count])
             }
+
+        case "export-spaces":
+            // File › Export Spaces… without its panel: the file is .json or
+            // a bookmarks page by its name. With no path, only the spaces as
+            // they would be written. Only on a SEARCH_PROBE run.
+            guard Store.testing else { answer(["error": "export-spaces only works on a --test run"]); return }
+            var out: [String: Any] = [:]
+            if let path = request["path"] as? String { out["said"] = browser.exportSpaces(to: URL(fileURLWithPath: path)) }
+            out["spaces"] = (try? JSONSerialization.jsonObject(with: SpacesExport.json(SpacesExport.gather()))) ?? [:]
+            answer(out)
+
+        case "import-spaces-file":
+            // Bring Things Over › File… given a Search spaces file.
+            guard Store.testing else { answer(["error": "import-spaces-file only works on a --test run"]); return }
+            guard let path = request["path"] as? String else { answer(["error": "import-spaces-file needs a path"]); return }
+            answer(["said": browser.takeSpacesFile(URL(fileURLWithPath: path)) ?? "not a spaces file",
+                    "names": browser.spaces.map(\.name), "usesSpaces": browser.prefs.usesSpaces])
 
         case "remove-folder":
             // The bookmarks list's Remove on a top-level folder, question and
@@ -3745,6 +3993,14 @@ final class Bench {
                     out["offset"] = Double(scroll.contentView.bounds.minY)
                     out["visible"] = Double(scroll.contentView.bounds.height)
                     out["content"] = Double(document.frame.height)
+                    // The scroll's room from the window's top, as the rows
+                    // are drawn (SideBar.liveRow), for "live" to be checked in it.
+                    let rect = scroll.convert(scroll.bounds, to: nil)
+                    out["room"] = [Double(window.frame.height - rect.maxY), Double(window.frame.height - rect.minY)]
+                }
+                out["window"] = SideBar.window.mapValues(Double.init)
+                if let id = browser.activeID, let live = SideBar.liveRows[id] {
+                    out["live"] = [Double(live.minY), Double(live.maxY)]
                 }
                 answer(out)
             }
@@ -4144,6 +4400,28 @@ final class Bench {
                 Float.benchAway = NSPoint(x: -20000, y: -20000)
                 browser.floater.lift(NSView(frame: NSRect(x: 0, y: 0, width: 440, height: 247)))
                 answer(["showing": browser.floater.showing])
+                return
+            }
+            // Over to another tab (`to`), as ⌃Tab goes, with Float the video
+            // on its own deciding whether the active tab's video comes along
+            // (idea 1248). Unlike `film float` via "switch", the page is not
+            // taken for a player's: the real site's own answer is under test.
+            if request["action"] as? String == "leave" {
+                guard let to = find(["id": request["to"] as Any], in: browser) else { answer(["error": "float leave needs `to`, another tab"]); return }
+                Float.benchAway = NSPoint(x: -20000, y: -20000)
+                if let tab = browser.active {
+                    let occlusion = NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")
+                    if tab.web.responds(to: occlusion) {
+                        typealias Setter = @convention(c) (AnyObject, Selector, Bool) -> Void
+                        unsafeBitCast(tab.web.method(for: occlusion), to: Setter.self)(tab.web, occlusion, false)
+                    }
+                }
+                let playing = browser.active?.playingVideo ?? false
+                browser.select(to)
+                DispatchQueue.main.asyncAfter(deadline: .now() + (request["wait"] as? Double ?? 1.5)) {
+                    answer(["showing": browser.floater.showing, "playing": playing,
+                            "floating": browser.tabs.first { $0.id == browser.floating }.map(Bench.short) ?? ""])
+                }
                 return
             }
             // The active tab's video out, as ⇧⌘P lifts it, into the little
@@ -7187,6 +7465,8 @@ extension Bench {
             if let browser, let offset = Bench.columnOffset(browser) { pass["offset"] = offset }
             // Whether the column's own rows are the ones on show, not the map's.
             if let browser { pass["shown"] = browser.spaceSwipe == 0 }
+            // The space the column has taken by the end of the pass.
+            if let browser { pass["space"] = browser.space.name }
             passes.append(pass)
             rows = built
             woke = 0

@@ -14,6 +14,11 @@ import WebKit
 enum Glyph: String, CaseIterable, Identifiable {
     case letters, icons
 
+    /// What a tab wears until it is chosen: the site's icon. A site without
+    /// an icon still shows its letter (Mark). Outside a test run it is what
+    /// every tab wears: the row that chose is gone (RetiredSettings).
+    static let standard: Glyph = .icons
+
     var id: String { rawValue }
 
     var title: String {
@@ -1370,7 +1375,7 @@ final class Preferences: ObservableObject {
         liquidTabs = store.bool(forKey: "tabs.liquid")
         // Site icons for everyone: its row is gone (RetiredSettings), and
         // the key is left where it is, as the mark of an install from before.
-        glyph = Store.testing ? store.string(forKey: "glyph").flatMap(Glyph.init) ?? .icons : .icons
+        glyph = Store.testing ? store.string(forKey: "glyph").flatMap(Glyph.init) ?? Glyph.standard : Glyph.standard
         engine = store.string(forKey: "search.engine").flatMap(Engine.init) ?? .standard
         customEngine = store.string(forKey: "search.custom") ?? ""
         customSuggest = store.string(forKey: "search.customSuggest") ?? ""
@@ -1701,7 +1706,14 @@ final class Preferences: ObservableObject {
         take(\.liquidTabs, store.bool(forKey: "tabs.liquid"))
         take(\.bounces, store.bool(forKey: "pages.bounce"))
         Swipe.bounces = bounces
-        take(\.glyph, "glyph", store.string(forKey: "glyph").flatMap(Glyph.init), or: .icons)
+        // As launch reads it: a line from before, letters among them, is
+        // read only on a test run, or the settings file changing would put
+        // letters back on an install that chose them before the row went.
+        if Store.testing {
+            take(\.glyph, "glyph", store.string(forKey: "glyph").flatMap(Glyph.init), or: Glyph.standard)
+        } else {
+            take(\.glyph, Glyph.standard)
+        }
         take(\.tabsGive, store.bool(forKey: "tabs.give"))
         take(\.tabClickAddressOnly, store.bool(forKey: "tabs.clickAddressOnly"))
         take(\.tabClickKeepsName, store.bool(forKey: "tabs.clickKeepsName"))

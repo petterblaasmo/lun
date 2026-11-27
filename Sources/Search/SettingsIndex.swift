@@ -150,6 +150,10 @@ enum SettingsIndex {
               title: "Bring things over", detail: "Bookmarks, history, passwords and extensions from another browser",
               more: "From another browser on this Mac, or from a file it exported. Nothing leaves your Mac.",
               words: ["import", "chrome", "safari", "arc", "migrate", "spaces", "pins", "bring arc"]),
+        .init(id: "general.exportSpaces", group: "browser", icon: "square.and.arrow.up.on.square",
+              title: "Export spaces", detail: "Every space, its pins, folders and open tabs, to a file",
+              more: "A bookmarks file any browser imports, a folder per space with its pins and folders and its open tabs in a folder of their own; or Lun's own spaces file, which keeps colours and icons and comes back in through Bring Things Over › File…. Also in File › Export Spaces….",
+              words: ["export", "backup", "spaces", "pins", "bookmarks", "html", "save", "leave", "moving"], parent: "general.import"),
         .init(id: "icloud", group: "devices", icon: "icloud",
               title: "Sync with iCloud", detail: "With your iPhone and other Macs: open tabs, pins, spaces, bookmarks, a few settings",
               more: "Through your own iCloud, end to end encrypted: Lun on your iPhone and your other Macs see this Mac's open tabs (under History and in the address field, as Tabs on Your Other Devices) and share its pins, spaces, bookmarks, search engine and look. Private tabs never go, nor your history, passwords, cookies or sign-ins. On for a new Lun once you leave the welcome, where its switch is, so it can be turned off first; off for a Lun you had before until you turn it on. Nothing leaves this Mac while it's off. The way to sync with your iPhone.",
@@ -530,8 +534,8 @@ enum SettingsIndex {
               parent: "spaces"),
         .init(id: "profiles", group: "spaces", icon: "person.2",
               title: "Profiles", detail: "Spaces with their own sign-ins, history and bookmarks",
-              more: "In windows of their own, unless Profiles in one window is on. Extensions, passwords and settings are shared.",
-              words: ["profile", "accounts", "work", "personal"]),
+              more: "In windows of their own, unless Profiles in one window is on. Extensions, passwords and settings are shared. The arrows beside each profile change their order, which the numbered shortcuts follow.",
+              words: ["profile", "accounts", "work", "personal", "reorder", "order", "shortcuts"]),
         .init(id: "profiles.oneWindow", group: "spaces", icon: "macwindow",
               title: "Profiles in one window", detail: "Every profile's spaces in one window, switched in place",
               more: "Choosing a space of another profile brings that profile's window into this one's place, so each keeps its own sign-ins. Closing it closes them all.",
@@ -1166,6 +1170,7 @@ extension SettingsIndex {
     /// defaults changed: what Tests/settings_layout.py reads back.
     @MainActor static func values(_ prefs: Preferences) -> [String: Any] {
         [
+            "glyph": prefs.glyph.rawValue,
             "tabs.layout": prefs.tabsLayout.rawValue,
             "tabs.sleep": prefs.sleepChoice.rawValue,
             "bookmarks.bar": prefs.bookmarksPlace.rawValue,
