@@ -30,6 +30,12 @@ enum Palette {
     static let fill = Color(nsColor: NS.fill)
     static let fillHover = Color(nsColor: NS.fillHover)
     static let rule = Color(nsColor: NS.rule)
+    /// A site's chip under a new tab's field at rest (HomeTiles.swift): half
+    /// a fill, so a line of them reads as one quiet row on the card. Under
+    /// the pointer or the keys it is a fill.
+    static let chip = Color(nsColor: NS.chip)
+    /// The chip that adds a site: fainter still, until it is pointed at.
+    static let chipFaint = Color(nsColor: NS.chipFaint)
     /// What a chosen part of a picker lies on.
     static let knob = Color(nsColor: NS.knob)
     /// The only two that aren't grey: a connection nobody can read on the
@@ -95,6 +101,8 @@ enum Palette {
         static let fill = shade(0.07, 0.08)
         static let fillHover = shade(0.11, 0.13)
         static let rule = shade(0.10, 0.10)
+        static let chip = shade(0.035, 0.04)
+        static let chipFaint = shade(0.02, 0.025)
         static let fieldDim = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .clear : NSColor(white: 0, alpha: 0.10)
         }
