@@ -46,6 +46,7 @@ enum KeptSettings {
 
     static func take() {
         guard kept.isEmpty else { return }
+        keep("developerLocal", \.developerLocal)
         keep("navigationLeft", \.navigationLeft)
         keep("compactStrip", \.compactStrip)
         keep("bench", \.bench)
