@@ -55,7 +55,7 @@ final class RetiredSettingsTests: XCTestCase {
         store.set(false, forKey: "tabs.give")
 
         RetiredSettings.settle(store)
-        XCTAssertEqual(RetiredSettings.fixed.count, 22)
+        XCTAssertEqual(RetiredSettings.fixed.count, 21)
         // Not HTTPS first: sites without HTTPS stayed blank while it was on.
         XCTAssertFalse(RetiredSettings.fixed.contains { $0.key == "privacy.httpsFirst" })
         XCTAssertTrue(RetiredSettings.keys.contains("privacy.httpsFirst"))

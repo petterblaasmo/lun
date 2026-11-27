@@ -84,6 +84,8 @@ enum WhatsNew {
                since: "1.0.19", get: { $0.bookmarksInSidebar }, set: { $0.bookmarksInSidebar = $1 }),
         Toggle(title: "The field in the middle of the window", detail: "⌘T's and ⌘L's field centred on the window and higher up, as in Arc.",
                since: "1.0.19", get: { $0.fieldOnWindow }, set: { $0.fieldOnWindow = $1 }),
+        Toggle(title: "Loading line along the page's top", detail: "A thin line along the page's top while it loads, with the tabs in sight or folded away.",
+               since: "1.0.19", get: { $0.showsLoadingLine }, set: { $0.showsLoadingLine = $1 }),
         Toggle(title: "Click the tab you're on to edit its address", detail: "Without the site card; Site Information… stays on the right-click.",
                since: "1.0.19", get: { $0.tabClickAddressOnly }, set: { $0.tabClickAddressOnly = $1 }),
         Toggle(title: "Touch ID before filling a password", detail: "Touch ID, or your Mac's password, before a saved password goes into a page.",

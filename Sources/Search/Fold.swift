@@ -1121,11 +1121,13 @@ final class FoldCover: NSView {
     override var isOpaque: Bool { true }
 }
 
-/// Settings › The column folded away › A loading line (idea 269): with the
-/// tabs out of sight nothing said a page was coming, since the ring is on
-/// its tab. A hairline along the page's top, as far as WebKit says the page
-/// has come, only while it is loading. Drawn by a layer watching the view,
-/// so the page's progress never makes SwiftUI lay anything out again.
+/// The loading line (idea 269, #1650): a line along the page's top, as far
+/// as WebKit says the page has come, only while it is loading. First only
+/// with the tabs folded away, where the ring on the tab was out of sight;
+/// with the tabs in sight too since 98550e04. Off unless its switch is
+/// turned on (Settings › Appearance, 221e0ba7). Drawn by a layer watching
+/// the view, so the page's progress never makes SwiftUI lay anything out
+/// again.
 struct LoadingLine: NSViewRepresentable {
     let web: WKWebView?
 
@@ -1204,7 +1206,7 @@ struct LoadingLine: NSViewRepresentable {
         }
 
         private func place(animated: Bool) {
-            line.frame = CGRect(x: 0, y: 0, width: bounds.width * fraction, height: 2)
+            line.frame = CGRect(x: 0, y: 0, width: bounds.width * fraction, height: Metrics.loadingLine)
         }
     }
 }
@@ -1216,7 +1218,7 @@ struct TabLoadingLine: View {
 
     var body: some View {
         LoadingLine(web: tab.isWeb ? tab.built : nil)
-            .frame(height: 2)
+            .frame(height: Metrics.loadingLine)
             .allowsHitTesting(false)
     }
 }

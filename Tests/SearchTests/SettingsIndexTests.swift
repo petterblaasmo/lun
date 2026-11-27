@@ -55,6 +55,19 @@ final class SettingsIndexTests: XCTestCase {
         }
     }
 
+    /// The loading line (27 Nov 2026): off, however 1.0.21 or 1.0.22 left
+    /// things; only a switch turned on by hand counts.
+    func testLoadingLineOffUnlessTurnedOn() {
+        fresh {
+            XCTAssertFalse(Preferences().showsLoadingLine)
+            XCTAssertNil(Store.settings.object(forKey: "fold.loadingLine"), "nothing written for the default")
+            Store.settings.set(false, forKey: "fold.loadingLine")
+            XCTAssertFalse(Preferences().showsLoadingLine)
+            Store.settings.set(true, forKey: "fold.loadingLine")
+            XCTAssertTrue(Preferences().showsLoadingLine, "turned on by hand, it stays on")
+        }
+    }
+
     func testExplicitChoicesStand() {
         fresh {
             Store.settings.set(false, forKey: "pages.120")
@@ -160,6 +173,13 @@ final class SettingsIndexTests: XCTestCase {
         XCTAssertTrue(SettingsIndex.find("split").contains { $0.id == "note.split" })
         // Taken out of Settings in Lun (RetiredSettings): not found either.
         XCTAssertFalse(SettingsIndex.find("shift enter").contains { $0.id == "search.shift" })
+        // The loading line: a visible switch on Appearance, found by its words.
+        for word in ["loading", "progress", "line", "loading line"] {
+            XCTAssertTrue(SettingsIndex.find(word).contains { $0.id == "fold.loadingLine" }, word)
+        }
+        let line = SettingsIndex.items.first { $0.id == "fold.loadingLine" }
+        XCTAssertEqual(line?.page, .appearance)
+        XCTAssertEqual(line?.findOnly, false, "a row drawn on the page")
         XCTAssertTrue(SettingsIndex.find("").isEmpty)
         XCTAssertTrue(SettingsIndex.find("zzzz nothing").isEmpty)
     }

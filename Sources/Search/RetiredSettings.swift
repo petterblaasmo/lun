@@ -47,7 +47,7 @@ enum RetiredSettings {
         // is still there for whoever asks for it from a tab's menu.
         "links.little",
         // Always on (see `fixed`).
-        "downloads.open", "sidebar.slides", "fold.loadingLine", "sidebar.narrowIcons", "sidebar.player",
+        "downloads.open", "sidebar.slides", "sidebar.narrowIcons", "sidebar.player",
         "tabs.pinCounts", "tabs.give", "motion.light", "tabs.frontBeside", "tabs.swipeBackCloses",
         "tabs.undoReopens", "tabs.popupWindows", "links.little.tabs", "reader.follows", "video.keys",
         "pins.folders", "field.window", "newtab.arc", "commandbar", "privacy.httpsFirst",
@@ -60,7 +60,7 @@ enum RetiredSettings {
     /// store (Motion), not only by Preferences.
     static let fixed: [(key: String, value: Any)] = [
         ("downloads.open", DownloadsOpening.popover.rawValue),
-        ("fold.loadingLine", true), ("sidebar.narrowIcons", true),
+        ("sidebar.narrowIcons", true),
         ("sidebar.player", true), ("tabs.pinCounts", true), ("tabs.give", true), ("motion.light", true),
         ("tabs.frontBeside", true), ("tabs.swipeBackCloses", true), ("tabs.undoReopens", true),
         ("tabs.popupWindows", true), ("links.little.tabs", true), ("reader.follows", true),
@@ -116,7 +116,7 @@ enum RetiredSettings {
         "Always show the downloads button", "Pages at 120 Hz", "Roomier tabs",
         // Always on.
         "Space and arrow keys control videos", "The field in the middle of the window",
-        "Smooth scrolling with a mouse wheel", "A loading line with the tabs hidden",
+        "Smooth scrolling with a mouse wheel",
         "Unread counts on pinned tabs", "Narrow to icons", "Swipe back closes a link's tab",
         "⌘T finds your open tabs", "Try HTTPS first", "⌥-click a link opens it in Split View",
         "Bounce at the top and bottom", "Slide the column in and out", "Commands in the address field",
@@ -138,6 +138,9 @@ enum RetiredSettings {
         ("bookmarks.iconsOnly", false),
         // Capture pages: Copy captures only sits under it.
         ("pages.capture", true),
+        // The loading line: off unless turned on, as upstream has it again
+        // (221e0ba7): fixed on, it showed by itself and couldn't be turned off.
+        ("fold.loadingLine", true),
     ]
 
     /// Noted once a returned switch's choice is back, so it is done once.

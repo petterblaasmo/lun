@@ -268,6 +268,9 @@ enum Metrics {
     /// this round.
     static let cardGap: CGFloat = 8
     static let cardRadius: CGFloat = 10
+    /// The line along the page's top while it loads (LoadingLine): a
+    /// hairline would be lost against a page's own top edge.
+    static let loadingLine: CGFloat = 2
     /// Where the first tab starts. The traffic lights run from 19 to 79 —
     /// measured, not guessed — so this leaves them the same air on their right
     /// that the window gives them on their left.
