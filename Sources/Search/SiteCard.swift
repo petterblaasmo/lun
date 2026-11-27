@@ -409,6 +409,9 @@ struct SiteCard: View {
                 sound
                 grounded
                 darken
+                if DevMode.host(of: tab.pageAddress) != nil {
+                    Developer(tab: tab)
+                }
                 if prefs.keepsSitesAwake, tab.awakeHost != nil {
                     Line("Keep This Site Awake") {
                         Switch(on: Binding(get: { browser.keepsAwake(tab) }, set: { browser.keepAwake($0, for: tab) }))
@@ -516,12 +519,13 @@ struct SiteCard: View {
     }
 
     /// Whether the site's videos float out on their own (see Grounded).
-    /// Only on a site they would float from, with one of Settings › General's
+    /// Only on a streaming site, or one playing a video now (they float
+    /// from any site since idea 1248), with one of Settings › General's
     /// Float the video switches on, and not in a private tab.
     @ViewBuilder private var grounded: some View {
         if !tab.shy, browser.prefs.floatsOnLeave || browser.prefs.floatsAway,
            let url = tab.pageAddress, ["http", "https"].contains(url.scheme?.lowercased()),
-           Players.knows(url), let host = url.host() {
+           Players.knows(url) || tab.playingVideo || tab.noisy, let host = url.host() {
             Ground(host: host)
         }
     }
@@ -677,6 +681,26 @@ struct SiteCard: View {
                 }
                 Switch(on: $on)
             }
+        }
+    }
+
+    /// Developer Mode for the site (DevMode.swift): its bar over the page,
+    /// at once.
+    private struct Developer: View {
+        @ObservedObject var tab: Tab
+        @ObservedObject private var mode = DevMode.shared
+
+        var body: some View {
+            Line("Developer Mode") {
+                if let keys = ShortcutStore.shared.key(for: "view.developerMode")?.display {
+                    Text(keys)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
+                        .fixedSize()
+                }
+                Switch(on: Binding(get: { mode.isOn(tab) }, set: { mode.set($0, for: tab.pageAddress, shy: tab.shy) }))
+            }
+            .help("The page's whole address and quick tools: Web Inspector, reload ignoring cache, cache off")
         }
     }
 

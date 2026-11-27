@@ -103,7 +103,7 @@ struct IconTile: View {
 
     private var rest: AtRest? { live ? AtRest.said(tab.restAddress, always: prefs.showsAddress) : nil }
     private var tip: String { IconTiles.tip(tab, address: rest) }
-    private var speaker: Bool { !tab.loading && (tab.noisy || tab.muted) }
+    private var speaker: Bool { CornerSpeaker.shows(for: tab) }
     private var closable: Bool { interactive && live && tab.pin == nil }
 
     var body: some View {
@@ -244,8 +244,13 @@ struct IconTile: View {
 
 /// The speaker of a tile: small, in its bottom corner, on a disc of the
 /// column's ground so it reads over any mark. A press mutes or unmutes.
-private struct CornerSpeaker: View {
+/// A pinned square wears it too, in the column and across the top (idea 1328).
+struct CornerSpeaker: View {
     @ObservedObject var tab: Tab
+
+    /// Whether a tile or a square of `tab` wears it: its page plays sound,
+    /// or was muted, and isn't on its way (the ring has the place then).
+    static func shows(for tab: Tab) -> Bool { !tab.loading && (tab.noisy || tab.muted) }
 
     var body: some View {
         Button(action: tab.toggleMute) {
