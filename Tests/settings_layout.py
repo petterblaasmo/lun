@@ -37,6 +37,7 @@ BEFORE = {
     "tabs.sleep.pace": "sleep", "tabs.close.after": "close tabs", "tabs.shortcuts": "numbers",
     "tabs.address": "address", "search.engine": "search with", "search.custom": "engine",
     "search.suggest": "suggestions", "search.keywords": "site shortcuts", "links.little": "small window",
+    "field.top": "first suggestion",
     "reader.twins": "markdown", "reader.follows": "reading mode", "float.style": "picture in picture",
     "float.leave": "float", "float.away": "switch apps", "media.click": "autoplay",
     "fullscreen.escapeTwice": "esc", "fullscreen.keepsWindow": "desktop", "pageZoom": "zoom", "pages.120.mode": "120", "spaces": "spaces",

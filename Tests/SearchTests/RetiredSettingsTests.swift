@@ -111,6 +111,40 @@ final class RetiredSettingsTests: XCTestCase {
         XCTAssertEqual(prefs.sideTitle, 13)
     }
 
+    /// Switches that came back: their row again, and the choice put aside
+    /// when they were retired put back, once.
+    func testReturnedSwitchesGetTheirChoiceBack() throws {
+        for (key, wasFixed) in RetiredSettings.returned {
+            XCTAssertFalse(RetiredSettings.keys.contains(key), key)
+            XCTAssertFalse(RetiredSettings.fixed.contains { $0.key == key }, key)
+            XCTAssertTrue(SettingsIndex.items.contains { $0.keys.contains(key) }, "\(key) has its row")
+
+            let name = "returned-\(UUID().uuidString)"
+            let store = try XCTUnwrap(UserDefaults(suiteName: name))
+            defer { store.removePersistentDomain(forName: name) }
+            // What was put aside: an "on" for one retired at its default,
+            // an "off" for one fixed on, which wrote "on" over it.
+            let chosen = !wasFixed
+            store.set(chosen, forKey: RetiredSettings.aside(key))
+            if wasFixed { store.set(true, forKey: key) }
+            RetiredSettings.settle(store)
+            XCTAssertEqual(store.object(forKey: key) as? Bool, chosen, key)
+            XCTAssertNil(store.object(forKey: RetiredSettings.aside(key)), key)
+            // Once: what is chosen on its row from then on stands.
+            store.set(!chosen, forKey: key)
+            RetiredSettings.settle(store)
+            XCTAssertEqual(store.object(forKey: key) as? Bool, !chosen, key)
+
+            // Nothing put aside: one fixed on is at its default again.
+            let fresh = "returned-\(UUID().uuidString)"
+            let other = try XCTUnwrap(UserDefaults(suiteName: fresh))
+            defer { other.removePersistentDomain(forName: fresh) }
+            if wasFixed { other.set(true, forKey: key) }
+            RetiredSettings.settle(other)
+            XCTAssertNil(other.object(forKey: key), key)
+        }
+    }
+
     func testEveryRetiredKeyBelongedToARetiredRow() {
         // A key of a row that is still drawn must never be put aside.
         let kept = Set(SettingsIndex.items.flatMap(\.keys))
