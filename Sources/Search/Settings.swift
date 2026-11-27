@@ -226,31 +226,65 @@ struct SettingsPanel: View {
 
     /// Find a setting: the wash, the glass, ⌘F beside it until something
     /// is typed. Escape empties it, and then lets go.
+    ///
+    /// What is typed is the field's own, so a key redraws the field alone;
+    /// the results follow once the keys pause (`settle`), or at once when
+    /// it is emptied. Every key redrew the whole of Settings, up to every
+    /// row with its control, and the field lagged (idea 1333).
     private struct FindField: View {
         @Binding var text: String
         var focus: FocusState<Bool>.Binding
+        @State private var typed = ""
+        @State private var pending: Task<Void, Never>?
+
+        /// How long the keys pause before the results follow them.
+        static let settle: Duration = .milliseconds(120)
 
         var body: some View {
+            field
+                .onAppear { typed = text }
+                // Gone before the keys paused (another tab gone to): what
+                // was typed is still what Settings keeps (#1655).
+                .onDisappear { if typed != text { pending?.cancel(); text = typed } }
+                // Emptied or filled from outside (a section picked, a kept query).
+                .onChange(of: text) { _, words in
+                    guard words != typed else { return }
+                    pending?.cancel()
+                    typed = words
+                }
+                .onChange(of: typed) { _, words in
+                    pending?.cancel()
+                    guard words != text else { return }
+                    if words.trimmingCharacters(in: .whitespaces).isEmpty { text = words; return }
+                    pending = Task { @MainActor in
+                        try? await Task.sleep(for: Self.settle)
+                        guard !Task.isCancelled else { return }
+                        text = words
+                    }
+                }
+        }
+
+        private var field: some View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
                 ZStack(alignment: .leading) {
-                    if text.isEmpty {
+                    if typed.isEmpty {
                         Text("Search").foregroundStyle(Palette.muted)
                     }
-                    TextField("", text: $text)
+                    TextField("", text: $typed)
                         .textFieldStyle(.plain)
                         .foregroundStyle(Palette.ink)
                         .focused(focus)
                         // Escape empties it; empty, it lets go of the keys,
                         // for Tab and the arrows to move around Settings.
-                        .onExitCommand { if text.isEmpty { focus.wrappedValue = false } else { text = "" } }
+                        .onExitCommand { if typed.isEmpty { focus.wrappedValue = false } else { typed = "" } }
                         .accessibilityLabel("Find a setting")
                 }
                 .font(.system(size: 13))
-                if !text.isEmpty {
-                    IconButton("xmark.circle.fill", label: "Clear", glyph: 11, weight: .regular, size: 16, wash: nil) { text = "" }
+                if !typed.isEmpty {
+                    IconButton("xmark.circle.fill", label: "Clear", glyph: 11, weight: .regular, size: 16, wash: nil) { typed = "" }
                 }
             }
             .padding(.horizontal, 10)
