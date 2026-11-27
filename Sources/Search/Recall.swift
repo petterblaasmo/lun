@@ -911,7 +911,12 @@ struct DownloadsPanel: View {
                     Spacer(minLength: 8)
                     if wide && !hovering {
                         HStack(spacing: 8) {
-                            if !keep.from.isEmpty { SiteMark(host: keep.from, size: 14) }
+                            // A screenshot came from the Mac, not a site (Screenshots.swift).
+                            if keep.from == Screenshots.from {
+                                Image(systemName: "camera.viewfinder").font(.system(size: 11)).frame(width: 14, height: 14)
+                            } else if !keep.from.isEmpty {
+                                SiteMark(host: keep.from, size: 14)
+                            }
                             Text(keep.from).lineLimit(1).truncationMode(.middle)
                             Spacer(minLength: 0)
                         }
