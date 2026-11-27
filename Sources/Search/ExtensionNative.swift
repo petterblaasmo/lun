@@ -116,12 +116,20 @@ enum ExtensionNative {
         return try await pipe.request(message)
     }
 
+    /// Each extension's hosts that have been turning it away (HostRest), by
+    /// "extension id / host name".
+    @MainActor static var rests: [String: HostRest] = [:]
+
     /// `runtime.connectNative`: run, and keep the two talking until either
     /// end lets go.
     @MainActor
-    static func connect(_ port: WKWebExtension.MessagePort, from extensionID: String) throws {
+    static func connect(_ port: WKWebExtension.MessagePort, from extensionID: String, now: Date = Date()) throws {
         guard let name = port.applicationIdentifier else { throw Refused(why: "No host named") }
         let program = try host(name, for: extensionID)
+        let key = "\(extensionID)/\(name)"
+        // Resting: answered as a host that has exited, which is what the
+        // extension would have heard a moment later, without a process.
+        if let rest = rests[key], !rest.open(at: now) { throw Refused(why: "Native host has exited.") }
         // A new port is often a worker starting over; the one before may
         // have left its host behind.
         stopOrphans()
@@ -129,11 +137,25 @@ enum ExtensionNative {
         pipe.name = name
         let started = Date()
         log.notice("Host \(name, privacy: .public) started for a port")
+        // Whether the host said anything, for its rest (HostRest).
+        nonisolated(unsafe) var said = false
         pipe.onTerminated = { note in
             log.notice("Host \(name, privacy: .public) ended: \(note, privacy: .public), \(since(started), privacy: .public) after it started")
+            DispatchQueue.main.async {
+                let now = Date()
+                var rest = rests[key] ?? HostRest()
+                if rest.ended(after: now.timeIntervalSince(started), said: said, at: now) {
+                    let left = Int(rest.left(at: now) ?? 0)
+                    log.notice("Host \(name, privacy: .public) turned the extension away \(HostRest.tries, privacy: .public) times in a row: not started again for \(left, privacy: .public) s")
+                }
+                rests[key] = rest
+            }
         }
         pipe.onMessage = { message in
-            DispatchQueue.main.async { port.sendMessage(message, completionHandler: nil) }
+            DispatchQueue.main.async {
+                said = true
+                port.sendMessage(message, completionHandler: nil)
+            }
         }
         pipe.onExit = {
             DispatchQueue.main.async { if !port.isDisconnected { port.disconnect() } }
@@ -236,6 +258,54 @@ enum ExtensionNative {
                 DispatchQueue.main.async { pipes[ObjectIdentifier(pipe)] = nil }
             }
         }
+    }
+}
+
+/// Hosts that keep turning the browser away, given a rest.
+///
+/// A host may refuse a browser it doesn't know: 1Password's helper checks
+/// who is calling and ends at once, and its extension asks again, so Lun
+/// started a process every few seconds for as long as it ran (#134: about
+/// 500 starts in an hour). Three ends in a row that come quickly and say
+/// nothing are taken as no: the host isn't started again for half a
+/// minute, then twice as long each time it says no again, up to ten
+/// minutes. A host that runs a while or answers is a host that works, and
+/// is started as before from then on.
+struct HostRest: Equatable {
+    /// An end this soon after the start, with nothing said, is a no.
+    static let quick: TimeInterval = 2
+    /// How many noes in a row before a rest.
+    static let tries = 3
+    static let first: TimeInterval = 30
+    static let longest: TimeInterval = 600
+
+    private(set) var noes = 0
+    private(set) var rests = 0
+    private(set) var until: Date?
+
+    /// Whether the host may be started now.
+    func open(at now: Date) -> Bool { until.map { now >= $0 } ?? true }
+
+    /// How long the host is resting from `now`, if it is.
+    func left(at now: Date) -> TimeInterval? {
+        guard let until, now < until else { return nil }
+        return until.timeIntervalSince(now)
+    }
+
+    /// A host ended `ran` seconds after it started, having said something
+    /// or not. True when this end starts a rest.
+    mutating func ended(after ran: TimeInterval, said: Bool, at now: Date) -> Bool {
+        guard ran < HostRest.quick, !said else {
+            self = HostRest()
+            return false
+        }
+        noes += 1
+        guard noes >= HostRest.tries else { return false }
+        noes = 0
+        let rest = min(HostRest.longest, HostRest.first * pow(2, Double(rests)))
+        rests += 1
+        until = now.addingTimeInterval(rest)
+        return true
     }
 }
 
