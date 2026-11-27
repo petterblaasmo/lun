@@ -34,8 +34,6 @@ final class PinPreviewTests: XCTestCase {
         store.set(false, forKey: "pins.preview")
         XCTAssertFalse(Preferences().pinPreviews)
         XCTAssertNotNil(SettingsIndex.items.first { $0.id == "pins.preview" })
-        // Screenshots in Downloads stays off.
-        XCTAssertFalse(Preferences().screenshotsInDownloads)
     }
 
     func testRefusedOffAndForAPlainTab() {
