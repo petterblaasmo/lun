@@ -1200,7 +1200,7 @@ struct SettingsPanel: View {
                 TextField("", text: Binding(
                     get: { current.template },
                     set: { draft?.template = $0 }
-                ), prompt: Text("address with %s for the words, e.g. youtube.com/results?search_query=%s").italic())
+                ), prompt: Text("e.g. https://youtube.com/results?search_query=%s").italic())
                 .textFieldStyle(.plain)
                 .onSubmit(saveDraft)
             }
