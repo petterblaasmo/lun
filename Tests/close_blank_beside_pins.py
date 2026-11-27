@@ -7,7 +7,8 @@ down and leaves a new tab; ⌘W on that new tab used to wake the pin just put
 down, so ⌘W went pin, new tab, pin, new tab for ever. Now it closes the
 window, as it does with Leave a new tab when the last tab closes on (a
 hidden probe has no key window, so the new tab is simply still there). With
-a pin still open, ⌘T then ⌘W goes back to that pin, as before.
+a pin still open, ⌘T then ⌘W goes back to that pin, as before, with Leave a
+new tab when the last tab closes on or off (#1577).
 """
 import sys
 from pathlib import Path
@@ -53,7 +54,10 @@ def main():
         st = sv.sp("state"); fresh = st["activeID"]
         t.ok("⌘T over an open pin gives a new tab", fresh != a and active(st)["blank"], st)
         st = sv.sp("closeTab", id=fresh)
+        # With Leave a new tab when the last tab closes on too (#1577): an
+        # empty tab isn't a page, and the window isn't closed under the open pin.
         t.ok("⌘W on it goes back to the open pin", st["activeID"] == a, st)
+        t.ok("and the empty tab is gone", fresh not in [x["id"] for x in st["tabs"]], st["tabs"])
     finally:
         t.done(); sv.finish()
     sys.exit(1 if t.failed else 0)
