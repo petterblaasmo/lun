@@ -32,6 +32,7 @@ BEFORE = {
     "sidebar": "sidebar", "sidebar.position": "right", "sidebar.hides": "hide the column",
     "layout.cards": "card", "toolbar.left": "back forward", "sidebar.roomy": "roomier",
     "glyph": "favicon", "tabs.reading": "how far", "tabs.give": "pressed", "bookmarks.bar": "bookmarks bar",
+    "bookmarks.iconsOnly": "icon only",
     "motion.light": "low power", "tabs.newPlace": "new tab position", "tabs.newAfterLast": "last tab",
     "tabs.lazy": "background tabs", "tabs.popupWindows": "pop-ups", "tabs.sleep": "sleep",
     "tabs.sleep.pace": "sleep", "tabs.close.after": "close tabs", "tabs.shortcuts": "numbers",

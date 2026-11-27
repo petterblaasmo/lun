@@ -14,6 +14,8 @@ import Foundation
 // Preferences and its tests are left as they were, so what comes from
 // upstream still fits. Lun's difference is this one file, and the few
 // lines that read it (SettingsIndex.offered, Preferences.init, WhatsNew).
+// A switch brought back (`returned`, 27 Nov 2026) gets its row again and
+// the choice that was put aside.
 
 enum RetiredSettings {
     /// Rows of SettingsIndex that are no longer drawn or found.
@@ -21,7 +23,7 @@ enum RetiredSettings {
         // Fixed at their default.
         "downloads.button", "sidebar.foldIcons", "layout.cardsFullScreen", "toolbar.left", "tabs.compact",
         "window.glass.style", "tabs.liquid", "sidebar.doorsUp", "helm.shown", "foot.shown", "sidebar.foldButton",
-        "tabs.reading", "bookmarks.iconsOnly", "bookmarks.newTabOnly", "tabs.newAfterLast", "tabs.keepWindow",
+        "tabs.reading", "bookmarks.newTabOnly", "tabs.newAfterLast", "tabs.keepWindow",
         "tabs.closeGoesBack", "tabs.switcherBehindFirst", "tabs.switcherLeavesOutPins", "tabs.lazy",
         "tabs.sleep.dim", "tabs.shortcuts", "tabs.address", "tabs.clickAddressOnly", "tabs.clickKeepsName",
         "search.shift", "field.top", "reader.twins", "float.style", "float.minimize",
@@ -76,7 +78,7 @@ enum RetiredSettings {
         "window.glass.style", "tabs.liquid", "sidebar.doorsUp",
         "helm.back.hidden", "helm.forward.hidden", "helm.reload.hidden",
         "foot.extensions.hidden", "foot.bookmarks.hidden", "foot.profile.hidden",
-        "sidebar.foldButton", "tabs.reading", "bookmarks.iconsOnly", "bookmarks.newTabOnly",
+        "sidebar.foldButton", "tabs.reading", "bookmarks.newTabOnly",
         "tabs.newAfterLast", "tabs.keepWindow", "tabs.closeGoesBack", "tabs.switcherBehindFirst",
         "tabs.switcherLeavesOutPins", "tabs.lazy", "tabs.sleep.dim", "tabs.shortcuts", "tabs.address",
         "tabs.clickAddressOnly", "tabs.clickKeepsName", "search.shift", "search.shiftCustom", "field.top",
@@ -107,7 +109,7 @@ enum RetiredSettings {
         "Links from pins open in a new tab", "Keep the window when its last tab closes",
         "Clicking the tab you're on keeps its name", "Fade scroll bars", "Update ready, in the window",
         "Bookmarks bar only on new tabs",
-        "Click the tab you're on to edit its address", "Icons only on the bookmarks bar", "Sidebar button",
+        "Click the tab you're on to edit its address", "Sidebar button",
         "One button per space", "Buttons at the top", "Dim sleeping tabs", "High contrast tab text",
         "Keep the card in full screen", "⌘-click on a pin opens a new tab", "Close goes back",
         "Tab numbers while ⌘ is held", "Escape twice to leave full screen", "Pins keep their site",
@@ -124,10 +126,39 @@ enum RetiredSettings {
     /// Where a put-aside choice is kept, should its switch ever come back.
     static func aside(_ key: String) -> String { "retired." + key }
 
+    /// The switches that came back, each with its row and its offer again,
+    /// and whether it had been fixed on rather than at its default.
+    static let returned: [(key: String, wasFixed: Bool)] = [
+        // Icons only on the bookmarks bar: it tiles the bookmarks in the
+        // column too now.
+        ("bookmarks.iconsOnly", false),
+    ]
+
+    /// Noted once a returned switch's choice is back, so it is done once.
+    static func back(_ key: String) -> String { "returned." + key }
+
+    /// Puts back, once, what retiring a switch that came back put aside.
+    /// One fixed on goes back to its default unless a choice was put aside
+    /// for it: an "on" chosen before it was fixed can't be told from the
+    /// fixed one, and the default is what the switch's row says.
+    static func bringBack(_ store: UserDefaults) {
+        for (key, wasFixed) in returned where !store.bool(forKey: back(key)) {
+            if let was = store.object(forKey: aside(key)) {
+                store.set(was, forKey: key)
+                store.removeObject(forKey: aside(key))
+            } else if wasFixed {
+                store.removeObject(forKey: key)
+            }
+            store.set(true, forKey: back(key))
+        }
+    }
+
     /// Puts every stored choice of a retired switch aside, so the default
     /// is read, and writes what the fixed ones are fixed at. Before anything
-    /// in Preferences reads the store.
+    /// in Preferences reads the store. A switch that came back gets its
+    /// choice back first.
     static func settle(_ store: UserDefaults) {
+        bringBack(store)
         for key in keys {
             guard let was = store.object(forKey: key) else { continue }
             store.set(was, forKey: aside(key))

@@ -95,9 +95,8 @@ final class SideBookmarksTests: XCTestCase {
         prefs.bookmarksIconsOnly = true
         XCTAssertTrue(SideBookmarks.tiles(prefs, compact: false), "the bar's own switch, in the column too")
         XCTAssertFalse(SideBookmarks.tiles(prefs, compact: true), "the column icons only: every bookmark a tile already")
-        // Lun took the switch out of Settings and What's New (RetiredSettings):
-        // the tiles are there for whenever it comes back.
-        XCTAssertNil(SettingsIndex.item("bookmarks.iconsOnly"), "retired in Lun")
-        XCTAssertFalse(WhatsNew.toggles.contains { $0.title == "Icons only on the bookmarks bar" }, "retired in Lun")
+        let item = try XCTUnwrap(SettingsIndex.item("bookmarks.iconsOnly"))
+        XCTAssertTrue(SettingsIndex.applies(item, prefs), "the switch applies with the bookmarks in the sidebar")
+        XCTAssertTrue(WhatsNew.toggles.contains { $0.title == "Icons only on the bookmarks bar" && $0.shown(prefs) })
     }
 }
