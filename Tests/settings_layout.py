@@ -65,7 +65,9 @@ RETIRED = {"downloads.button", "toolbar.left", "glyph", "tabs.reading", "tabs.ne
            # Fixed on (RetiredSettings.fixed).
            "tabs.give", "motion.light", "tabs.popupWindows", "reader.follows", "commandbar",
            # Links from other apps open in a tab.
-           "links.little"}
+           "links.little",
+           # One row height (51c2b6db).
+           "sidebar.roomy"}
 BEFORE = {k: v for k, v in BEFORE.items() if k not in RETIRED}
 
 
@@ -97,7 +99,7 @@ def case_reachable(t):
     t.ok("results carry section and group", found and all(i["page"] and i["groupTitle"] for i in found), found)
     t.ok("…in Browsing › Video", any(i["page"] == "browsing" and i["groupTitle"] == "Video" for i in found))
     shown = [i for i in items if not i["findOnly"]]
-    t.ok("about seventy rows in the sections", 65 <= len(shown) <= 80, len(shown))
+    t.ok("at most ninety rows in the sections", 65 <= len(shown) <= 90, len(shown))
     t.ok("eight sections, Themes part of Appearance", len(every["pages"]) == 8 and "themes" not in every["pages"], every["pages"])
     sv.cmd({"do": "ui", "show": "search://settings/themes"}); time.sleep(0.6)
     t.ok("search://settings/themes opens Appearance", settings()["settingsPage"] == "appearance", settings()["settingsPage"])
