@@ -52,6 +52,7 @@ struct HomeGrid: View {
                                     .frame(maxWidth: .infinity, minHeight: 50, maxHeight: 50)
                                     .background(hovering ? Palette.fill : .clear, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                                     .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.hairline))
+                                    .background(WallBacking(shape: RoundedRectangle(cornerRadius: Radius.card, style: .continuous)))
                                     .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                             }
                             .buttonStyle(Gives(to: 0.97))
