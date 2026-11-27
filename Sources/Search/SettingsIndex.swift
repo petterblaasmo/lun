@@ -497,8 +497,8 @@ enum SettingsIndex {
               keys: ["pages.capture"], words: ["screenshot", "capture", "snapshot", "picture", "png", "arc"]),
         .init(id: "pages.capture.copyOnly", group: "pages", icon: "doc.on.clipboard",
               title: "Copy captures only", detail: "The picture goes on the clipboard, with no PNG saved in your downloads folder",
-              keys: ["pages.capture.copyOnly"], words: ["screenshot", "capture", "clipboard", "copy", "png", "downloads", "save"],
-              parent: "pages.capture"),
+              // No parent: Capture pages has no row in Lun (fixed on, RetiredSettings).
+              keys: ["pages.capture.copyOnly"], words: ["screenshot", "capture", "clipboard", "copy", "png", "downloads", "save"]),
         .init(id: "sites.styles", group: "developer", icon: "paintbrush",
               title: "Your own style for a site", detail: "Edit Site Style… in the View menu puts CSS of yours on the site you're on",
               more: "Applied as you type, to every page of that site, as Arc's Boosts. CSS only: Lun never runs script you write in a page. Off, every style is kept but none is worn.",

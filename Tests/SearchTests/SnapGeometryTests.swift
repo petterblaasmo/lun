@@ -189,7 +189,9 @@ final class SnapCopyOnlyTests: XCTestCase {
 
     func testTheRowSitsUnderCapturePages() throws {
         let row = try XCTUnwrap(SettingsIndex.item("pages.capture.copyOnly"))
-        XCTAssertEqual(row.parent, "pages.capture")
+        // Lun has no Capture pages row to sit under: it is fixed on.
+        XCTAssertNil(SettingsIndex.item("pages.capture"))
+        XCTAssertNil(row.parent)
         XCTAssertEqual(row.group, "pages")
         XCTAssertEqual(row.keys, ["pages.capture.copyOnly"])
         let prefs = Preferences()
