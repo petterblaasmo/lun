@@ -140,5 +140,10 @@ final class LauncherTests: XCTestCase {
         launcher.type(query)
         launcher.submit()
         XCTAssertEqual(browser.active?.address, page)
+
+        // Its switch is a row again, on Browsing › Searching.
+        let row = try XCTUnwrap(SettingsIndex.item("field.top"))
+        XCTAssertEqual(row.page, .browsing)
+        XCTAssertTrue(SettingsIndex.find("first suggestion").contains { $0.id == "field.top" })
     }
 }
