@@ -58,6 +58,7 @@ struct TabBar: View {
     @State private var holding = 0
 
     var body: some View {
+        let _ = Bench.count("tabbar")
         // A GeometryReader is only here to measure the width. Its content is
         // put in a stack of its own and told to fill it: left to itself a
         // reader pins whatever it holds to the top corner, which is the row
@@ -792,13 +793,14 @@ struct Helm: View {
             Wheel(browser: browser, tab: tab, vertical: vertical)
         } else {
             // Nowhere to go and nothing to reload: the doors stay in place,
-            // greyed, so the row doesn't shift when a tab arrives.
+            // dimmed as any button that can't be pressed (Door), so the row
+            // doesn't shift when a tab arrives.
             Helm.stack(vertical) {
                 if !browser.prefs.hidesBack { Door(icon: "chevron.left") {} }
                 if !browser.prefs.hidesForward { Door(icon: "chevron.right") {} }
                 if !browser.prefs.hidesReload { Door(icon: "arrow.clockwise") {} }
             }
-            .opacity(0.3)
+            .disabled(true)
             .allowsHitTesting(false)
         }
     }
@@ -821,12 +823,10 @@ struct Helm: View {
                 if !browser.prefs.hidesBack {
                     Door(icon: "chevron.left", help: "Back", shortcut: "tabs.back", held: { Rewind.menu(tab, back: true) }) { browser.back() }
                         .disabled(!back)
-                        .opacity(back ? 1 : 0.3)
                 }
                 if !browser.prefs.hidesForward {
                     Door(icon: "chevron.right", help: "Forward", shortcut: "tabs.forward", held: { Rewind.menu(tab, back: false) }) { browser.forward() }
                         .disabled(!forward)
-                        .opacity(forward ? 1 : 0.3)
                 }
                 // Reload, or stop while it is still coming.
                 if !browser.prefs.hidesReload {
@@ -839,7 +839,6 @@ struct Helm: View {
                     if tab.loading { tab.stop() } else { browser.reload() }
                 }
                 .disabled(!tab.isWeb)
-                .opacity(tab.isWeb ? 1 : 0.3)
                 // The menu's second item is the reason for it: ⇧⌘R has no
                 // button. Nothing to offer while the door is Stop.
                 .contextMenu {
@@ -1044,6 +1043,12 @@ private struct TabPill: View, Equatable {
                 .padding(.horizontal, 7)
                 .padding(.vertical, 6)
                 .frame(width: span)
+                // Its page plays sound, or was muted: the icons-only tile's
+                // speaker, in the same corner, a press muting it (idea 1328).
+                .overlay(alignment: .bottomTrailing) {
+                    if CornerSpeaker.shows(for: tab), !lettering { CornerSpeaker(tab: tab) }
+                }
+                .animation(Motion.quick, value: CornerSpeaker.shows(for: tab))
             } else {
                 loose
             }
@@ -1361,6 +1366,17 @@ struct Carried: ViewModifier {
     /// tab held lying across another becomes a split with it (see across,
     /// TabJoin): the loose tabs down the column.
     var row: [Tab]? = nil
+    /// Where its parent places it down the run (the column's rows, placed
+    /// by what their heights add up to: SideBar.loose), set as its top
+    /// guide here. Held, it is placed at the hand instead, its place's
+    /// spring not followed: nothing of where it is drawn is read, and the
+    /// others glide. Without it, an item of a stack, as before: its frame
+    /// read every frame while held (the visual effect below), and for the
+    /// groups' drop, always.
+    var place: CGFloat? = nil
+    /// Tells where it is drawn for a tab let go over its group
+    /// (GroupDropFrames). Not in the column, which works that out.
+    var reportsGroup = true
     let move: (Int) -> Void
 
     @State private var held = false
@@ -1386,47 +1402,7 @@ struct Carried: ViewModifier {
     @State private var joining = false
 
     func body(content: Content) -> some View {
-        // What it has travelled, less the ground its new place has already
-        // given it: until its origin is read, the frame after pick-up, before
-        // it has gone anywhere.
-        let shift = held ? travel - (Carried.leading(of: index, in: steps) - start) : 0
-        return content
-            // Always attached and asked only while held. A reader added under
-            // the hand at pick-up changed the view and called the drag off
-            // (RowCarryTests' pair carry failed 8 of 8, 2026-11-07).
-            .onGeometryChange(for: CGFloat?.self, of: { [held, vertical, space] proxy in
-                guard held else { return nil }
-                let frame = proxy.frame(in: .named(space))
-                return vertical ? frame.minY : frame.minX
-            }) { drawn in
-                if origin == nil, let drawn { origin = drawn }
-            }
-            // Its place springs when it passes another tab, so the ground the
-            // place has given it is where the place is drawn this frame, not
-            // where the spring will end. Taken from the end, the tab fell a
-            // place behind the hand at every tab it passed and drifted back.
-            .visualEffect { [held, origin, travel, shift, vertical, space] content, proxy in
-                var moved = shift
-                if held, let origin {
-                    let frame = proxy.frame(in: .named(space))
-                    moved = origin + travel - (vertical ? frame.minY : frame.minX)
-                }
-                return content.offset(x: vertical ? 0 : moved, y: vertical ? moved : 0)
-            }
-            .onGeometryChange(for: CGRect?.self, of: { [keeps = loose != nil, space] proxy in
-                keeps ? proxy.frame(in: .named(space)) : nil
-            }) { rect in
-                if let loose, let tab, let rect { loose.rects[tab.id] = rect }
-            }
-            .background {
-                if let browser, let tab, browser.prefs.usesTabGroups, let group = browser.group(of: tab) {
-                    GeometryReader { geometry in
-                        Color.clear.preference(key: GroupDropFrames.self,
-                            value: [tab.id: GroupDropFrame(group: group, tab: tab.id,
-                                                         rect: geometry.frame(in: .named(space)))])
-                    }
-                }
-            }
+        placed(content)
             // Under the hand exactly. Its place in the row springs when it
             // passes another tab, and the offset springs back the same way —
             // until the next move of the hand cuts the offset's spring short
@@ -1445,7 +1421,7 @@ struct Carried: ViewModifier {
                             held = true
                             from = index
                             start = Carried.leading(of: index, in: steps)
-                            origin = nil
+                            origin = place
                             CarryGuard.open(ticket, end: callOff)
                         }
                         travel = vertical ? value.translation.height : value.translation.width
@@ -1561,6 +1537,65 @@ struct Carried: ViewModifier {
                 held = false
                 travel = 0
                 reordered = false
+            }
+    }
+
+    /// Placed by its parent (place): at its place, or held, at its place
+    /// when it was picked up plus the hand's travel. Otherwise in a stack:
+    /// moved by what it has travelled, less the ground its new place has
+    /// given it, read from where it is drawn.
+    @ViewBuilder
+    private func placed(_ content: Content) -> some View {
+        if let place {
+            content.alignmentGuide(.top) { [held, origin, travel] _ in
+                -(held ? (origin ?? place) + travel : place)
+            }
+        } else {
+            tracked(content)
+        }
+    }
+
+    private func tracked(_ content: Content) -> some View {
+        // What it has travelled, less the ground its new place has already
+        // given it: until its origin is read, the frame after pick-up, before
+        // it has gone anywhere.
+        let shift = held ? travel - (Carried.leading(of: index, in: steps) - start) : 0
+        return content
+            // Always attached and asked only while held. A reader added under
+            // the hand at pick-up changed the view and called the drag off
+            // (RowCarryTests' pair carry failed 8 of 8, 2026-11-07).
+            .onGeometryChange(for: CGFloat?.self, of: { [held, vertical, space] proxy in
+                guard held else { return nil }
+                let frame = proxy.frame(in: .named(space))
+                return vertical ? frame.minY : frame.minX
+            }) { drawn in
+                if origin == nil, let drawn { origin = drawn }
+            }
+            // Its place springs when it passes another tab, so the ground the
+            // place has given it is where the place is drawn this frame, not
+            // where the spring will end. Taken from the end, the tab fell a
+            // place behind the hand at every tab it passed and drifted back.
+            .visualEffect { [held, origin, travel, shift, vertical, space] content, proxy in
+                var moved = shift
+                if held, let origin {
+                    let frame = proxy.frame(in: .named(space))
+                    moved = origin + travel - (vertical ? frame.minY : frame.minX)
+                }
+                return content.offset(x: vertical ? 0 : moved, y: vertical ? moved : 0)
+            }
+            .onGeometryChange(for: CGRect?.self, of: { [keeps = loose != nil, space] proxy in
+                keeps ? proxy.frame(in: .named(space)) : nil
+            }) { rect in
+                if let loose, let tab, let rect { loose.rects[tab.id] = rect }
+            }
+            .background {
+                if reportsGroup, let browser, let tab, browser.prefs.usesTabGroups, let group = browser.group(of: tab) {
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: GroupDropFrames.self,
+                            value: [tab.id: GroupDropFrame(group: group, tab: tab.id,
+                                                         rect: geometry.frame(in: .named(space)))])
+                    }
+                }
             }
     }
 
@@ -1752,8 +1787,17 @@ struct TabAddressField: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSTextField {
         // The caret kept clear of the field's end (RoomyField).
-        let field = RoomyField()
+        let field = browser.renamingTab ? RoomyField() : WebsiteAddressField()
         field.delegate = context.coordinator
+        if let addressField = field as? WebsiteAddressField {
+            addressField.canPasteAndGo = { [weak coordinator = context.coordinator] in
+                guard let coordinator, let tab = coordinator.tab else { return false }
+                return coordinator.browser.editingTab == tab && !coordinator.browser.renamingTab
+            }
+            addressField.pasteAndGo = { [weak coordinator = context.coordinator] url in
+                coordinator?.browser.commitTabEdit(address: url)
+            }
+        }
         field.isBordered = false
         field.drawsBackground = false
         field.focusRingType = .none

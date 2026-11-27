@@ -916,6 +916,33 @@ enum Motion {
         return (reduced ? 1 : 1.35, seconds * 0.4, seconds * 0.6)
     }
 
+    /// A new download's file gliding from the click into the downloads
+    /// button, with Settings › Appearance › Motion › Animate downloads: how long,
+    /// shorter in Low Power Mode as the pulse is. It is moved a frame at a
+    /// time on its own curve (DownloadFlight.glide), not by an Animation,
+    /// since the button it aims at may still be coming in. Never under
+    /// Reduce Motion: nothing is thrown then.
+    static func flight(light: Bool = Motion.light) -> TimeInterval {
+        light ? 0.4 : 0.6
+    }
+
+    /// The downloads tab at the window's edge, the column folded away (see
+    /// DownloadFlight): in on an ease-out, as the file sets off, and back
+    /// out the way it came on an ease-in once the file is in.
+    static var edgeIn: Animation? {
+        reduced ? nil : .easeOut(duration: 0.2)
+    }
+
+    static var edgeOut: Animation? {
+        reduced ? nil : .timingCurve(0.4, 0, 1, 1, duration: 0.26)
+    }
+
+    /// The check a finished download shows in its button for a moment,
+    /// fading back to the arrow. A fade, as a dissolve is, a little quicker.
+    static var checkFade: Animation? {
+        instant ? nil : .easeOut(duration: 0.16)
+    }
+
     // MARK: what follows the fingers
     //
     // Three things are moved a frame at a time off the display, not by an

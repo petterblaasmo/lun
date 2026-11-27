@@ -14,6 +14,11 @@ import WebKit
 enum Glyph: String, CaseIterable, Identifiable {
     case letters, icons
 
+    /// What a tab wears until it is chosen: the site's icon. A site without
+    /// an icon still shows its letter (Mark). Outside a test run it is what
+    /// every tab wears: the row that chose is gone (RetiredSettings).
+    static let standard: Glyph = .icons
+
     var id: String { rawValue }
 
     var title: String {
@@ -559,6 +564,26 @@ final class Preferences: ObservableObject {
     @Published var showsPinCounts: Bool {
         didSet { store.set(showsPinCounts, forKey: "tabs.pinCounts") }
     }
+    /// A site on this Mac (localhost, 127.0.0.1, .test…) in Developer Mode
+    /// by itself (DevMode.swift). On unless turned off: nobody without a
+    /// local server ever sees it.
+    @Published var developerLocal: Bool {
+        didSet { store.set(developerLocal, forKey: DevMode.localKey) }
+    }
+    /// A card with a picture of a pin's page, and what it says is waiting,
+    /// when the pointer rests on the pin (PinPreview.swift). On unless
+    /// turned off.
+    @Published var pinPreviews: Bool {
+        didSet { store.set(pinPreviews, forKey: "pins.preview") }
+    }
+    /// The Mac's screenshots listed in Downloads as they are taken
+    /// (Screenshots.swift). Off unless turned on: it reads a folder of yours.
+    @Published var screenshotsInDownloads: Bool {
+        didSet {
+            store.set(screenshotsInDownloads, forKey: Screenshots.key)
+            Screenshots.shared.watch(screenshotsInDownloads)
+        }
+    }
     /// Tab titles in full ink (black or white) instead of the soft greys
     /// used for tabs that aren't the one you're on. Off unless asked for.
     @Published var highContrastText: Bool {
@@ -585,6 +610,13 @@ final class Preferences: ObservableObject {
     /// turned on (idea 1076).
     @Published var tabClickKeepsName: Bool {
         didSet { store.set(tabClickKeepsName, forKey: "tabs.clickKeepsName") }
+    }
+    /// A click on the tab you're on renames it, as Rename in its menu does,
+    /// instead of opening its address. Not in the column of icons, which has
+    /// no title to type over (see Browser.clickRenamesTab). Off unless
+    /// turned on.
+    @Published var tabClickRenames: Bool {
+        didSet { store.set(tabClickRenames, forKey: "tabs.clickRenames") }
     }
     /// The ad blocker. On unless turned off; there is nothing else to it.
     @Published var shielded: Bool {
@@ -739,6 +771,13 @@ final class Preferences: ObservableObject {
         didSet { store.set(capturesPages, forKey: "pages.capture") }
     }
 
+    /// Hide Elements moves and resizes too: a drag on what is outlined, or
+    /// on its right or bottom edge (see Veiling.picker). Off unless turned
+    /// on; off, a press hides at once, as it always has.
+    @Published var hidingShapes: Bool {
+        didSet { store.set(hidingShapes, forKey: "hiding.shapes") }
+    }
+
     /// Your own style for a site, Edit Site Style… in the View menu (see
     /// SiteStyles.swift). On unless turned off; off, the styles are kept.
     @Published var sitesStyles: Bool {
@@ -784,6 +823,14 @@ final class Preferences: ObservableObject {
             VideoKeys.on = videoKeys
         }
     }
+    /// Google Meet's own little window, as Chrome shows it, when you go to
+    /// another tab during a call (see MeetPiP.swift). On unless turned off.
+    @Published var meetPiP: Bool {
+        didSet {
+            store.set(meetPiP, forKey: "meet.pip")
+            MeetPiP.on = meetPiP
+        }
+    }
     /// A mouse wheel's notches glide instead of jumping (see WheelGlide.swift).
     /// On unless turned off.
     @Published var wheelGlides: Bool {
@@ -823,6 +870,12 @@ final class Preferences: ObservableObject {
             Motion.instant = instantMotion
         }
     }
+    /// A new download's file arcs from the click into the downloads button,
+    /// and a check shows in the button once it is in (DownloadFlight.swift).
+    /// Off unless turned on; Reduce Motion skips both.
+    @Published var animatesDownloads: Bool {
+        didSet { store.set(animatesDownloads, forKey: "motion.downloads") }
+    }
     /// The modifier chosen in Settings › Shortcuts; Shift-click by default.
     @Published var peekClick: PeekClick {
         didSet { store.set(peekClick.rawValue, forKey: "links.peekClick") }
@@ -844,6 +897,13 @@ final class Preferences: ObservableObject {
     /// follows the link as before.
     @Published var optionClickSplits: Bool {
         didSet { store.set(optionClickSplits, forKey: "links.optionSplit") }
+    }
+    /// A small capsule over the page of a split under the pointer, with
+    /// what the divider's menu and the Tabs menu already do to it: move it
+    /// left or right, take it out of the split, close it (SplitControls.swift).
+    /// Something more drawn over a page, so off unless asked for.
+    @Published var splitControls: Bool {
+        didSet { store.set(splitControls, forKey: "split.controls") }
     }
     /// ⌫ goes back a page and ⇧⌫ forward, as Safari once had it: only when
     /// no field or editable text has the keys and nothing else is held,
@@ -1368,7 +1428,7 @@ final class Preferences: ObservableObject {
         liquidTabs = store.bool(forKey: "tabs.liquid")
         // Site icons for everyone: its row is gone (RetiredSettings), and
         // the key is left where it is, as the mark of an install from before.
-        glyph = Store.testing ? store.string(forKey: "glyph").flatMap(Glyph.init) ?? .icons : .icons
+        glyph = Store.testing ? store.string(forKey: "glyph").flatMap(Glyph.init) ?? Glyph.standard : Glyph.standard
         engine = store.string(forKey: "search.engine").flatMap(Engine.init) ?? .standard
         customEngine = store.string(forKey: "search.custom") ?? ""
         customSuggest = store.string(forKey: "search.customSuggest") ?? ""
@@ -1417,6 +1477,11 @@ final class Preferences: ObservableObject {
         showsReading = store.bool(forKey: "tabs.reading")
         // On for everyone who never touched it (Drice, 25 Nov 2026).
         showsPinCounts = store.object(forKey: "tabs.pinCounts") as? Bool ?? true
+        // On by default, but off in test runs unless a test asks, so no
+        // other probe's pages on 127.0.0.1 wear the bar.
+        developerLocal = store.object(forKey: DevMode.localKey) as? Bool ?? !Store.testing
+        pinPreviews = store.object(forKey: "pins.preview") as? Bool ?? true
+        screenshotsInDownloads = store.bool(forKey: Screenshots.key)
         // The Mac's own Increase Contrast decides, where a switch of Lun's
         // did (RetiredSettings); followContrast keeps it in step.
         highContrastText = store.bool(forKey: "tabs.highContrast") || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
@@ -1425,6 +1490,7 @@ final class Preferences: ObservableObject {
         showsAddress = store.object(forKey: "tabs.address") as? Bool ?? true
         tabClickAddressOnly = store.bool(forKey: "tabs.clickAddressOnly")
         tabClickKeepsName = store.bool(forKey: "tabs.clickKeepsName")
+        tabClickRenames = store.bool(forKey: "tabs.clickRenames")
         shielded = store.object(forKey: "shield") as? Bool ?? true
         let keeps = store.bool(forKey: "sites.keep")
         keepsSignIns = keeps
@@ -1548,6 +1614,7 @@ final class Preferences: ObservableObject {
         peekClick = store.string(forKey: "links.peekClick").flatMap(PeekClick.init(rawValue:)) ?? .shift
         peekStays = store.bool(forKey: "links.peek.stays")
         optionClickSplits = store.bool(forKey: "links.optionSplit")
+        splitControls = store.bool(forKey: "split.controls")
         backspaceGoesBack = store.bool(forKey: Preferences.backspaceKey)
         pinsPeek = keepsSite
         readsTwins = store.bool(forKey: "reader.twins")
@@ -1576,6 +1643,7 @@ final class Preferences: ObservableObject {
         Dusk.shared.on = dusk
         // On for everyone who never touched it (Drice, 25 Nov 2026).
         capturesPages = store.object(forKey: "pages.capture") as? Bool ?? true
+        hidingShapes = store.bool(forKey: "hiding.shapes")
         // On for everyone who never touched it (Drice, 25 Nov 2026).
         let styles = store.object(forKey: "sites.styles") as? Bool ?? true
         sitesStyles = styles
@@ -1589,6 +1657,9 @@ final class Preferences: ObservableObject {
         let videoKeys = store.object(forKey: "video.keys") as? Bool ?? true
         self.videoKeys = videoKeys
         VideoKeys.on = videoKeys
+        let meetPiP = store.object(forKey: "meet.pip") as? Bool ?? true
+        self.meetPiP = meetPiP
+        MeetPiP.on = meetPiP
         // On for everyone who never touched it (Drice, 25 Nov 2026).
         let glides = store.object(forKey: "wheel.smooth") as? Bool ?? true
         wheelGlides = glides
@@ -1606,6 +1677,7 @@ final class Preferences: ObservableObject {
         FrameRate.mode = fast
         // On for everyone who never touched it (Drice, 25 Nov 2026).
         lightMotion = store.object(forKey: Motion.lightKey) as? Bool ?? true
+        animatesDownloads = store.bool(forKey: "motion.downloads")
         let instant = store.bool(forKey: Motion.instantKey)
         instantMotion = instant
         Motion.instant = instant
@@ -1719,10 +1791,18 @@ final class Preferences: ObservableObject {
         take(\.liquidTabs, store.bool(forKey: "tabs.liquid"))
         take(\.bounces, store.bool(forKey: "pages.bounce"))
         Swipe.bounces = bounces
-        take(\.glyph, "glyph", store.string(forKey: "glyph").flatMap(Glyph.init), or: .icons)
+        // As launch reads it: a line from before, letters among them, is
+        // read only on a test run, or the settings file changing would put
+        // letters back on an install that chose them before the row went.
+        if Store.testing {
+            take(\.glyph, "glyph", store.string(forKey: "glyph").flatMap(Glyph.init), or: Glyph.standard)
+        } else {
+            take(\.glyph, Glyph.standard)
+        }
         take(\.tabsGive, store.bool(forKey: "tabs.give"))
         take(\.tabClickAddressOnly, store.bool(forKey: "tabs.clickAddressOnly"))
         take(\.tabClickKeepsName, store.bool(forKey: "tabs.clickKeepsName"))
+        take(\.tabClickRenames, store.bool(forKey: "tabs.clickRenames"))
         take(\.instantMotion, store.bool(forKey: Motion.instantKey))
         take(\.showsTabShortcuts, store.bool(forKey: "tabs.shortcuts"))
         take(\.spacesOnCommand, store.bool(forKey: Preferences.spacesOnCommandKey))
