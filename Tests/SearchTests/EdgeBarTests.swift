@@ -87,13 +87,16 @@ final class EdgeBarTests: XCTestCase {
 
     func testAPointerStillRisingIsOnItsWayToTheMenuBar() async throws {
         let state = EdgeBarState()
+        // A wait long enough that a sleep between moves stays well inside it
+        // on a slow runner.
+        state.resting = 0.5
         // Up through the edge a point at a time, for twice the wait.
         for y in stride(from: 5, through: 1, by: -1) {
             state.pointer(at: CGPoint(x: 550, y: CGFloat(y)), in: window, pressed: false)
-            try await wait(EdgeBarState.dwell * 2 / 5)
+            try await wait(state.resting * 2 / 5)
         }
         XCTAssertFalse(state.shown, "the wait started again with every move up")
-        try await wait(EdgeBarState.dwell + 0.15)
+        try await wait(state.resting + 0.15)
         XCTAssertTrue(state.shown, "at rest against the top, it comes")
     }
 

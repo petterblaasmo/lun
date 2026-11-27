@@ -33,6 +33,9 @@ final class EdgeBarState: ObservableObject {
     /// folded strip's wait, for the same reason, since the top edge is
     /// crossed on every trip to the menu bar.
     static let dwell: TimeInterval = Fold.dwell
+    /// The rest this one waits for: `dwell`, or longer in a test that moves
+    /// the pointer with real sleeps, which a slow runner stretches past 0.05 s.
+    var resting: TimeInterval = EdgeBarState.dwell
     /// How long after the pointer has left the card it stays, for a hand
     /// that overshoots one of its buttons: longer than the column's grace,
     /// as it is a far smaller thing to stay on.
@@ -68,7 +71,7 @@ final class EdgeBarState: ObservableObject {
                 self.shown = true
             }
             arriving = coming
-            DispatchQueue.main.asyncAfter(deadline: .now() + EdgeBarState.dwell, execute: coming)
+            DispatchQueue.main.asyncAfter(deadline: .now() + resting, execute: coming)
         } else {
             // Crossed the edge without stopping.
             arriving?.cancel()
