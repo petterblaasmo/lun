@@ -2766,9 +2766,10 @@ final class Browser: NSObject, ObservableObject {
         return tab.pin == nil || (tab.listed && prefs.showsPinRows)
     }
 
-    func commitTabEdit() {
+    func commitTabEdit(address: URL? = nil) {
         guard let id = editingTab, let tab = tabs.first(where: { $0.id == id }) else { return }
         if renamingTab {
+            guard address == nil else { return }
             let typed = tabDraft.trimmingCharacters(in: .whitespacesAndNewlines)
             // A tab with no name of its own, its page's title left as it
             // was: still no name, so it goes on following its page (#1354 —
@@ -2783,11 +2784,11 @@ final class Browser: NSObject, ObservableObject {
             writeSession(now: true)
             return
         }
-        if let picked = tabPicked, tabOffers.indices.contains(picked) {
+        if address == nil, let picked = tabPicked, tabOffers.indices.contains(picked) {
             takeTabOffer(tabOffers[picked])
             return
         }
-        guard let url = destination(for: tabDraft) else {
+        guard let url = address ?? destination(for: tabDraft) else {
             // Stay put and say so, rather than quietly throwing the edit away.
             refusals += 1
             return
@@ -8850,6 +8851,18 @@ final class Browser: NSObject, ObservableObject {
             picked = nil
             return
         }
+        goFromField(to: url, fromSwitcher: fromSwitcher, aside: aside, front: front)
+    }
+
+    /// An explicit address skips draft completion, commands and site searches,
+    /// but goes where Return would send an address from this field.
+    func submit(address: URL) {
+        let fromSwitcher = summoning && active?.isBlank == false
+        summoning = false
+        goFromField(to: address, fromSwitcher: fromSwitcher, aside: false, front: false)
+    }
+
+    private func goFromField(to url: URL, fromSwitcher: Bool, aside: Bool, front: Bool) {
         if launching || fromSwitcher, !aside {
             // The floating new tab: what was typed gets a tab of its own, and
             // the page the field was raised over stays as it was. The same for
