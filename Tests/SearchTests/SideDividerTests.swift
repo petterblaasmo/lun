@@ -92,8 +92,9 @@ final class SideDividerTests: XCTestCase {
     }
 
     /// Runs of at most two rows of pixels where almost the whole width,
-    /// inset from either side, is one colour unlike the margin's: a line,
-    /// not a row's fill, which is a row tall.
+    /// inset from either side, is one colour unlike the margin's, with the
+    /// margin's colour above and below: a line, not a row's fill, which is a
+    /// row tall.
     static func thinLines(_ rep: NSBitmapImageRep) -> [Int] {
         let w = rep.pixelsWide, h = rep.pixelsHigh
         let scale = CGFloat(w) / rep.size.width
@@ -104,6 +105,7 @@ final class SideDividerTests: XCTestCase {
         }
         let from = Int(24 * scale), to = w - Int(24 * scale)
         var lineRows: [Bool] = []
+        var groundRows: [Bool] = []
         for y in 0..<h {
             let margin = px(Int(3 * scale), y)
             let first = px(from, y)
@@ -115,6 +117,7 @@ final class SideDividerTests: XCTestCase {
                 if !zip(p, first).contains(where: { abs($0 - $1) > 0.02 }) { same += 1 }
             }
             lineRows.append(off * 10 >= total * 9 && same * 10 >= total * 9)
+            groundRows.append(off * 10 <= total)
         }
         var out: [Int] = []
         var y = 0
@@ -122,7 +125,11 @@ final class SideDividerTests: XCTestCase {
             guard lineRows[y] else { y += 1; continue }
             var end = y
             while end + 1 < h, lineRows[end + 1] { end += 1 }
-            if end - y + 1 <= Int(2 * scale) { out.append(Int(CGFloat(y) / scale)) }
+            // A line lies on the column's ground: the rows either side of it
+            // are the margin's colour. A thin slice of the selected row's fill,
+            // between its title and its edge, has the title beside it.
+            let onGround = (y == 0 || groundRows[y - 1]) && (end + 1 >= h || groundRows[end + 1])
+            if end - y + 1 <= Int(2 * scale), onGround { out.append(Int(CGFloat(y) / scale)) }
             y = end + 1
         }
         return out
