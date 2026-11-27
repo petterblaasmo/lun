@@ -298,6 +298,9 @@ struct SearchApp: App {
                     .shortcut(taken["console"] == nil ? "view.console" : nil)
                 Button("Inspect Element") { browser.inspectWebElement() }
                     .shortcut(taken["pick"] == nil ? "view.inspect" : nil)
+                Button("Developer Mode") { browser.toggleDeveloperMode() }
+                    .shortcut("view.developerMode")
+                    .disabled(DevMode.host(of: browser.active?.pageAddress) == nil)
                 // Only with a developer tools package installed (Settings ›
                 // About › Developer, see DevToolsPackages.swift).
                 if let package = DevToolsPackages.shared.primary, DevToolsPackages.shared.usable(package.offer.id) {
@@ -825,6 +828,8 @@ struct ContentView: View {
                 .overlay {
                     if browser.prefs.showsLinks { LinkBubble(status: browser.linkStatus) }
                 }
+                // Developer Mode's bar, for a site in it (DevMode.swift).
+                .overlay(alignment: .bottomTrailing) { DevBar(browser: browser, tab: tab) }
                 .overlay(alignment: .topTrailing) {
                     if browser.finding {
                         FindBar(browser: browser)

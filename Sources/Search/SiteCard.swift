@@ -409,6 +409,9 @@ struct SiteCard: View {
                 sound
                 grounded
                 darken
+                if DevMode.host(of: tab.pageAddress) != nil {
+                    Developer(tab: tab)
+                }
                 if prefs.keepsSitesAwake, tab.awakeHost != nil {
                     Line("Keep This Site Awake") {
                         Switch(on: Binding(get: { browser.keepsAwake(tab) }, set: { browser.keepAwake($0, for: tab) }))
@@ -677,6 +680,26 @@ struct SiteCard: View {
                 }
                 Switch(on: $on)
             }
+        }
+    }
+
+    /// Developer Mode for the site (DevMode.swift): its bar over the page,
+    /// at once.
+    private struct Developer: View {
+        @ObservedObject var tab: Tab
+        @ObservedObject private var mode = DevMode.shared
+
+        var body: some View {
+            Line("Developer Mode") {
+                if let keys = ShortcutStore.shared.key(for: "view.developerMode")?.display {
+                    Text(keys)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
+                        .fixedSize()
+                }
+                Switch(on: Binding(get: { mode.isOn(tab) }, set: { mode.set($0, for: tab.pageAddress, shy: tab.shy) }))
+            }
+            .help("The page's whole address and quick tools: Web Inspector, reload ignoring cache, cache off")
         }
     }
 
