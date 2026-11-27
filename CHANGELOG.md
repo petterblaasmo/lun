@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- A site that couldn't be found for a moment, as the Wi-Fi changes or a VPN comes up, loads by itself after a few tries.
+- Sync with iCloud says why it isn't syncing, tries again, and names the profile that syncs.
+- Extensions: NordPass's popup keeps its size, ClickUp Brain starts, and the Fabric clipper no longer reloads pages in a loop.
+- Downloads into a folder macOS keeps Lun out of ask once where to save.
+- Sign-in windows open after a page notes the step in its address (Teams). SharePoint's and OneDrive's Open in desktop reach Word and Excel.
+- ⌘Tab back to a page in full screen brings the full screen back, and screen sharing can pick a video in full screen.
+- In Split View a page keeps its caret, and a pin's page moves into the pair as it is.
+- A picture inside a link keeps Open Link in New Tab. A typed address that redirects finishes from its own name next time.
+- Media keys stay with the tab paused last, What's playing lists every tab playing out of sight, and a music site paused from the sidebar keeps its row.
+- Code boxes captioned in other languages are filled, and Apple Passwords rows say which entry they are.
+- The hidden sidebar comes out at the screen's edge and leaves a page's own buttons in its band alone; a drag in the page no longer brings it.
+- Find a setting answers each key at once. ⌘⌫ deletes the line over an offered address ending. Darken pages keeps frames in their own scheme.
+- Deleting a profile before WebKit has started no longer crashes Lun.
+
 ## 0.1.1
 
 - Sites load the first time: "Try HTTPS first" is off again, so a site without HTTPS no longer hangs until it times out.
