@@ -217,7 +217,13 @@ final class Browser: NSObject, ObservableObject {
     /// window has one; set, it is shown or closed.
     var tuning: Bool {
         get { pageTab(.settings) != nil }
-        set { if newValue { show(InternalPage(.settings, settingsPage.rawValue)) } else { putAway(.settings) } }
+        set {
+            guard newValue else { return putAway(.settings) }
+            show(InternalPage(.settings, settingsPage.rawValue))
+            // Already open: its Find a setting takes the keys again, as it
+            // does as Settings first opens (SettingsPanel).
+            settingsFind += 1
+        }
     }
     /// Extensions, in a tab of their own as History and Downloads are
     /// (search://extensions): the menu's Extensions…, and the puzzle's
