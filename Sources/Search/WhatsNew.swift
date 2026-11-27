@@ -84,7 +84,7 @@ enum WhatsNew {
                since: "1.0.19", get: { $0.fieldOnWindow }, set: { $0.fieldOnWindow = $1 }),
         Toggle(title: "Smooth scrolling with a mouse wheel", detail: "Each notch glides, as in Chrome. A trackpad is left as it is.",
                since: "1.0.19", get: { $0.wheelGlides }, set: { $0.wheelGlides = $1 }),
-        Toggle(title: "A loading line with the tabs hidden", detail: "A thin line along the page's top while it loads, with the tabs folded away.",
+        Toggle(title: "Loading line along the page's top", detail: "A thin line along the page's top while it loads, with the tabs in sight or folded away.",
                since: "1.0.19", get: { $0.showsLoadingLine }, set: { $0.showsLoadingLine = $1 }),
         Toggle(title: "Click the tab you're on to edit its address", detail: "Without the site card; Site Information… stays on the right-click.",
                since: "1.0.19", get: { $0.tabClickAddressOnly }, set: { $0.tabClickAddressOnly = $1 }),

@@ -6,7 +6,7 @@ import Foundation
 // request and off unless asked for. Lun keeps the ones worth choosing and
 // fixes the rest (26 Nov 2026): no row, nothing in the find field. Most
 // are fixed at what they already did by default, their stored choice put
-// aside so the default is what is read. Twenty-three that were off unless
+// aside so the default is what is read. Twenty-two that were off unless
 // asked for are fixed on instead (`fixed`): each was a better browser than
 // the one without it, and none was worth a switch.
 //
@@ -14,6 +14,8 @@ import Foundation
 // Preferences and its tests are left as they were, so what comes from
 // upstream still fits. Lun's difference is this one file, and the few
 // lines that read it (SettingsIndex.offered, Preferences.init, WhatsNew).
+// A switch brought back (`returned`, 27 Nov 2026) gets its row again and
+// the choice that was put aside.
 
 enum RetiredSettings {
     /// Rows of SettingsIndex that are no longer drawn or found.
@@ -44,10 +46,8 @@ enum RetiredSettings {
         // install, was a second place for a page to be. The window itself
         // is still there for whoever asks for it from a tab's menu.
         "links.little",
-        // Always on (see `fixed`). The loading line no longer reads its
-        // switch at all: it shows for everyone, tabs in sight or folded
-        // away (upstream 98550e04).
-        "downloads.open", "sidebar.slides", "fold.loadingLine", "sidebar.narrowIcons", "sidebar.player",
+        // Always on (see `fixed`).
+        "downloads.open", "sidebar.slides", "sidebar.narrowIcons", "sidebar.player",
         "tabs.pinCounts", "tabs.give", "motion.light", "tabs.frontBeside", "tabs.swipeBackCloses",
         "tabs.undoReopens", "tabs.popupWindows", "links.little.tabs", "reader.follows", "video.keys",
         "pages.capture", "pins.folders", "field.window", "newtab.arc", "commandbar", "privacy.httpsFirst",
@@ -60,7 +60,7 @@ enum RetiredSettings {
     /// store (Motion), not only by Preferences.
     static let fixed: [(key: String, value: Any)] = [
         ("downloads.open", DownloadsOpening.popover.rawValue),
-        ("fold.loadingLine", true), ("sidebar.narrowIcons", true),
+        ("sidebar.narrowIcons", true),
         ("sidebar.player", true), ("tabs.pinCounts", true), ("tabs.give", true), ("motion.light", true),
         ("tabs.frontBeside", true), ("tabs.swipeBackCloses", true), ("tabs.undoReopens", true),
         ("tabs.popupWindows", true), ("links.little.tabs", true), ("reader.follows", true),
@@ -116,7 +116,7 @@ enum RetiredSettings {
         "Always show the downloads button", "Pages at 120 Hz", "Roomier tabs",
         // Always on.
         "Space and arrow keys control videos", "The field in the middle of the window",
-        "Smooth scrolling with a mouse wheel", "A loading line with the tabs hidden",
+        "Smooth scrolling with a mouse wheel",
         "Unread counts on pinned tabs", "Narrow to icons", "Swipe back closes a link's tab",
         "⌘T finds your open tabs", "Try HTTPS first", "⌥-click a link opens it in Split View",
         "Bounce at the top and bottom", "Slide the column in and out", "Commands in the address field",
@@ -126,10 +126,40 @@ enum RetiredSettings {
     /// Where a put-aside choice is kept, should its switch ever come back.
     static func aside(_ key: String) -> String { "retired." + key }
 
+    /// The switches that came back, each with its row again, and its What's
+    /// New offer if it had one; and whether it had been fixed on rather than
+    /// at its default.
+    static let returned: [(key: String, wasFixed: Bool)] = [
+        // The loading line: off unless turned on, as upstream has it again
+        // (221e0ba7): fixed on, it showed by itself and couldn't be turned off.
+        ("fold.loadingLine", true),
+    ]
+
+    /// Noted once a returned switch's choice is back, so it is done once.
+    static func back(_ key: String) -> String { "returned." + key }
+
+    /// Puts back, once, what retiring a switch that came back put aside.
+    /// One fixed on goes back to its default unless a choice was put aside
+    /// for it: an "on" chosen before it was fixed can't be told from the
+    /// fixed one, and the default is what the switch's row says.
+    static func bringBack(_ store: UserDefaults) {
+        for (key, wasFixed) in returned where !store.bool(forKey: back(key)) {
+            if let was = store.object(forKey: aside(key)) {
+                store.set(was, forKey: key)
+                store.removeObject(forKey: aside(key))
+            } else if wasFixed {
+                store.removeObject(forKey: key)
+            }
+            store.set(true, forKey: back(key))
+        }
+    }
+
     /// Puts every stored choice of a retired switch aside, so the default
     /// is read, and writes what the fixed ones are fixed at. Before anything
-    /// in Preferences reads the store.
+    /// in Preferences reads the store. A switch that came back gets its
+    /// choice back first.
     static func settle(_ store: UserDefaults) {
+        bringBack(store)
         for key in keys {
             guard let was = store.object(forKey: key) else { continue }
             store.set(was, forKey: aside(key))

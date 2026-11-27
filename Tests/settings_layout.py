@@ -47,6 +47,7 @@ BEFORE = {
     "links.peek": "peek", "links.peekClick": "peek", "autoscroll": "middle button",
     "swipe.history": "swipe", "auto.install": "updates", "bench": "script",
     "autocorrect": "spelling",
+    "fold.loadingLine": "loading line",
     # Always on now: the find field says so.
     "splitView": "split", "tabs.groups": "groups", "panel.sites": "side panel",
     "translate.pages": "translate", "tabs.keepAwake": "awake", "search.sites": "site from the address",
