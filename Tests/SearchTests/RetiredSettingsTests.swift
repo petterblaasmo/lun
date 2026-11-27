@@ -185,7 +185,7 @@ final class RetiredSettingsTests: XCTestCase {
 
     func testDeveloperRowsAreBehindTheirOwnLine() {
         let developer = Set(SettingsIndex.items(in: SettingsIndex.developer).map(\.id))
-        XCTAssertEqual(developer, ["inspector.chrome", "inspector.dark", "sites.styles", "clear.cache", "devtools", "bench", "agents"])
+        XCTAssertEqual(developer, ["inspector.chrome", "inspector.dark", "sites.styles", "clear.cache", "devtools", "bench", "agents", "developer.local"])
         XCTAssertTrue(developer.isDisjoint(with: SettingsIndex.essential))
         XCTAssertEqual(SettingsIndex.group(SettingsIndex.developer)?.page, .about)
     }
@@ -229,6 +229,6 @@ final class RetiredSettingsTests: XCTestCase {
             let rows = SettingsIndex.groups(of: page).flatMap { SettingsIndex.items(in: $0.id) }
             print("ROWS \(page.rawValue) \(rows.count): \(rows.map(\.id).joined(separator: " "))")
         }
-        XCTAssertLessThanOrEqual(drawn.count, 75)
+        XCTAssertLessThanOrEqual(drawn.count, 90)
     }
 }

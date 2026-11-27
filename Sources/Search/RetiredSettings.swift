@@ -26,7 +26,7 @@ enum RetiredSettings {
         "tabs.reading", "bookmarks.newTabOnly", "tabs.newAfterLast", "tabs.keepWindow",
         "tabs.closeGoesBack", "tabs.switcherBehindFirst", "tabs.switcherLeavesOutPins", "tabs.lazy",
         "tabs.sleep.dim", "tabs.shortcuts", "tabs.address", "tabs.clickAddressOnly", "tabs.clickKeepsName",
-        "search.shift", "field.top", "reader.twins", "float.style", "float.minimize",
+        "search.shift", "reader.twins", "float.style", "float.minimize",
         "fullscreen.escapeTwice", "fullscreen.keepsWindow", "pages.120", "spaces.buttons", "pins.keep",
         "pins.commandNewTab", "field.hidesPage", "newtab.recent", "passkeys", "privacy.clickIDs", "privacy.gpc",
         "keys.backspaceBack", "swipe.history", "updates.notice",
@@ -81,7 +81,7 @@ enum RetiredSettings {
         "sidebar.foldButton", "tabs.reading", "bookmarks.newTabOnly",
         "tabs.newAfterLast", "tabs.keepWindow", "tabs.closeGoesBack", "tabs.switcherBehindFirst",
         "tabs.switcherLeavesOutPins", "tabs.lazy", "tabs.sleep.dim", "tabs.shortcuts", "tabs.address",
-        "tabs.clickAddressOnly", "tabs.clickKeepsName", "search.shift", "search.shiftCustom", "field.top",
+        "tabs.clickAddressOnly", "tabs.clickKeepsName", "search.shift", "search.shiftCustom",
         "reader.twins", "float.style", "float.minimize", "fullscreen.escapeTwice", "fullscreen.keepsWindow",
         "pages.120", "pages.120.mode", "spaces.buttons", "pins.home", "pins.peek", "pins.commandNewTab",
         "field.hidesPage", "newtab.recent", "passkeys", "privacy.clickIDs", "privacy.gpc",
@@ -130,6 +130,9 @@ enum RetiredSettings {
     /// New offer if it had one; and whether it had been fixed on rather than
     /// at its default.
     static let returned: [(key: String, wasFixed: Bool)] = [
+        // Return takes the top suggestion: the field from any app follows
+        // it too now.
+        ("field.top", false),
         // Icons only on the bookmarks bar: it tiles the bookmarks in the
         // column too now.
         ("bookmarks.iconsOnly", false),
