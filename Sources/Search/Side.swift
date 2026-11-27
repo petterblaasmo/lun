@@ -2791,8 +2791,11 @@ struct Door: View {
     /// The hold opened its menu: the click that ends the press is the
     /// menu's, not the button's.
     @State private var opened = false
+    @Environment(\.isEnabled) private var enabled
 
     var body: some View {
+        // One that can't be pressed doesn't light under the pointer.
+        let lit = hovering && enabled
         Button {
             if opened { opened = false } else { act() }
         } label: {
@@ -2803,18 +2806,20 @@ struct Door: View {
                 // through, so it stands off whatever it lies on. An opaque
                 // mid grey vanished on glass with Transparency up, where the
                 // ground is whatever is behind the window.
-                .foregroundStyle(on ? Palette.ink : (hovering ? Palette.ink : greys.muted))
+                .foregroundStyle(on ? Palette.ink : (lit ? Palette.ink : greys.muted))
                 .offset(x: nudge)
                 .frame(width: 26, height: 26)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(on ? greys.wash : (hovering ? greys.hover : .clear))
+                        .fill(on ? greys.wash : (lit ? greys.hover : .clear))
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        // Its callers dim the ones that can't be pressed (Back with nowhere
-        // to go back to).
-        .buttonStyle(Gives(to: 0.88, dims: false))
+        // One that can't be pressed (Back with nowhere to go back to) is
+        // dimmed as every button is, and stays plain to see: its callers'
+        // own 0.3 of the ground's grey all but hid it, and the row looked
+        // as if it had lost a button (upstream #1633).
+        .buttonStyle(Gives(to: 0.88))
         // What it does, for VoiceOver: it was the tooltip alone.
         .accessibilityLabel(help)
         .simultaneousGesture(
