@@ -1124,9 +1124,10 @@ final class FoldCover: NSView {
 /// The loading line (idea 269, #1650): a line along the page's top, as far
 /// as WebKit says the page has come, only while it is loading. First only
 /// with the tabs folded away, where the ring on the tab was out of sight;
-/// for everyone and with the tabs in sight too since 98550e04, its switch
-/// retired on (RetiredSettings). Drawn by a layer watching the view, so the
-/// page's progress never makes SwiftUI lay anything out again.
+/// with the tabs in sight too since 98550e04. Off unless its switch is
+/// turned on (Settings › Appearance, 221e0ba7). Drawn by a layer watching
+/// the view, so the page's progress never makes SwiftUI lay anything out
+/// again.
 struct LoadingLine: NSViewRepresentable {
     let web: WKWebView?
 
