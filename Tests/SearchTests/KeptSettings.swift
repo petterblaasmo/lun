@@ -46,6 +46,7 @@ enum KeptSettings {
 
     static func take() {
         guard kept.isEmpty else { return }
+        keep("screenshotsInDownloads", \.screenshotsInDownloads)
         keep("splitControls", \.splitControls)
         keep("meetPiP", \.meetPiP)
         keep("pinPreviews", \.pinPreviews)
