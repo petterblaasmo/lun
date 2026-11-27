@@ -925,7 +925,7 @@ final class Browser: NSObject, ObservableObject {
         reviewing = false
         veiling = true
         picking = tab
-        tab.startPicking()
+        tab.startPicking(shaping: prefs.hidingShapes)
         // The keyboard to the page, for ↑ and ↓ (see Veiling.picker): left
         // in the address field or the column, they would never reach it.
         if let web = tab.built, let window = web.window, window.firstResponder !== web {
@@ -940,14 +940,14 @@ final class Browser: NSObject, ObservableObject {
     }
 
     /// What a private tab took off its page, kept for that page only.
-    private var passingVeils: [Tab.ID: [String]] = [:]
+    private var passingVeils: [Tab.ID: [Veil]] = [:]
 
     /// Said when the page keeps what you picked on screen whatever its
     /// stylesheet says. ↑ is usually the way past it: the thing around it.
     static let keptOnScreen = "The page keeps that on screen — try ↑ for what's around it"
 
     private func passingCSS(_ id: Tab.ID) -> String {
-        (passingVeils[id] ?? []).map { "\n" + Curtain.rule($0) }.joined()
+        (passingVeils[id] ?? []).map { "\n" + $0.rule }.joined()
     }
 
     /// ⌘Z, while pointing: the last thing you took off comes back.
@@ -969,7 +969,7 @@ final class Browser: NSObject, ObservableObject {
     /// outlined, and scrolls the page to it.
     func peek(_ veil: Veil) {
         guard let tab = active else { return }
-        tab.peek(veil.selector, keeping: curtain.css(on: hereHost, without: veil.selector))
+        tab.peek(veil.target, keeping: curtain.css(on: hereHost, without: veil.selector))
     }
 
     func stopPeeking() {
@@ -7942,29 +7942,30 @@ final class Browser: NSObject, ObservableObject {
             guard let self, prefs.showsLinks, visibleTabIDs.contains(tab.id) else { return }
             linkStatus.show(address, over: tab.built)
         }
-        tab.onPick = { [weak self] tab, selector, label, note in
+        tab.onPick = { [weak self] tab, veil in
             guard let self, let host = curtain.host(of: tab.address) else { return }
+            let selector = veil.selector
             // A private tab writes nothing down, hidden.json included: taken
             // off this page only.
             if tab.shy {
-                passingVeils[tab.id, default: []].append(selector)
+                passingVeils[tab.id, default: []].append(veil)
                 tab.applyVeils(curtain.css(on: host) + passingCSS(tab.id))
-                tab.stillShows(selector) { [weak self, weak tab] shows in
+                tab.stillShows(veil.target) { [weak self, weak tab] shows in
                     guard let self, let tab else { return }
                     guard shows else { return announce("Hidden on this page — ⌘Z puts it back") }
-                    passingVeils[tab.id]?.removeAll { $0 == selector }
+                    passingVeils[tab.id]?.removeAll { $0.selector == selector }
                     tab.applyVeils(curtain.css(on: host) + passingCSS(tab.id))
                     announce(Self.keptOnScreen)
                 }
                 return
             }
-            curtain.hide(selector, label: label, note: note, on: host)
+            curtain.hide(veil, on: host)
             reveil(host)
             // Said once the page shows it gone, not before: a rule the page
             // outranks was announced as hidden, and listed, while the thing
             // stayed in front of you (#1270). One that didn't take is
             // neither kept nor listed.
-            tab.stillShows(selector) { [weak self, weak tab] shows in
+            tab.stillShows(veil.target) { [weak self, weak tab] shows in
                 guard let self, let tab else { return }
                 guard shows else { return announce("Hidden — ⌘Z puts it back") }
                 if let veil = curtain.veils(on: host).first(where: { $0.selector == selector }) {
@@ -7973,6 +7974,20 @@ final class Browser: NSObject, ObservableObject {
                 reveil(host)
                 announce(Self.keptOnScreen)
             }
+        }
+        tab.onShape = { [weak self] tab, veil in
+            guard let self, let host = curtain.host(of: tab.address) else { return }
+            let done = veil.shape?.resized == true ? "Resized" : "Moved"
+            // A private tab writes nothing down: changed on this page only.
+            if tab.shy {
+                guard let list = Curtain.reshaped(veil, in: passingVeils[tab.id] ?? []) else { return }
+                passingVeils[tab.id] = list
+                tab.applyVeils(curtain.css(on: host) + passingCSS(tab.id))
+                return announce(done + " on this page only. ⌘Z puts it back")
+            }
+            curtain.shape(veil, on: host)
+            reveil(host)
+            announce(done + ", kept for this site. ⌘Z puts it back")
         }
         tab.onPickEnd = { [weak self] tab in
             guard let self, picking === tab else { return }
