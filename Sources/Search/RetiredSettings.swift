@@ -126,8 +126,9 @@ enum RetiredSettings {
     /// Where a put-aside choice is kept, should its switch ever come back.
     static func aside(_ key: String) -> String { "retired." + key }
 
-    /// The switches that came back, each with its row and its offer again,
-    /// and whether it had been fixed on rather than at its default.
+    /// The switches that came back, each with its row again, and its What's
+    /// New offer if it had one; and whether it had been fixed on rather than
+    /// at its default.
     static let returned: [(key: String, wasFixed: Bool)] = [
         // Icons only on the bookmarks bar: it tiles the bookmarks in the
         // column too now.
