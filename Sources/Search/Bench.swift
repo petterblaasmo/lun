@@ -1983,6 +1983,19 @@ final class Bench {
                         "ungated": web.trackingAreas.filter { $0.owner !== web && !($0.owner is PointerGate) }.count])
             }
 
+        case "edgeask":
+            // What the hidden column's edge asks the page under a point of
+            // the window (from its top-left) before it comes (EdgeAsk, idea
+            // 1308): true, the page has something to press there.
+            guard Store.testing else { answer(["error": "edgeask only works on a --test run"]); return }
+            guard let window = browser.window, let x = request["x"] as? Double, let y = request["y"] as? Double
+            else { answer(["error": "edgeask needs an x and a y"]); return }
+            let point = NSPoint(x: x, y: Double(window.frame.height) - y)
+            EdgeAsk.ask(window, at: point)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                answer(["pages": EdgeAsk.pageHas(window, at: point).map { $0 as Any } ?? NSNull()])
+            }
+
         case "hit":
             // What a press at a point of the window lands on, and whether
             // AppKit would carry the window off on a drag from there — the
