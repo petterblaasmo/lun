@@ -480,6 +480,14 @@ final class Bench {
                 answer(["positions": seen, "last": seen.last?[1] ?? -1, "smooth": WheelGlide.on])
             }
 
+        case "mute":
+            // The tab's speaker turned off, as its button would: for probes,
+            // whose media must never be heard. Only on a SEARCH_PROBE run.
+            guard Store.testing else { answer(["error": "mute only works on a --test run"]); return }
+            guard let tab = find(request, in: browser) else { answer(missing(request)); return }
+            if !tab.muted { tab.toggleMute() }
+            answer(["muted": tab.muted])
+
         case "sleep":
             // Now rather than after half an hour, but past every other check
             // a tab has to clear — the answer says which one kept it awake.
@@ -4356,6 +4364,28 @@ final class Bench {
                 Float.benchAway = NSPoint(x: -20000, y: -20000)
                 browser.floater.lift(NSView(frame: NSRect(x: 0, y: 0, width: 440, height: 247)))
                 answer(["showing": browser.floater.showing])
+                return
+            }
+            // Over to another tab (`to`), as ⌃Tab goes, with Float the video
+            // on its own deciding whether the active tab's video comes along
+            // (idea 1248). Unlike `film float` via "switch", the page is not
+            // taken for a player's: the real site's own answer is under test.
+            if request["action"] as? String == "leave" {
+                guard let to = find(["id": request["to"] as Any], in: browser) else { answer(["error": "float leave needs `to`, another tab"]); return }
+                Float.benchAway = NSPoint(x: -20000, y: -20000)
+                if let tab = browser.active {
+                    let occlusion = NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")
+                    if tab.web.responds(to: occlusion) {
+                        typealias Setter = @convention(c) (AnyObject, Selector, Bool) -> Void
+                        unsafeBitCast(tab.web.method(for: occlusion), to: Setter.self)(tab.web, occlusion, false)
+                    }
+                }
+                let playing = browser.active?.playingVideo ?? false
+                browser.select(to)
+                DispatchQueue.main.asyncAfter(deadline: .now() + (request["wait"] as? Double ?? 1.5)) {
+                    answer(["showing": browser.floater.showing, "playing": playing,
+                            "floating": browser.tabs.first { $0.id == browser.floating }.map(Bench.short) ?? ""])
+                }
                 return
             }
             // The active tab's video out, as ⇧⌘P lifts it, into the little
