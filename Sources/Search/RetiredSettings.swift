@@ -6,7 +6,7 @@ import Foundation
 // request and off unless asked for. Lun keeps the ones worth choosing and
 // fixes the rest (26 Nov 2026): no row, nothing in the find field. Most
 // are fixed at what they already did by default, their stored choice put
-// aside so the default is what is read. Twenty-three that were off unless
+// aside so the default is what is read. Twenty-two that were off unless
 // asked for are fixed on instead (`fixed`): each was a better browser than
 // the one without it, and none was worth a switch.
 //
@@ -50,7 +50,7 @@ enum RetiredSettings {
         "downloads.open", "sidebar.slides", "fold.loadingLine", "sidebar.narrowIcons", "sidebar.player",
         "tabs.pinCounts", "tabs.give", "motion.light", "tabs.frontBeside", "tabs.swipeBackCloses",
         "tabs.undoReopens", "tabs.popupWindows", "links.little.tabs", "reader.follows", "video.keys",
-        "pages.capture", "pins.folders", "field.window", "newtab.arc", "commandbar", "privacy.httpsFirst",
+        "pins.folders", "field.window", "newtab.arc", "commandbar", "privacy.httpsFirst",
         "links.peek.stays", "links.optionSplit", "wheel.smooth", "pages.bounce",
     ]
 
@@ -64,7 +64,7 @@ enum RetiredSettings {
         ("sidebar.player", true), ("tabs.pinCounts", true), ("tabs.give", true), ("motion.light", true),
         ("tabs.frontBeside", true), ("tabs.swipeBackCloses", true), ("tabs.undoReopens", true),
         ("tabs.popupWindows", true), ("links.little.tabs", true), ("reader.follows", true),
-        ("video.keys", true), ("pages.capture", true), ("pins.folders", true), ("field.window", true),
+        ("video.keys", true), ("pins.folders", true), ("field.window", true),
         ("newtab.arc", true), ("commandbar", true),
         ("links.peek.stays", true), ("links.optionSplit", true), ("wheel.smooth", true), ("pages.bounce", true),
     ]
@@ -120,7 +120,7 @@ enum RetiredSettings {
         "Unread counts on pinned tabs", "Narrow to icons", "Swipe back closes a link's tab",
         "⌘T finds your open tabs", "Try HTTPS first", "⌥-click a link opens it in Split View",
         "Bounce at the top and bottom", "Slide the column in and out", "Commands in the address field",
-        "Capture", "Folders in pinned rows",
+        "Folders in pinned rows",
     ]
 
     /// Where a put-aside choice is kept, should its switch ever come back.
@@ -136,6 +136,8 @@ enum RetiredSettings {
         // Icons only on the bookmarks bar: it tiles the bookmarks in the
         // column too now.
         ("bookmarks.iconsOnly", false),
+        // Capture pages: Copy captures only sits under it.
+        ("pages.capture", true),
     ]
 
     /// Noted once a returned switch's choice is back, so it is done once.

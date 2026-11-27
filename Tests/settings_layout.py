@@ -42,6 +42,7 @@ BEFORE = {
     "reader.twins": "markdown", "reader.follows": "reading mode", "float.style": "picture in picture",
     "float.leave": "float", "float.away": "switch apps", "media.click": "autoplay",
     "fullscreen.escapeTwice": "esc", "fullscreen.keepsWindow": "desktop", "pageZoom": "zoom", "pages.120.mode": "120", "spaces": "spaces",
+    "pages.capture": "screenshot",
     "pins.home": "pins", "pins.peek": "pins", "pins.list": "pinned rows", "newtab.floating": "floating",
     "commandbar": "commands", "start.fresh": "fresh window", "passwords.save": "save passwords",
     "passwords.fill": "fill", "passkeys": "passkeys", "passwords.apple": "apple passwords",
