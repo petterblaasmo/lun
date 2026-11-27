@@ -62,7 +62,12 @@ struct Omnibox: View {
     /// in the middle of the window (idea 753).
     var high = false
 
-    init(browser: Browser, over: Bool, fitted: Bool = false, tab: Tab.ID? = nil, listOnly: CGFloat? = nil, high: Bool = false) {
+    /// The site chips' editor open, for a picture in a test (HomeTilesTests).
+    var tilesEditorForTest: HomeTiles.Editing?
+
+    init(browser: Browser, over: Bool, fitted: Bool = false, tab: Tab.ID? = nil, listOnly: CGFloat? = nil, high: Bool = false,
+         tilesEditorForTest: HomeTiles.Editing? = nil) {
+        self.tilesEditorForTest = tilesEditorForTest
         self.high = high
         self.browser = browser
         self.typing = browser.typing
@@ -133,8 +138,8 @@ struct Omnibox: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    /// The field, and under a rule the places it thinks you mean, on one
-    /// ground.
+    /// The field, and under a rule the places it thinks you mean, or a
+    /// blank tab's site chips before anything is typed, on one ground.
     private var card: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.middle, style: .continuous)
         return VStack(spacing: 0) {
@@ -146,6 +151,10 @@ struct Omnibox: View {
                 rows(large: true)
                     .padding(8)
                     .transition(.opacity)
+            } else if !over {
+                // A blank tab's site chips, where the rows would be
+                // (Settings › Site tiles on a new tab, HomeTiles.swift).
+                CardTiles(browser: browser, editorForTest: tilesEditorForTest)
             }
         }
             .background {
@@ -470,12 +479,24 @@ private struct UnlessThemed<Content: View>: View {
         if over || !themed { content() }
     }
 
-    /// A chosen picture that can't be read shows as Off (HomeBackground).
-    private var themed: Bool {
-        switch prefs.homeTheme {
-        case .off: return false
-        case .custom: return HomeBackground.load(prefs.homeThemeImage) != nil
-        default: return true
+    private var themed: Bool { HomeBackground.behind(prefs) }
+}
+
+/// Under the Home grid's tiles when a theme is behind them (Settings ›
+/// Themes): the ground the field's card lies on over a theme, raised with
+/// its hairline, so their ink reads on any picture. On their own they were
+/// all but gone wherever the picture was as light, or as dark, as the ink:
+/// a light picture with the Mac in dark mode (idea 881). The site chips
+/// need none: they are on the card (CardTiles). Lifted rather than
+/// floating as the card does: sixteen of them under it, each with the
+/// card's deep shadow, stood as high as the card itself.
+struct WallBacking<S: InsettableShape>: View {
+    let shape: S
+    @ObservedObject private var prefs = Shared.prefs
+
+    var body: some View {
+        if HomeBackground.behind(prefs) {
+            Color.clear.elevated(.lift, in: shape)
         }
     }
 }
@@ -924,6 +945,12 @@ struct AddressField: NSViewRepresentable {
                 return true
             case #selector(NSResponder.moveUp(_:)):
                 browser.walk(-1)
+                return true
+            case #selector(NSResponder.insertTab(_:)) where textView.string.isEmpty && HomeTiles.showing(browser)
+                && HomeTiles.count(browser) > 0:
+                // Tab from a new tab's empty field: to its first site tile
+                // (HomeTiles.swift), the way down to them by keys.
+                NotificationCenter.default.post(name: HomeTiles.focusFirst, object: browser)
                 return true
             case #selector(NSResponder.deleteWordBackward(_:)):
                 // ⌥⌫ over an offered ending lets go of it and takes the last

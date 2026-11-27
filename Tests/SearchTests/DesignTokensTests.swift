@@ -71,6 +71,23 @@ final class DesignTokensTests: XCTestCase {
                        "Palette.ring, Palette.fill or Palette.drop")
     }
 
+    /// A new tab's site chips (HomeTiles.swift) lie on the Palette's greys:
+    /// a fill under the pointer or the keys, half of one at rest, and the
+    /// chip that adds a site fainter still, light and dark. Their fills
+    /// came typed by hand from upstream (3.5%, 2%, 7%).
+    func testTheChipsAreThePalettes() throws {
+        XCTAssertEqual(try lines(matching: #"Palette\.ink\.opacity\(0\.0(2|35|5)\)"#), [], "Palette.chip, .chipFaint or .fill")
+        for dark in [false, true] {
+            var alphas: [CGFloat] = []
+            NSAppearance(named: dark ? .darkAqua : .aqua)!.performAsCurrentDrawingAppearance {
+                alphas = [Palette.NS.chipFaint, Palette.NS.chip, Palette.NS.fill].map { $0.usingColorSpace(.sRGB)?.alphaComponent ?? -1 }
+            }
+            XCTAssertGreaterThan(alphas[0], 0, dark ? "dark" : "light")
+            XCTAssertLessThan(alphas[0], alphas[1], "the Add chip fainter than a site's, \(dark ? "dark" : "light")")
+            XCTAssertLessThan(alphas[1], alphas[2], "a chip at rest lighter than under the pointer, \(dark ? "dark" : "light")")
+        }
+    }
+
     /// Ink a step back is Palette.soft, and under the pointer a title is
     /// ink itself: neither is ink at 0.7 or 0.75 typed by hand. Two are
     /// still typed, in files that other pull requests were rewriting when
