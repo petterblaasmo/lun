@@ -647,7 +647,7 @@ struct SideBar: View {
                     // every space, so it stays put while the rows under it
                     // scroll, and while a swipe brings another space in.
                     if showsMarks {
-                        SideBookmarks(browser: browser, prefs: prefs, bookmarks: browser.bookmarks, compact: icons)
+                        SideBookmarks(browser: browser, prefs: prefs, bookmarks: browser.bookmarks, compact: icons, room: marksRoom)
                     }
                     // A row too long for the window scrolls between the pins
                     // and the foot, rather than running under the lights at one
@@ -822,7 +822,7 @@ struct SideBar: View {
                 .padding(.bottom, SideBar.underPins)
             }
             if showsMarks {
-                SideBookmarks(browser: browser, prefs: prefs, bookmarks: browser.bookmarks, compact: icons)
+                SideBookmarks(browser: browser, prefs: prefs, bookmarks: browser.bookmarks, compact: icons, room: marksRoom)
                     .allowsHitTesting(false)
             }
             // Scrolled as the column will be once the space lands, its tab
@@ -978,8 +978,14 @@ struct SideBar: View {
 
     /// The bookmarks bar in the column (SideBookmarks), when it is there.
     private var showsMarks: Bool { prefs.sideBookmarks && !browser.bookmarks.isEmpty }
+    /// The column's width inside its margins: how many bookmark tiles go
+    /// across with icons only.
+    private var marksRoom: CGFloat { width - 2 * inset }
     private var marksHeight: CGFloat {
-        showsMarks ? SideBookmarks.height(browser.bookmarks.roots.count, row: rowHeight) : 0
+        guard showsMarks else { return 0 }
+        let lines = SideBookmarks.lines(browser.bookmarks.roots, tiles: SideBookmarks.tiles(prefs, compact: icons),
+                                        room: marksRoom, row: rowHeight)
+        return SideBookmarks.height(lines.count, row: rowHeight)
     }
 
     /// The pinned rows, the loose tabs and the row that makes another, added
