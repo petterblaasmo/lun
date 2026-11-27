@@ -46,6 +46,15 @@ enum KeptSettings {
 
     static func take() {
         guard kept.isEmpty else { return }
+        keep("homeTiles", \.homeTiles)
+        keep("animatesDownloads", \.animatesDownloads)
+        keep("tabClickRenames", \.tabClickRenames)
+        keep("screenshotsInDownloads", \.screenshotsInDownloads)
+        keep("splitControls", \.splitControls)
+        keep("meetPiP", \.meetPiP)
+        keep("pinPreviews", \.pinPreviews)
+        keep("hidingShapes", \.hidingShapes)
+        keep("developerLocal", \.developerLocal)
         keep("navigationLeft", \.navigationLeft)
         keep("compactStrip", \.compactStrip)
         keep("bench", \.bench)
