@@ -151,7 +151,7 @@ final class RetiredSettingsTests: XCTestCase {
 
     func testDeveloperRowsAreBehindTheirOwnLine() {
         let developer = Set(SettingsIndex.items(in: SettingsIndex.developer).map(\.id))
-        XCTAssertEqual(developer, ["inspector.chrome", "inspector.dark", "sites.styles", "clear.cache", "devtools", "bench", "agents"])
+        XCTAssertEqual(developer, ["inspector.chrome", "inspector.dark", "sites.styles", "clear.cache", "devtools", "bench", "agents", "developer.local"])
         XCTAssertTrue(developer.isDisjoint(with: SettingsIndex.essential))
         XCTAssertEqual(SettingsIndex.group(SettingsIndex.developer)?.page, .about)
     }
