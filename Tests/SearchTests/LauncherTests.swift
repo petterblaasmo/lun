@@ -101,14 +101,14 @@ final class LauncherTests: XCTestCase {
         browser.window = window
         let previous = Front.shared.browser
         let prefs = browser.prefs
-        let saved = (prefs.launcher, prefs.launcherLittle, prefs.bench, prefs.returnTakesTop)
+        let saved = (prefs.launcher, prefs.launcherLittle, prefs.littleLinks, prefs.bench, prefs.returnTakesTop)
         let launcher = Launcher()
         let query = "kettlebell symposium"
         browser.history.record(page, title: "Kettlebell symposium")
         Front.shared.set(browser)
         defer {
             launcher.dismiss(keeping: false)
-            (prefs.launcher, prefs.launcherLittle, prefs.bench, prefs.returnTakesTop) = saved
+            (prefs.launcher, prefs.launcherLittle, prefs.littleLinks, prefs.bench, prefs.returnTakesTop) = saved
             Front.shared.set(previous)
             browser.history.forget(History.identity(for: page))
             browser.closeAll()
@@ -117,6 +117,8 @@ final class LauncherTests: XCTestCase {
         }
         prefs.launcher = true
         prefs.launcherLittle = false
+        // Lun opens the field's page in the small window with either on.
+        prefs.littleLinks = false
         prefs.bench = true
         prefs.returnTakesTop = false
         launcher.show()
