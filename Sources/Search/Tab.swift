@@ -43,7 +43,7 @@ enum Web {
     @MainActor static func release(_ controller: WKUserContentController) {
         for name in [ScrollRelay.name, VeilRelay.name, FormRelay.name, ImageRelay.name, MediaKeys.name,
                      StoreRelay.name, PasskeyRelay.name, MiddleRelay.name, IconRelay.name, PopupGestureRelay.name, DuskRelay.name,
-                     TranslateRelay.name, PageDrafts.name] {
+                     TranslateRelay.name, PageDrafts.name, MeetPiPRelay.name] {
             controller.removeScriptMessageHandler(forName: name, contentWorld: world)
             controller.removeScriptMessageHandler(forName: name, contentWorld: .page)
         }
@@ -334,7 +334,25 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
     /// view's `configuration` is a copy made afresh at every reading, which
     /// cost more than everything else done at a link followed.
     private(set) var contentController: WKUserContentController?
-    private var configuration: WKWebViewConfiguration
+    /// How its page is to be made. A tab brought back from the last
+    /// session has none until it is built: each configuration is a few
+    /// WebKit objects (preferences, a content controller, the page's own
+    /// preferences), and with hundreds of tabs that sleep all day they were
+    /// most of what a tab cost. Only the store is decided at once, because
+    /// it says where the tab's sign-ins are (see `store`).
+    private var made: WKWebViewConfiguration?
+    private var configuration: WKWebViewConfiguration {
+        get {
+            if let made { return made }
+            let config = Web.configuration(shy: shy, store: store)
+            made = config
+            return config
+        }
+        set {
+            made = newValue
+            store = newValue.websiteDataStore
+        }
+    }
     let extensionReturn = ExtensionReturnNavigation()
 
     /// Whether its page was made with the extension controller in it — every
@@ -343,7 +361,7 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
     @available(macOS 15.4, *)
     var carriesExtensions: Bool { configuration.webExtensionController != nil }
     /// Where its cookies and sign-ins are kept.
-    var store: WKWebsiteDataStore { configuration.websiteDataStore }
+    private(set) var store: WKWebsiteDataStore
     /// Whoever handles navigation and windows for this page; applied when
     /// the page is built, whenever that is.
     weak var delegate: (WKNavigationDelegate & WKUIDelegate)? {
@@ -357,8 +375,8 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
     private var pageDelegate: NSObject?
 
     private func uiDelegate(_ delegate: (WKNavigationDelegate & WKUIDelegate)?) -> WKUIDelegate? {
-        guard #available(macOS 15.4, *), let pages = MainActor.assumeIsolated({ Extensions.pages }),
-              configuration.userContentController === pages else { return delegate }
+        guard #available(macOS 15.4, *), let config = made, let pages = MainActor.assumeIsolated({ Extensions.pages }),
+              config.userContentController === pages else { return delegate }
         let made = pageDelegate as? ExtensionPageDelegate ?? ExtensionPageDelegate()
         made.next = delegate
         pageDelegate = made
@@ -719,7 +737,9 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
     }
 
     /// What the page hands back when you point at something and click it.
-    var onPick: ((Tab, String, String, String) -> Void)?
+    var onPick: ((Tab, Veil) -> Void)?
+    /// What the page hands back when you drag it instead: moved or resized.
+    var onShape: ((Tab, Veil) -> Void)?
     /// The page has a sign-in on it; the page has just sent one.
     var onSignIn: ((Tab) -> Void)?
     /// The caret has entered or left one of the sign-in boxes; where the box
@@ -791,6 +811,13 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
     private let iconChanges = IconRelay()
     private let middles = MiddleRelay()
     private let dusk = DuskRelay()
+    private let meetPiP = MeetPiPRelay()
+    /// Google Meet's own little window (MeetPiP.swift): the page gave
+    /// mediaSession the handler Chrome calls on a tab switch; it asked for
+    /// its window just now; and when Search's tab switch asked for one.
+    var meetPiPArmed = false
+    var meetPiPAsk: (at: TimeInterval, width: Double, height: Double)?
+    var meetPiPAuto: TimeInterval?
     var popupGesture = PopupGesture()
     /// Windows this page asked for and was refused, newest last, a few at
     /// most: the quiet sign beside its title offers them (BlockedPopups.swift).
@@ -853,8 +880,15 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
     /// at the head of the row and gives up its title for that letter — which
     /// is all you need for the five or six pages you keep open all day.
     @Published var pin: String? {
-        didSet { if pin == nil, oldValue != nil { letGo = Date() } }
+        didSet {
+            if pin == nil, oldValue != nil { letGo = Date() }
+            if (pin == nil) != (oldValue == nil) { Tab.membership &+= 1 }
+        }
     }
+    /// Counts every change of any tab's group or of whether it is a pin:
+    /// what the row worked out by group stays good until it moves
+    /// (Browser.grouped).
+    static var membership: UInt64 = 0
     /// For a pin, the page it was pinned at: a double-click on it goes back
     /// there (Browser.goHome).
     var home: URL?
@@ -892,7 +926,10 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
 
     /// The group that holds this ordinary tab in the sidebar.
     @Published var groupID: UUID? {
-        didSet { if groupID == nil, oldValue != nil { letGo = Date() } }
+        didSet {
+            if groupID == nil, oldValue != nil { letGo = Date() }
+            if groupID != oldValue { Tab.membership &+= 1 }
+        }
     }
 
     /// A name you gave it, in place of whatever the page calls itself. It
@@ -1042,7 +1079,19 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
     init(shy: Bool = false, bench: Bool = false, configuration: WKWebViewConfiguration? = nil) {
         self.shy = shy
         self.bench = bench
-        self.configuration = configuration ?? Web.configuration(shy: shy)
+        let configuration = configuration ?? Web.configuration(shy: shy)
+        made = configuration
+        store = configuration.websiteDataStore
+        if Store.testing { Tab.live.add(self) }
+    }
+
+    /// A tab of space `space` whose configuration is made only when its
+    /// page is: one brought back from the last session, most of which are
+    /// never opened before the next quit.
+    init(space: UUID) {
+        shy = false
+        bench = false
+        store = Spaces.store(for: space)
         if Store.testing { Tab.live.add(self) }
     }
 
@@ -1135,6 +1184,8 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
         controller.add(middles, contentWorld: Web.world, name: MiddleRelay.name)
         controller.add(dusk, contentWorld: Web.world, name: DuskRelay.name)
         controller.add(translateRelay, contentWorld: Web.world, name: TranslateRelay.name)
+        meetPiP.tab = self
+        controller.add(meetPiP, contentWorld: Web.world, name: MeetPiPRelay.name)
         PopupGestureRelay.install(on: controller)
         Shield.shared.protect(controller)
         built = web
@@ -1351,6 +1402,12 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
         // Pages that wait for their fonts don't wait for the whole page too
         // (see EarlyFonts.swift).
         add(EarlyFonts.script, .atDocumentStart, mainFrameOnly: false, in: .page)
+        // Only on Meet, with Settings › Videos › Google Meet's own mini
+        // window on: Chrome's little window for a call (see MeetPiP.swift).
+        if MeetPiP.applies(url ?? pageAddress) {
+            add(MeetPiP.page, .atDocumentStart, mainFrameOnly: true, in: .page)
+            add(MeetPiP.bridge, .atDocumentStart, mainFrameOnly: true, in: Web.world)
+        }
         // Every frame, in the page's own world: a page an extension lists
         // reaches it as chrome.runtime (see ExtensionExternal.swift).
         if let external = ExtensionExternal.script {
@@ -1438,7 +1495,11 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
             """, arguments: ["selector": selector]) { shows in then(shows as? Bool ?? false) }
     }
 
-    func startPicking() { web.evaluateInSearch("window.__officeVeil && window.__officeVeil.on()") }
+    /// `shaping`: a drag moves or resizes what is outlined, a click still
+    /// hides it (Settings › Browsing › Pages).
+    func startPicking(shaping: Bool = false) {
+        web.evaluateInSearch("window.__officeVeil && window.__officeVeil.on(\(shaping))")
+    }
     func stopPicking() { web.evaluateInSearch("window.__officeVeil && window.__officeVeil.off()") }
 
     func foundSignIn() { onSignIn?(self) }
@@ -1633,8 +1694,12 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
         return "\(scheme)://\(bracketed)" + (port.map { ":\($0)" } ?? "")
     }
 
-    func picked(selector: String, label: String, note: String) {
-        onPick?(self, selector, label, note)
+    func picked(_ veil: Veil) {
+        onPick?(self, veil)
+    }
+
+    func shaped(_ veil: Veil) {
+        onShape?(self, veil)
     }
 
     /// Show one hidden thing while the pointer rests on its row in the list.
@@ -1852,7 +1917,8 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
     /// WebKit fixes it then — and its next page follows through its own
     /// autoplay policy (see Autoplay.apply).
     func playbackChanged() {
-        configuration.mediaTypesRequiringUserActionForPlayback = Web.playback
+        // One not made yet is made with what Settings says then.
+        made?.mediaTypesRequiringUserActionForPlayback = Web.playback
     }
 
     /// A document without hand-edited fields (including a PDF or image) has nothing to ask.
@@ -2242,6 +2308,8 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
     /// A view that has lost its document is given the address back instead:
     /// there is nothing else for it to reload.
     func reload(fromOrigin: Bool = false) {
+        // Developer Mode's cache turned off for the site (DevMode.swift).
+        let fromOrigin = fromOrigin || DevMode.shared.skipsCache(pageAddress)
         (delegate as? Browser)?.certificateDeclined.remove(id)
         // Search's own pages are drawn from what is there now, always.
         guard page == nil else { return }
@@ -2343,6 +2411,7 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
         onScrollBy = nil
         onLink = nil
         onPick = nil
+        onShape = nil
         onPickEnd = nil
         onSignIn = nil
         onField = nil
@@ -2726,6 +2795,14 @@ final class MiddleRelay: NSObject, WKScriptMessageHandler {
 
 /// A web view that reads the two-finger swipe for itself.
 final class PageView: WKWebView {
+    /// Before WebKit can load anything into its store (Store.network).
+    override init(frame: CGRect, configuration: WKWebViewConfiguration) {
+        Store.network()
+        super.init(frame: frame, configuration: configuration)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
     var draftFrames: [WKFrameInfo] = []
 
     var onMenuClosed: (() -> Void)?

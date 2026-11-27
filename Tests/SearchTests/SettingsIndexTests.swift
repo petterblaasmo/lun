@@ -14,7 +14,7 @@ final class SettingsIndexTests: XCTestCase {
     private let touched = ["sidebar", "sidebar.position", "tabs.sleep", SleepPace.key, "float.leave", "float.away",
                            "pins.home", "pins.peek", "links.peek", "links.peekClick", "pages.120", "pages.120.mode",
                            "swipe.history", "tabs.address", "links.show", "float.flicks", "spaces", "pins.list",
-                           "newtab.floating", "search.shift", "search.shiftCustom"]
+                           "newtab.floating", "search.shift", "search.shiftCustom", "tabs.swipeBackCloses"]
 
     private func fresh(_ body: () -> Void) {
         let saved = touched.map { ($0, Store.settings.object(forKey: $0)) }
@@ -52,6 +52,19 @@ final class SettingsIndexTests: XCTestCase {
             for key in ["pins.home", "pins.peek", "pages.120.mode", "swipe.history", "tabs.address"] {
                 XCTAssertNil(Store.settings.object(forKey: key), key)
             }
+        }
+    }
+
+    /// The loading line (27 Nov 2026): off, however 1.0.21 or 1.0.22 left
+    /// things; only a switch turned on by hand counts.
+    func testLoadingLineOffUnlessTurnedOn() {
+        fresh {
+            XCTAssertFalse(Preferences().showsLoadingLine)
+            XCTAssertNil(Store.settings.object(forKey: "fold.loadingLine"), "nothing written for the default")
+            Store.settings.set(false, forKey: "fold.loadingLine")
+            XCTAssertFalse(Preferences().showsLoadingLine)
+            Store.settings.set(true, forKey: "fold.loadingLine")
+            XCTAssertTrue(Preferences().showsLoadingLine, "turned on by hand, it stays on")
         }
     }
 
@@ -111,6 +124,9 @@ final class SettingsIndexTests: XCTestCase {
         fresh {
             let prefs = Preferences()
             prefs.pinsKeepSite = false
+            // On by default since a35ea540: written off so Set Up has it
+            // to turn on, and Undo to put back.
+            prefs.swipeBackCloses = false
             let before = prefs.arcSnapshot
             let layout = prefs.tabsLayout
             XCTAssertFalse(prefs.looksLikeArc)
@@ -157,6 +173,13 @@ final class SettingsIndexTests: XCTestCase {
         XCTAssertTrue(SettingsIndex.find("split").contains { $0.id == "note.split" })
         // Taken out of Settings in Lun (RetiredSettings): not found either.
         XCTAssertFalse(SettingsIndex.find("shift enter").contains { $0.id == "search.shift" })
+        // The loading line: a visible switch on Appearance, found by its words.
+        for word in ["loading", "progress", "line", "loading line"] {
+            XCTAssertTrue(SettingsIndex.find(word).contains { $0.id == "fold.loadingLine" }, word)
+        }
+        let line = SettingsIndex.items.first { $0.id == "fold.loadingLine" }
+        XCTAssertEqual(line?.page, .appearance)
+        XCTAssertEqual(line?.findOnly, false, "a row drawn on the page")
         XCTAssertTrue(SettingsIndex.find("").isEmpty)
         XCTAssertTrue(SettingsIndex.find("zzzz nothing").isEmpty)
     }

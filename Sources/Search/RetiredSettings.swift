@@ -6,7 +6,7 @@ import Foundation
 // request and off unless asked for. Lun keeps the ones worth choosing and
 // fixes the rest (26 Nov 2026): no row, nothing in the find field. Most
 // are fixed at what they already did by default, their stored choice put
-// aside so the default is what is read. Twenty-three that were off unless
+// aside so the default is what is read. Twenty-two that were off unless
 // asked for are fixed on instead (`fixed`): each was a better browser than
 // the one without it, and none was worth a switch.
 //
@@ -14,6 +14,8 @@ import Foundation
 // Preferences and its tests are left as they were, so what comes from
 // upstream still fits. Lun's difference is this one file, and the few
 // lines that read it (SettingsIndex.offered, Preferences.init, WhatsNew).
+// A switch brought back (`returned`, 27 Nov 2026) gets its row again and
+// the choice that was put aside.
 
 enum RetiredSettings {
     /// Rows of SettingsIndex that are no longer drawn or found.
@@ -21,10 +23,10 @@ enum RetiredSettings {
         // Fixed at their default.
         "downloads.button", "sidebar.foldIcons", "layout.cardsFullScreen", "toolbar.left", "tabs.compact",
         "window.glass.style", "tabs.liquid", "sidebar.doorsUp", "helm.shown", "foot.shown", "sidebar.foldButton",
-        "tabs.reading", "bookmarks.iconsOnly", "bookmarks.newTabOnly", "tabs.newAfterLast", "tabs.keepWindow",
+        "tabs.reading", "bookmarks.newTabOnly", "tabs.newAfterLast", "tabs.keepWindow",
         "tabs.closeGoesBack", "tabs.switcherBehindFirst", "tabs.switcherLeavesOutPins", "tabs.lazy",
         "tabs.sleep.dim", "tabs.shortcuts", "tabs.address", "tabs.clickAddressOnly", "tabs.clickKeepsName",
-        "search.shift", "field.top", "reader.twins", "float.style", "float.minimize",
+        "search.shift", "reader.twins", "float.style", "float.minimize",
         "fullscreen.escapeTwice", "fullscreen.keepsWindow", "pages.120", "spaces.buttons", "pins.keep",
         "pins.commandNewTab", "field.hidesPage", "newtab.recent", "passkeys", "privacy.clickIDs", "privacy.gpc",
         "keys.backspaceBack", "swipe.history", "updates.notice",
@@ -45,10 +47,10 @@ enum RetiredSettings {
         // is still there for whoever asks for it from a tab's menu.
         "links.little",
         // Always on (see `fixed`).
-        "downloads.open", "sidebar.slides", "fold.loadingLine", "sidebar.narrowIcons", "sidebar.player",
+        "downloads.open", "sidebar.slides", "sidebar.narrowIcons", "sidebar.player",
         "tabs.pinCounts", "tabs.give", "motion.light", "tabs.frontBeside", "tabs.swipeBackCloses",
         "tabs.undoReopens", "tabs.popupWindows", "links.little.tabs", "reader.follows", "video.keys",
-        "pages.capture", "pins.folders", "field.window", "newtab.arc", "commandbar", "privacy.httpsFirst",
+        "pins.folders", "field.window", "newtab.arc", "commandbar", "privacy.httpsFirst",
         "links.peek.stays", "links.optionSplit", "wheel.smooth", "pages.bounce",
     ]
 
@@ -58,11 +60,11 @@ enum RetiredSettings {
     /// store (Motion), not only by Preferences.
     static let fixed: [(key: String, value: Any)] = [
         ("downloads.open", DownloadsOpening.popover.rawValue),
-        ("fold.loadingLine", true), ("sidebar.narrowIcons", true),
+        ("sidebar.narrowIcons", true),
         ("sidebar.player", true), ("tabs.pinCounts", true), ("tabs.give", true), ("motion.light", true),
         ("tabs.frontBeside", true), ("tabs.swipeBackCloses", true), ("tabs.undoReopens", true),
         ("tabs.popupWindows", true), ("links.little.tabs", true), ("reader.follows", true),
-        ("video.keys", true), ("pages.capture", true), ("pins.folders", true), ("field.window", true),
+        ("video.keys", true), ("pins.folders", true), ("field.window", true),
         ("newtab.arc", true), ("commandbar", true),
         ("links.peek.stays", true), ("links.optionSplit", true), ("wheel.smooth", true), ("pages.bounce", true),
     ]
@@ -76,10 +78,10 @@ enum RetiredSettings {
         "window.glass.style", "tabs.liquid", "sidebar.doorsUp",
         "helm.back.hidden", "helm.forward.hidden", "helm.reload.hidden",
         "foot.extensions.hidden", "foot.bookmarks.hidden", "foot.profile.hidden",
-        "sidebar.foldButton", "tabs.reading", "bookmarks.iconsOnly", "bookmarks.newTabOnly",
+        "sidebar.foldButton", "tabs.reading", "bookmarks.newTabOnly",
         "tabs.newAfterLast", "tabs.keepWindow", "tabs.closeGoesBack", "tabs.switcherBehindFirst",
         "tabs.switcherLeavesOutPins", "tabs.lazy", "tabs.sleep.dim", "tabs.shortcuts", "tabs.address",
-        "tabs.clickAddressOnly", "tabs.clickKeepsName", "search.shift", "search.shiftCustom", "field.top",
+        "tabs.clickAddressOnly", "tabs.clickKeepsName", "search.shift", "search.shiftCustom",
         "reader.twins", "float.style", "float.minimize", "fullscreen.escapeTwice", "fullscreen.keepsWindow",
         "pages.120", "pages.120.mode", "spaces.buttons", "pins.home", "pins.peek", "pins.commandNewTab",
         "field.hidesPage", "newtab.recent", "passkeys", "privacy.clickIDs", "privacy.gpc",
@@ -107,27 +109,65 @@ enum RetiredSettings {
         "Links from pins open in a new tab", "Keep the window when its last tab closes",
         "Clicking the tab you're on keeps its name", "Fade scroll bars", "Update ready, in the window",
         "Bookmarks bar only on new tabs",
-        "Click the tab you're on to edit its address", "Icons only on the bookmarks bar", "Sidebar button",
+        "Click the tab you're on to edit its address", "Sidebar button",
         "One button per space", "Buttons at the top", "Dim sleeping tabs", "High contrast tab text",
         "Keep the card in full screen", "⌘-click on a pin opens a new tab", "Close goes back",
         "Tab numbers while ⌘ is held", "Escape twice to leave full screen", "Pins keep their site",
         "Always show the downloads button", "Pages at 120 Hz", "Roomier tabs",
         // Always on.
         "Space and arrow keys control videos", "The field in the middle of the window",
-        "Smooth scrolling with a mouse wheel", "A loading line with the tabs hidden",
+        "Smooth scrolling with a mouse wheel",
         "Unread counts on pinned tabs", "Narrow to icons", "Swipe back closes a link's tab",
         "⌘T finds your open tabs", "Try HTTPS first", "⌥-click a link opens it in Split View",
         "Bounce at the top and bottom", "Slide the column in and out", "Commands in the address field",
-        "Capture", "Folders in pinned rows",
+        "Folders in pinned rows",
     ]
 
     /// Where a put-aside choice is kept, should its switch ever come back.
     static func aside(_ key: String) -> String { "retired." + key }
 
+    /// The switches that came back, each with its row again, and its What's
+    /// New offer if it had one; and whether it had been fixed on rather than
+    /// at its default.
+    static let returned: [(key: String, wasFixed: Bool)] = [
+        // Return takes the top suggestion: the field from any app follows
+        // it too now.
+        ("field.top", false),
+        // Icons only on the bookmarks bar: it tiles the bookmarks in the
+        // column too now.
+        ("bookmarks.iconsOnly", false),
+        // Capture pages: Copy captures only sits under it.
+        ("pages.capture", true),
+        // The loading line: off unless turned on, as upstream has it again
+        // (221e0ba7): fixed on, it showed by itself and couldn't be turned off.
+        ("fold.loadingLine", true),
+    ]
+
+    /// Noted once a returned switch's choice is back, so it is done once.
+    static func back(_ key: String) -> String { "returned." + key }
+
+    /// Puts back, once, what retiring a switch that came back put aside.
+    /// One fixed on goes back to its default unless a choice was put aside
+    /// for it: an "on" chosen before it was fixed can't be told from the
+    /// fixed one, and the default is what the switch's row says.
+    static func bringBack(_ store: UserDefaults) {
+        for (key, wasFixed) in returned where !store.bool(forKey: back(key)) {
+            if let was = store.object(forKey: aside(key)) {
+                store.set(was, forKey: key)
+                store.removeObject(forKey: aside(key))
+            } else if wasFixed {
+                store.removeObject(forKey: key)
+            }
+            store.set(true, forKey: back(key))
+        }
+    }
+
     /// Puts every stored choice of a retired switch aside, so the default
     /// is read, and writes what the fixed ones are fixed at. Before anything
-    /// in Preferences reads the store.
+    /// in Preferences reads the store. A switch that came back gets its
+    /// choice back first.
     static func settle(_ store: UserDefaults) {
+        bringBack(store)
         for key in keys {
             guard let was = store.object(forKey: key) else { continue }
             store.set(was, forKey: aside(key))

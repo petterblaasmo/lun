@@ -30,6 +30,12 @@ enum Palette {
     static let fill = Color(nsColor: NS.fill)
     static let fillHover = Color(nsColor: NS.fillHover)
     static let rule = Color(nsColor: NS.rule)
+    /// A site's chip under a new tab's field at rest (HomeTiles.swift): half
+    /// a fill, so a line of them reads as one quiet row on the card. Under
+    /// the pointer or the keys it is a fill.
+    static let chip = Color(nsColor: NS.chip)
+    /// The chip that adds a site: fainter still, until it is pointed at.
+    static let chipFaint = Color(nsColor: NS.chipFaint)
     /// What a chosen part of a picker lies on.
     static let knob = Color(nsColor: NS.knob)
     /// The only two that aren't grey: a connection nobody can read on the
@@ -95,6 +101,8 @@ enum Palette {
         static let fill = shade(0.07, 0.08)
         static let fillHover = shade(0.11, 0.13)
         static let rule = shade(0.10, 0.10)
+        static let chip = shade(0.035, 0.04)
+        static let chipFaint = shade(0.02, 0.025)
         static let fieldDim = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .clear : NSColor(white: 0, alpha: 0.10)
         }
@@ -260,6 +268,9 @@ enum Metrics {
     /// this round.
     static let cardGap: CGFloat = 8
     static let cardRadius: CGFloat = 10
+    /// The line along the page's top while it loads (LoadingLine): a
+    /// hairline would be lost against a page's own top edge.
+    static let loadingLine: CGFloat = 2
     /// Where the first tab starts. The traffic lights run from 19 to 79 —
     /// measured, not guessed — so this leaves them the same air on their right
     /// that the window gives them on their left.
@@ -572,9 +583,9 @@ enum Motion {
     /// slowed Mac takes time from first, and every frame it misses shows as a
     /// stutter. 0.16 s is 10 frames, and is over before a missed one shows.
     /// Read at the moment something moves, so it follows the switch at once.
-    /// Only once it is turned on in Settings › General (Preferences.lightMotion).
+    /// Unless it is turned off in Settings › General (Preferences.lightMotion).
     static var light: Bool {
-        guard Store.settings.bool(forKey: lightKey) else { return false }
+        guard lightOn else { return false }
         return lowPowerMode || ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue
     }
 
@@ -583,7 +594,13 @@ enum Motion {
     /// since what a sleeping tab gives back is mostly memory, and a hot Mac
     /// has enough of that.
     static var savingPower: Bool {
-        Store.settings.bool(forKey: lightKey) && lowPowerMode
+        lightOn && lowPowerMode
+    }
+
+    /// The switch itself: on for everyone who never touched it (Drice, 25
+    /// Nov 2026), as Preferences reads it.
+    private static var lightOn: Bool {
+        Store.settings.object(forKey: lightKey) as? Bool ?? true
     }
 
     nonisolated static let lightKey = "motion.light"
@@ -908,6 +925,33 @@ enum Motion {
     static func pulse(reduced: Bool = Motion.reduced, light: Bool = Motion.light) -> (peak: CGFloat, up: Double, down: Double) {
         let seconds = light ? 0.16 : 0.3
         return (reduced ? 1 : 1.35, seconds * 0.4, seconds * 0.6)
+    }
+
+    /// A new download's file gliding from the click into the downloads
+    /// button, with Settings › Appearance › Motion › Animate downloads: how long,
+    /// shorter in Low Power Mode as the pulse is. It is moved a frame at a
+    /// time on its own curve (DownloadFlight.glide), not by an Animation,
+    /// since the button it aims at may still be coming in. Never under
+    /// Reduce Motion: nothing is thrown then.
+    static func flight(light: Bool = Motion.light) -> TimeInterval {
+        light ? 0.4 : 0.6
+    }
+
+    /// The downloads tab at the window's edge, the column folded away (see
+    /// DownloadFlight): in on an ease-out, as the file sets off, and back
+    /// out the way it came on an ease-in once the file is in.
+    static var edgeIn: Animation? {
+        reduced ? nil : .easeOut(duration: 0.2)
+    }
+
+    static var edgeOut: Animation? {
+        reduced ? nil : .timingCurve(0.4, 0, 1, 1, duration: 0.26)
+    }
+
+    /// The check a finished download shows in its button for a moment,
+    /// fading back to the arrow. A fade, as a dissolve is, a little quicker.
+    static var checkFade: Animation? {
+        instant ? nil : .easeOut(duration: 0.16)
     }
 
     // MARK: what follows the fingers

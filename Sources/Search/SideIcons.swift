@@ -110,8 +110,9 @@ struct IconTile: View {
     /// This tile, for the bench's list of them (IconTiles).
     @State private var me = UUID()
 
+    // The host on every tile, as a tile has no room to say it (7c1028f4).
     private var tip: String { IconTiles.tip(tab, address: AtRest.said(tab.restAddress, always: true)) }
-    private var speaker: Bool { !tab.loading && (tab.noisy || tab.muted) }
+    private var speaker: Bool { CornerSpeaker.shows(for: tab) }
     private var closable: Bool { interactive && live && tab.pin == nil }
     private var crossShows: Bool { closable && dwelled && (hovering || overCross) }
 
@@ -274,8 +275,13 @@ struct IconTile: View {
 
 /// The speaker of a tile: small, in its bottom corner, on a disc of the
 /// column's ground so it reads over any mark. A press mutes or unmutes.
-private struct CornerSpeaker: View {
+/// A pinned square wears it too, in the column and across the top (idea 1328).
+struct CornerSpeaker: View {
     @ObservedObject var tab: Tab
+
+    /// Whether a tile or a square of `tab` wears it: its page plays sound,
+    /// or was muted, and isn't on its way (the ring has the place then).
+    static func shows(for tab: Tab) -> Bool { !tab.loading && (tab.noisy || tab.muted) }
 
     var body: some View {
         Button(action: tab.toggleMute) {
