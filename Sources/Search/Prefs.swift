@@ -558,6 +558,12 @@ final class Preferences: ObservableObject {
     @Published var showsPinCounts: Bool {
         didSet { store.set(showsPinCounts, forKey: "tabs.pinCounts") }
     }
+    /// A card with a picture of a pin's page, and what it says is waiting,
+    /// when the pointer rests on the pin (PinPreview.swift). On unless
+    /// turned off.
+    @Published var pinPreviews: Bool {
+        didSet { store.set(pinPreviews, forKey: "pins.preview") }
+    }
     /// Tab titles in full ink (black or white) instead of the soft greys
     /// used for tabs that aren't the one you're on. Off unless asked for.
     @Published var highContrastText: Bool {
@@ -1406,6 +1412,7 @@ final class Preferences: ObservableObject {
         showsTabShortcuts = store.bool(forKey: "tabs.shortcuts")
         showsReading = store.bool(forKey: "tabs.reading")
         showsPinCounts = store.bool(forKey: "tabs.pinCounts")
+        pinPreviews = store.object(forKey: "pins.preview") as? Bool ?? true
         // The Mac's own Increase Contrast decides, where a switch of Lun's
         // did (RetiredSettings); followContrast keeps it in step.
         highContrastText = store.bool(forKey: "tabs.highContrast") || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
