@@ -55,6 +55,7 @@ struct SearchApp: App {
     }
 
     var body: some Scene {
+        let _ = Bench.count("app")
         // Where you left it, at the size you left it. SwiftUI saves a
         // window's frame under its id and puts it back before the window
         // first shows; set by hand once the window was up, it showed at the
@@ -440,13 +441,7 @@ struct SearchApp: App {
             }
             CommandMenu("History") {
                 Section("Recently Visited") {
-                    ForEach(browser.recentlyVisited) { trace in
-                        Button {
-                            browser.open(trace.url, foreground: true)
-                        } label: {
-                            MenuLine(title: trace.title.isEmpty ? Address.withoutWWW(trace.address) : trace.title, url: trace.url)
-                        }
-                    }
+                    RecentlyVisited(browser: browser, menu: browser.recentMenu)
                 }
                 if !browser.ghosts.isEmpty {
                     Section("Recently Closed") {
@@ -1226,6 +1221,7 @@ struct ContentView: View {
     }
 
     var body: some View {
+        let _ = Bench.count("content")
         window_
             // The column folded away, and out again at the edge (see Fold.swift).
             .overlay(alignment: sideOnRight ? .trailing : .leading) {
@@ -2555,3 +2551,23 @@ private struct ImportProgress: View {
         }
     }
 }
+
+/// The History menu's last few places, drawn again when they change
+/// (Browser.recentMenu) and not with every change to the window.
+private struct RecentlyVisited: View {
+    let browser: Browser
+    @ObservedObject var menu: RecentMenu
+
+    var body: some View {
+        ForEach(browser.recentlyVisited) { trace in
+            Button {
+                browser.open(trace.url, foreground: true)
+            } label: {
+                MenuLine(title: trace.title.isEmpty ? Address.withoutWWW(trace.address) : trace.title, url: trace.url)
+            }
+        }
+    }
+}
+
+/// See Browser.recentMenu.
+final class RecentMenu: ObservableObject {}
