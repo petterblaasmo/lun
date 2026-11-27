@@ -76,13 +76,73 @@ def screenshot(folder, name, marked):
 def main():
     t = sv.T()
     try:
-        sv.setup(**{"downloads.screenshots": True})
+        sv.setup(**{"developer.local": True, "downloads.screenshots": True})
         shots = Path(sv.SUPPORT) / "Screenshots"
         shots.mkdir(parents=True)
         subprocess.run(["defaults", "write", sv.SUITE, "downloads.screenshots.folder", "-string", str(shots)], check=True)
         # Already there before: never listed.
         screenshot(shots, "Screenshot 2026-11-25 at 08.00.00.png", True)
         sv.launch()
+
+        # --- Developer Mode -------------------------------------------------
+        local = open_tab(f"http://127.0.0.1:{PORT}/dev")
+        r = sv.cmd({"do": "devmode", "id": local})
+        t.ok("dev: on by itself for 127.0.0.1", r["on"] and r["local"], r)
+        t.ok("dev: the command exists", r["command"], r)
+        named = open_tab(f"http://localhost:{PORT}/dev?x=1")
+        t.ok("dev: on by itself for localhost", sv.cmd({"do": "devmode", "id": named})["on"])
+
+        r = sv.cmd({"do": "devmode", "id": local, "set": False})
+        t.ok("dev: off by hand, kept for the site", not r["on"] and r["sites"] == {"127.0.0.1": False}, r)
+        r = sv.cmd({"do": "devmode", "id": local, "toggle": True})
+        t.ok("dev: the command turns it back on, nothing kept", r["on"] and r["sites"] == {}, r)
+
+        before = len(asked("/dev"))
+        sv.cmd({"do": "devmode", "id": local, "reload": True})
+        wait(lambda: len(asked("/dev")) > before, 5)
+        plain = asked("/dev")[before:]
+        t.ok("dev: a plain reload asks the server", len(plain) == 1, plain)
+        t.ok("dev: … without no-cache", plain and "no-cache" not in plain[0][1] + plain[0][2], plain)
+
+        r = sv.cmd({"do": "devmode", "id": local, "cache": True})
+        t.ok("dev: cache off for the site", r["cacheOff"], r)
+        before = len(asked("/dev"))
+        sv.cmd({"do": "devmode", "id": local, "reload": True})
+        wait(lambda: len(asked("/dev")) > before, 5)
+        fresh = asked("/dev")[before:]
+        t.ok("dev: with the cache off, ⌘R's reload skips it (no-cache)",
+             fresh and "no-cache" in fresh[0][1] + fresh[0][2], fresh)
+        sv.cmd({"do": "devmode", "id": local, "cache": False})
+
+
+        # --- A pin's glance -------------------------------------------------
+        # An ordinary tab, not a bench one: bench tabs never sleep.
+        mail = sv.sp("open", url=f"http://127.0.0.1:{PORT}/mail")["resultID"]
+        time.sleep(2)
+        sv.cmd({"do": "pin", "id": mail})
+        sv.cmd({"do": "select", "id": local})
+        r = sv.cmd({"do": "pinpreview", "id": mail})
+        t.ok("pin: on by default", r["on"], r)
+        t.ok("pin: the unread count from its title", r["unread"] == "3", r)
+        t.ok("pin: no card while the window isn't in front (hidden probe)", r["refusal"] == "window not in front" and not r["shown"], r)
+        r = sv.cmd({"do": "pinpreview", "id": mail, "picture": True})
+        print("   live pin's picture:", r.get("picture") or "(none: a hidden window paints nothing)")
+        # A pin in the space on screen stays awake; one asleep is one put to
+        # sleep before it was pinned (or brought back at launch, unopened).
+        sv.cmd({"do": "pin", "id": mail, "off": True})
+        sv.cmd({"do": "select", "id": local})
+        s = sv.cmd({"do": "sleep", "id": mail})
+        sv.cmd({"do": "pin", "id": mail})
+        s = sv.cmd({"do": "pinpreview", "id": mail})
+        t.ok("pin: asleep, as a pin", s["asleep"] and not s["built"], s)
+        r = sv.cmd({"do": "pinpreview", "id": mail, "picture": True, "hover": True})
+        time.sleep(1)
+        after = sv.cmd({"do": "pinpreview", "id": mail})
+        t.ok("pin: asleep, asking for its glance doesn't wake it",
+             r["asleepAfter"] and not r["builtAfter"] and after["asleep"] and not after["built"], (r, after))
+        t.ok("pin: asleep, no unread count (it may be stale)", after["unread"] == "", after)
+        t.ok("pin: hovered in a hidden probe, no card", not after["shown"], after)
+
 
         # --- Screenshots in Downloads ---------------------------------------
         r = wait(lambda: (lambda s: s if s["folder"] else None)(sv.cmd({"do": "screenshots"})), 5)
