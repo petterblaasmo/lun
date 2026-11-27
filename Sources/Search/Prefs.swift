@@ -737,6 +737,13 @@ final class Preferences: ObservableObject {
         didSet { store.set(capturesPages, forKey: "pages.capture") }
     }
 
+    /// Hide Elements moves and resizes too: a drag on what is outlined, or
+    /// on its right or bottom edge (see Veiling.picker). Off unless turned
+    /// on; off, a press hides at once, as it always has.
+    @Published var hidingShapes: Bool {
+        didSet { store.set(hidingShapes, forKey: "hiding.shapes") }
+    }
+
     /// Your own style for a site, Edit Site Style… in the View menu (see
     /// SiteStyles.swift). Off unless asked for; off, the styles are kept.
     @Published var sitesStyles: Bool {
@@ -1557,6 +1564,7 @@ final class Preferences: ObservableObject {
         darkensPages = dusk
         Dusk.shared.on = dusk
         capturesPages = store.bool(forKey: "pages.capture")
+        hidingShapes = store.bool(forKey: "hiding.shapes")
         let styles = store.bool(forKey: "sites.styles")
         sitesStyles = styles
         SiteStyles.shared.on = styles
