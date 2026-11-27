@@ -55,6 +55,7 @@ struct SearchApp: App {
     }
 
     var body: some Scene {
+        let _ = Bench.count("app")
         // Where you left it, at the size you left it. SwiftUI saves a
         // window's frame under its id and puts it back before the window
         // first shows; set by hand once the window was up, it showed at the
@@ -116,6 +117,10 @@ struct SearchApp: App {
                 // other way in opens too.
                 Button("Bring Things Over…") { browser.bringingIn = "" }
                     .shortcut("file.import")
+                // Every space, its pins and its tabs, to a file any browser
+                // imports, or Search's own (SpacesExport.swift).
+                Button("Export Spaces…") { browser.exportSpaces() }
+                    .shortcut("file.exportSpaces")
                 Divider()
                 Button("Close Tab") { browser.closeFront() }
                     .shortcut("file.closeTab")
@@ -298,6 +303,9 @@ struct SearchApp: App {
                     .shortcut(taken["console"] == nil ? "view.console" : nil)
                 Button("Inspect Element") { browser.inspectWebElement() }
                     .shortcut(taken["pick"] == nil ? "view.inspect" : nil)
+                Button("Developer Mode") { browser.toggleDeveloperMode() }
+                    .shortcut("view.developerMode")
+                    .disabled(DevMode.host(of: browser.active?.pageAddress) == nil)
                 // Only with a developer tools package installed (Settings ›
                 // About › Developer, see DevToolsPackages.swift).
                 if let package = DevToolsPackages.shared.primary, DevToolsPackages.shared.usable(package.offer.id) {
@@ -428,6 +436,11 @@ struct SearchApp: App {
                 Button(browser.pageKept ? "Edit Bookmark\u{2026}" : "Add This Page") { browser.bookmarkCurrent() }
                     .shortcut("bookmarks.add")
                     .disabled(!(browser.active?.isWeb ?? false))
+                if browser.prefs.homeTiles {
+                    // Settings › Site tiles on a new tab (HomeTiles.swift).
+                    Button("Add This Page to New Tabs") { browser.active.map { browser.addTile(from: $0) } }
+                        .disabled(!(browser.active.map(browser.offersTile) ?? false))
+                }
                 Button("Show Bookmarks…") { browser.bookmarking = true }
                     .shortcut("bookmarks.show")
                 Toggle("Show Bookmarks Bar", isOn: Binding(
@@ -440,13 +453,7 @@ struct SearchApp: App {
             }
             CommandMenu("History") {
                 Section("Recently Visited") {
-                    ForEach(browser.recentlyVisited) { trace in
-                        Button {
-                            browser.open(trace.url, foreground: true)
-                        } label: {
-                            MenuLine(title: trace.title.isEmpty ? Address.withoutWWW(trace.address) : trace.title, url: trace.url)
-                        }
-                    }
+                    RecentlyVisited(browser: browser, menu: browser.recentMenu)
                 }
                 if !browser.ghosts.isEmpty {
                     Section("Recently Closed") {
@@ -827,8 +834,15 @@ struct ContentView: View {
         } else if let tab = browser.active {
             Page(tab: tab, corner: cardCorner, browser: browser)
                 .overlay {
-                    if browser.prefs.showsLinks { LinkBubble(status: browser.linkStatus) }
+                    if browser.prefs.showsLinks {
+                        // Beside the downloads tab at the window's edge, not under it.
+                        let room = browser.downloadsEdge ? DownloadFlight.edgeRoom : 0
+                        LinkBubble(status: browser.linkStatus,
+                                   leadingRoom: sideOnRight ? 0 : room, trailingRoom: sideOnRight ? room : 0)
+                    }
                 }
+                // Developer Mode's bar, for a site in it (DevMode.swift).
+                .overlay(alignment: .bottomTrailing) { DevBar(browser: browser, tab: tab) }
                 .overlay(alignment: .topTrailing) {
                     if browser.finding {
                         FindBar(browser: browser)
@@ -1076,7 +1090,7 @@ struct ContentView: View {
             }
             StoreOffer(browser: browser)
             if browser.veiling {
-                hint("Click anything to hide it   ↑↓ wider, narrower   ⌘Z undo   esc done")
+                hint("Click anything to hide it   ⌥-click all like it   ↑↓ wider, narrower   ⌘Z undo   esc done")
                     .transition(.bar(.bottom))
             }
         }
@@ -1230,6 +1244,7 @@ struct ContentView: View {
     }
 
     var body: some View {
+        let _ = Bench.count("content")
         window_
             // The column folded away, and out again at the edge (see Fold.swift).
             .overlay(alignment: sideOnRight ? .trailing : .leading) {
@@ -1276,6 +1291,14 @@ struct ContentView: View {
                 .animation(Motion.settle, value: browser.makingSpace)
             }
             .overlay { panels }
+            // A new download's file on its way to the downloads button.
+            // Only with Settings › Appearance › Motion › Animate downloads on:
+            // off, nothing here watches the downloads at all.
+            .overlay {
+                if browser.prefs.animatesDownloads || browser.downloadsEdge {
+                    DownloadFlightLayer(browser: browser, fetches: browser.fetches, onRight: sideOnRight)
+                }
+            }
             .overlay { switcherOverlay }
             .overlay(alignment: .topTrailing) {
                 if let job = browser.fileImport {
@@ -1602,6 +1625,12 @@ struct ContentView: View {
             window.isExcludedFromWindowsMenu = false
         }
         window.tabbingMode = .disallowed
+        // No picture of the window for macOS's state restoration: Search
+        // brings its windows back itself, from its own files. AppKit drew
+        // one a while after launch and after each change, a buffer the
+        // window's size in pixels (16 MB for a 1280-point window, 60 for a
+        // 5K screen) that the allocator then kept as part of the app.
+        window.disableSnapshotRestoration()
         // Light or dark is the app's to say (Settings › Appearance); the
         // window only has to be the ground colour that goes with it.
         window.titlebarAppearsTransparent = true
@@ -1689,6 +1718,11 @@ struct ContentView: View {
                 guard let window, event.window === window else { return event }
                 Browser.lastClose = nil
                 Browser.lastMove = nil
+                // Where a download a click starts sets off from (DownloadFlight).
+                if event.type != .otherMouseDown, let height = window.contentView?.bounds.height {
+                    let at = event.locationInWindow
+                    browser.lastPress = (CGPoint(x: at.x, y: height - at.y), CACurrentMediaTime())
+                }
                 // A press on the tab switcher, in this window only (see
                 // Browser.pressTabSwitcher), turned into the top-left
                 // coordinates SwiftUI's frames are in.
@@ -2553,3 +2587,23 @@ private struct ImportProgress: View {
         }
     }
 }
+
+/// The History menu's last few places, drawn again when they change
+/// (Browser.recentMenu) and not with every change to the window.
+private struct RecentlyVisited: View {
+    let browser: Browser
+    @ObservedObject var menu: RecentMenu
+
+    var body: some View {
+        ForEach(browser.recentlyVisited) { trace in
+            Button {
+                browser.open(trace.url, foreground: true)
+            } label: {
+                MenuLine(title: trace.title.isEmpty ? Address.withoutWWW(trace.address) : trace.title, url: trace.url)
+            }
+        }
+    }
+}
+
+/// See Browser.recentMenu.
+final class RecentMenu: ObservableObject {}

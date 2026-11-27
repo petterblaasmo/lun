@@ -107,7 +107,9 @@ enum ClickIDs {
     }
 }
 
-/// Settings › Privacy › Try HTTPS first, off unless turned on.
+/// Settings › Privacy › Try HTTPS first, off unless turned on. Upstream turned
+/// it on (25 Nov 2026); Lun keeps it off, with no row (RetiredSettings): a site
+/// with no HTTPS waited for the attempt over HTTPS to run out.
 ///
 /// HTTPS first: a top-level http:// load is tried over
 /// https:// first, and over http:// again only where that fails, so a site

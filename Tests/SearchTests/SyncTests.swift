@@ -643,4 +643,21 @@ final class SyncTests: XCTestCase {
         SyncSettings.apply(["set:look": "\"sepia\""], to: prefs)
         XCTAssertEqual(prefs.look, .dark)
     }
+
+    /// Tabs show site icons by default (Glyph.standard), for a new install
+    /// and one that never chose, and the default is never written: a saved
+    /// "glyph" is what marks an install from before the welcome.
+    func testTabsShowSiteIconsByDefault() {
+        let store = Store.settings
+        let kept = store.object(forKey: "glyph")
+        defer { if let kept { store.set(kept, forKey: "glyph") } else { store.removeObject(forKey: "glyph") } }
+        store.removeObject(forKey: "glyph")
+        let prefs = Preferences()
+        XCTAssertEqual(prefs.glyph, .icons)
+        XCTAssertNil(store.object(forKey: "glyph"), "a default is never written")
+        XCTAssertEqual(SyncSettings.items(prefs)["set:glyph"], "\"icons\"")
+        prefs.reread()
+        XCTAssertEqual(prefs.glyph, .icons, "the settings file read again keeps it")
+        XCTAssertNil(store.object(forKey: "glyph"))
+    }
 }
