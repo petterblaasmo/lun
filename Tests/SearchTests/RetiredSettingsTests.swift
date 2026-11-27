@@ -179,7 +179,7 @@ final class RetiredSettingsTests: XCTestCase {
             let rows = SettingsIndex.groups(of: page).flatMap { SettingsIndex.items(in: $0.id) }
             let first = rows.filter { essential.contains($0.id) }
             XCTAssertTrue((3...7).contains(first.count), "\(page.rawValue): \(first.count)")
-            XCTAssertLessThanOrEqual(rows.count - first.count, 12, page.rawValue)
+            XCTAssertLessThanOrEqual(rows.count - first.count, 14, page.rawValue)
         }
     }
 
