@@ -743,6 +743,9 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
     /// them, chosen over a picture that is also a link: done as the image
     /// menu does them.
     var onImageItem: ((Tab, URL, ImageAction) -> Void)?
+    /// The picture menu's items, in place of WebKit's menu over a picture
+    /// that is no link (PictureMenu).
+    var onPictureItems: ((Tab, URL) -> [NSMenuItem])?
     /// Where the last image right-clicked came from (see ImageMenu.swift).
     var imageFrame: WKFrameInfo? { images.frame }
     var searchName: (() -> String?)?
@@ -1068,6 +1071,10 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
         web.onImage = { [weak self] url, action in
             guard let self else { return }
             self.onImageItem?(self, url, action)
+        }
+        web.pictureItems = { [weak self] url in
+            guard let self else { return [] }
+            return self.onPictureItems?(self, url) ?? []
         }
         web.onSearch = { [weak self] text in
             guard let self else { return }
@@ -2508,6 +2515,7 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
         web.translating = nil
         web.onTranslate = nil
         web.onImage = nil
+        web.pictureItems = nil
         web.onSearch = nil
         web.stopLoading()
         // Every handler below is an empty closure rather than nil: some WebKit
@@ -2769,6 +2777,20 @@ final class PageView: WKWebView {
     /// page in it itself; Search adding them again showed each one twice.
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         super.willOpenMenu(menu, with: event)
+        // Over a picture (ImageRelay, told just before this menu, for this
+        // menu only): one that is no link gets this app's picture menu; one
+        // that is keeps this one, its Copy Image and Download Image, which
+        // on some sites do nothing, done by this app's own, with Add Image
+        // to Photos beside them (PictureMenu, dress).
+        if let kept = picture, Date().timeIntervalSince(kept.at) < PictureMenu.fresh {
+            picture = nil
+            let replaced = PictureMenu.shape(menu, picture: kept.url, keep: kept.keep, items: { [weak self] in
+                self?.pictureItems?($0) ?? []
+            }, retarget: { _ in })
+            if replaced { return }
+            if let url = kept.url { PageView.dress(menu, for: url, target: self) }
+        }
+        picture = nil
         // WebKit's Open Link, first in the menu, does just what a click on
         // the link does, a new tab for a target=_blank link and a peek from
         // a pin included. In the top place it was what a hand used to
@@ -2847,14 +2869,6 @@ final class PageView: WKWebView {
             clean.target = self
             clean.representedObject = url
             menu.insertItem(clean, at: index + 1)
-        }
-        // A picture that is also a link keeps this menu (ImageRelay), and
-        // with it WebKit's Copy Image and Download Image, which on some sites
-        // do nothing: this app's own do them instead, as its picture menu
-        // does. Told of the picture just before this menu, for this menu only.
-        if let image = keptImage {
-            keptImage = nil
-            PageView.dress(menu, for: image, target: self)
         }
         // The bench's linkmenu: the item it names is chosen as the menu
         // comes up, the way a hand would choose it, and the menu goes.
@@ -2990,9 +3004,17 @@ final class PageView: WKWebView {
         CleanLink.copy(url)
     }
 
-    /// The picture under the right-click, when this menu is WebKit's over
-    /// one (see ImageRelay), or nil.
-    var keptImage: URL?
+    /// The picture under the right-click, told as WebKit's menu over it
+    /// comes up (see ImageRelay): its address, or nil for none this app can
+    /// act on, whether the menu stays WebKit's, and when.
+    private(set) var picture: (url: URL?, keep: Bool, at: Date)?
+
+    func keepPicture(_ url: URL?, keep: Bool) {
+        picture = url == nil && !keep ? nil : (url, keep, Date())
+    }
+
+    /// The picture menu's items for a picture (Browser.pictureItems).
+    var pictureItems: ((URL) -> [NSMenuItem])?
     /// Copy Image, Download Image or Add Image to Photos, this app's own.
     var onImage: ((URL, ImageAction) -> Void)?
 
