@@ -707,6 +707,7 @@ struct SettingsPanel: View {
         case "downloads.folder": Pill("Change…") { chooseFolder() }
         case "downloads.ask": Switch(on: $prefs.asksWhereToSave)
         case "downloads.button": Switch(on: $prefs.alwaysShowsDownloads)
+        case "downloads.screenshots": ScreenshotsSwitch(prefs: prefs)
         case "downloads.open":
             PopUp("Open Downloads", shows: prefs.downloadsOpening.title, selection: $prefs.downloadsOpening) {
                 ForEach(DownloadsOpening.allCases) { Text($0.title).tag($0) }

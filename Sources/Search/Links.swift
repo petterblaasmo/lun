@@ -169,6 +169,8 @@ final class Links: NSObject, NSApplicationDelegate {
             Launcher.shared.start()
             // Live folders fetched, and kept fresh (LiveFolders.swift).
             LiveFolders.start()
+            // The Mac's screenshots in Downloads, once asked for (Screenshots.swift).
+            if Shared.prefs.screenshotsInDownloads { Screenshots.shared.watch(true) }
         }
         let plain = notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool ?? true
         guard !plain else { return }
