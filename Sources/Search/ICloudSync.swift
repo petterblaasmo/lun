@@ -560,7 +560,7 @@ final class ICloudSync: ObservableObject {
         switch account {
         case .signedIn, .unknown: return nil
         case .signedOut: return "Sign in to iCloud in System Settings"
-        case .offForSearch: return "Turn on iCloud for Search in System Settings › Apple Account › iCloud"
+        case .offForSearch: return "Turn on iCloud for Lun in System Settings › Apple Account › iCloud"
         case .restricted: return "iCloud is restricted on this Mac"
         case .needsAttention: return "Your Apple Account needs attention in System Settings"
         case .unreachable: return "Couldn't reach iCloud. Trying again."

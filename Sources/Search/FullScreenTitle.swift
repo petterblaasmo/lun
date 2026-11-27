@@ -22,7 +22,7 @@ enum FullScreenTitle {
     static func label(title: String?, url: URL?) -> String {
         let title = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !title.isEmpty { return title }
-        return url?.host ?? "Search"
+        return url?.host ?? "Lun"
     }
 
     static func name(_ window: NSWindow, title: String?, url: URL?) {

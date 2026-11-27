@@ -1120,7 +1120,7 @@ final class ICloudSyncTests: XCTestCase {
     func testEveryAccountAnswerSaysWhyUnderTheSwitch() async {
         let expected: [(ICloudSync.Account, String)] = [
             (.signedOut, "Sign in to iCloud in System Settings"),
-            (.offForSearch, "Turn on iCloud for Search in System Settings › Apple Account › iCloud"),
+            (.offForSearch, "Turn on iCloud for Lun in System Settings › Apple Account › iCloud"),
             (.restricted, "iCloud is restricted on this Mac"),
             (.needsAttention, "Your Apple Account needs attention in System Settings"),
             (.unreachable, "Couldn't reach iCloud. Trying again."),
