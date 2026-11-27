@@ -569,6 +569,12 @@ final class Preferences: ObservableObject {
     @Published var developerLocal: Bool {
         didSet { store.set(developerLocal, forKey: DevMode.localKey) }
     }
+    /// A card with a picture of a pin's page, and what it says is waiting,
+    /// when the pointer rests on the pin (PinPreview.swift). On unless
+    /// turned off.
+    @Published var pinPreviews: Bool {
+        didSet { store.set(pinPreviews, forKey: "pins.preview") }
+    }
     /// Tab titles in full ink (black or white) instead of the soft greys
     /// used for tabs that aren't the one you're on. Off unless asked for.
     @Published var highContrastText: Bool {
@@ -1427,6 +1433,7 @@ final class Preferences: ObservableObject {
         // On by default, but off in test runs unless a test asks, so no
         // other probe's pages on 127.0.0.1 wear the bar.
         developerLocal = store.object(forKey: DevMode.localKey) as? Bool ?? !Store.testing
+        pinPreviews = store.object(forKey: "pins.preview") as? Bool ?? true
         // The Mac's own Increase Contrast decides, where a switch of Lun's
         // did (RetiredSettings); followContrast keeps it in step.
         highContrastText = store.bool(forKey: "tabs.highContrast") || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
