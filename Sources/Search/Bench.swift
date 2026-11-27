@@ -1,5 +1,6 @@
 import AppKit
 import AuthenticationServices
+import Combine
 import LocalAuthentication
 import SwiftUI
 import WebKit
@@ -1576,6 +1577,55 @@ final class Bench {
                 DispatchQueue.main.asyncAfter(deadline: .now() + interval) { walk(n + 1) }
             }
             walk(0)
+
+        case "passes":
+            // Each pass of the main run loop for "seconds", with the views
+            // that count themselves (Bench.count) drawn again in it, and how
+            // many times the window (Browser) and its tabs said they changed:
+            // what a navigation costs the window (Tests/nav_click.py). Test
+            // runs only.
+            guard Store.testing else { answer(["error": "passes is for test runs"]); return }
+            let seconds = request["seconds"] as? Double ?? 3
+            let start = CFAbsoluteTimeGetCurrent()
+            var told: [Double] = []
+            var tabsTold = 0
+            var watching: [AnyCancellable] = [browser.objectWillChange.sink { _ in
+                told.append(((CFAbsoluteTimeGetCurrent() - start) * 1000).rounded())
+            }]
+            for tab in browser.tabs { watching.append(tab.objectWillChange.sink { _ in tabsTold += 1 }) }
+            Bench.bodies = [:]
+            var drawn: [String: Int] = [:]
+            var woke: CFAbsoluteTime = 0
+            // The main thread's own time on a processor in each pass: far
+            // under the pass's length, it was ready but kept waiting.
+            var wokeCPU: UInt64 = 0
+            var passes: [[String: Any]] = []
+            let wake = CFRunLoopObserverCreateWithHandler(nil, CFRunLoopActivity.afterWaiting.rawValue, true, CFIndex.min) { _, _ in
+                woke = CFAbsoluteTimeGetCurrent()
+                wokeCPU = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+            }
+            let rest = CFRunLoopObserverCreateWithHandler(nil, CFRunLoopActivity.beforeWaiting.rawValue, true, CFIndex.max) { _, _ in
+                let now = CFAbsoluteTimeGetCurrent()
+                let began = woke > 0 ? woke : start
+                let cpu = wokeCPU > 0 ? Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - wokeCPU) / 1e6 : 0
+                wokeCPU = 0
+                var pass: [String: Any] = ["at": ((began - start) * 1000).rounded(), "ms": ((now - began) * 10000).rounded() / 10,
+                                           "cpu": (cpu * 10).rounded() / 10]
+                for (name, n) in Bench.bodies where n != drawn[name, default: 0] {
+                    pass[name] = n - drawn[name, default: 0]
+                }
+                drawn = Bench.bodies
+                passes.append(pass)
+                woke = 0
+            }
+            let observers = [wake, rest].compactMap { $0 }
+            for observer in observers { CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+                for observer in observers { CFRunLoopRemoveObserver(CFRunLoopGetMain(), observer, .commonModes) }
+                watching.removeAll()
+                answer(["passes": passes, "browserTold": told, "tabsTold": tabsTold,
+                        "loading": browser.tabs.filter(\.loading).count])
+            }
 
         case "paceframes":
             guard Store.testing else { answer(["error": "paceframes is for test runs"]); return }

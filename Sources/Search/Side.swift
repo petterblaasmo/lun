@@ -213,6 +213,7 @@ struct SideBar: View {
     }
 
     var body: some View {
+        let _ = Bench.count("sidebar")
         ZStack(alignment: .top) {
             // Not under the card for a new space: it isn't made of views that
             // would take the click first.
@@ -601,6 +602,7 @@ struct SideBar: View {
     /// space's as they are, scrolled as the column is, another's as it was
     /// left. Its tab in front's ground glides nowhere (LiveMatch).
     private func mapPage(_ space: UUID) -> some View {
+        let _ = Bench.count("map")
         let here = space == browser.spaceID
         let row = here
             ? Parked(tabs: browser.tabs, active: browser.activeID, splits: browser.splits, groups: browser.tabGroups)
