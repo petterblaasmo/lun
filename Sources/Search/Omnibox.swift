@@ -62,7 +62,12 @@ struct Omnibox: View {
     /// in the middle of the window (idea 753).
     var high = false
 
-    init(browser: Browser, over: Bool, fitted: Bool = false, tab: Tab.ID? = nil, listOnly: CGFloat? = nil, high: Bool = false) {
+    /// The site chips' editor open, for a picture in a test (HomeTilesTests).
+    var tilesEditorForTest: HomeTiles.Editing?
+
+    init(browser: Browser, over: Bool, fitted: Bool = false, tab: Tab.ID? = nil, listOnly: CGFloat? = nil, high: Bool = false,
+         tilesEditorForTest: HomeTiles.Editing? = nil) {
+        self.tilesEditorForTest = tilesEditorForTest
         self.high = high
         self.browser = browser
         self.typing = browser.typing
@@ -133,8 +138,8 @@ struct Omnibox: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    /// The field, and under a rule the places it thinks you mean, on one
-    /// ground.
+    /// The field, and under a rule the places it thinks you mean, or a
+    /// blank tab's site chips before anything is typed, on one ground.
     private var card: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.middle, style: .continuous)
         return VStack(spacing: 0) {
@@ -146,6 +151,10 @@ struct Omnibox: View {
                 rows(large: true)
                     .padding(8)
                     .transition(.opacity)
+            } else if !over {
+                // A blank tab's site chips, where the rows would be
+                // (Settings › Site tiles on a new tab, HomeTiles.swift).
+                CardTiles(browser: browser, editorForTest: tilesEditorForTest)
             }
         }
             .background {
@@ -470,12 +479,24 @@ private struct UnlessThemed<Content: View>: View {
         if over || !themed { content() }
     }
 
-    /// A chosen picture that can't be read shows as Off (HomeBackground).
-    private var themed: Bool {
-        switch prefs.homeTheme {
-        case .off: return false
-        case .custom: return HomeBackground.load(prefs.homeThemeImage) != nil
-        default: return true
+    private var themed: Bool { HomeBackground.behind(prefs) }
+}
+
+/// Under the Home grid's tiles when a theme is behind them (Settings ›
+/// Themes): the ground the field's card lies on over a theme, raised with
+/// its hairline, so their ink reads on any picture. On their own they were
+/// all but gone wherever the picture was as light, or as dark, as the ink:
+/// a light picture with the Mac in dark mode (idea 881). The site chips
+/// need none: they are on the card (CardTiles). Lifted rather than
+/// floating as the card does: sixteen of them under it, each with the
+/// card's deep shadow, stood as high as the card itself.
+struct WallBacking<S: InsettableShape>: View {
+    let shape: S
+    @ObservedObject private var prefs = Shared.prefs
+
+    var body: some View {
+        if HomeBackground.behind(prefs) {
+            Color.clear.elevated(.lift, in: shape)
         }
     }
 }
@@ -594,6 +615,10 @@ struct AddressField: NSViewRepresentable {
         field.wanted = { [weak coordinator = context.coordinator, weak field] in
             guard let coordinator, let field else { return false }
             return coordinator.wantsKeys(field)
+        }
+        field.canPasteAndGo = { [weak field] in field?.wanted?() == true }
+        field.pasteAndGo = { [weak coordinator = context.coordinator] url in
+            coordinator?.browser.submit(address: url)
         }
         field.isBordered = false
         field.drawsBackground = false
@@ -721,7 +746,7 @@ struct AddressField: NSViewRepresentable {
     /// field had no window to ask: the request went nowhere and nothing asked
     /// again, so ⌘T left a field with no caret and typing that went nowhere
     /// until it was clicked. Now the request waits for the window.
-    final class Field: RoomyField {
+    final class Field: WebsiteAddressField {
         var arrived: (() -> Void)?
         /// Where the caret was as the field last let go of the keys.
         var leftAt: NSRange?
@@ -921,6 +946,12 @@ struct AddressField: NSViewRepresentable {
             case #selector(NSResponder.moveUp(_:)):
                 browser.walk(-1)
                 return true
+            case #selector(NSResponder.insertTab(_:)) where textView.string.isEmpty && HomeTiles.showing(browser)
+                && HomeTiles.count(browser) > 0:
+                // Tab from a new tab's empty field: to its first site tile
+                // (HomeTiles.swift), the way down to them by keys.
+                NotificationCenter.default.post(name: HomeTiles.focusFirst, object: browser)
+                return true
             case #selector(NSResponder.deleteWordBackward(_:)):
                 // ⌥⌫ over an offered ending lets go of it and takes the last
                 // word typed, as it does with no ending there. Left to the
@@ -965,7 +996,72 @@ class RoomyField: NSTextField {
     }
 }
 
+class WebsiteAddressField: RoomyField {
+    var pasteAndGo: ((URL) -> Void)?
+    var canPasteAndGo: () -> Bool = { true }
+    var pasteAndGoPasteboard: () -> NSPasteboard = { .general }
+
+    fileprivate lazy var addressEditor: AddressEditor = {
+        // This initializer builds the text storage and layout machinery.
+        let editor = AddressEditor(frame: .zero)
+        editor.isFieldEditor = true
+        editor.field = self
+        return editor
+    }()
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        // If a contextual click lands on the control before it has the keys,
+        // let its native editor build the menu just as for an editing field.
+        if pasteAndGo != nil, canPasteAndGo(), currentEditor() == nil {
+            window?.makeFirstResponder(self)
+        }
+        return (currentEditor() as? AddressEditor)?.menu(for: event) ?? super.menu(for: event)
+    }
+}
+
+private final class AddressEditor: NSTextView {
+    weak var field: WebsiteAddressField?
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let native = super.menu(for: event)
+        guard let native, let field, field.currentEditor() === self,
+              field.pasteAndGo != nil, field.canPasteAndGo(), Self.website(on: field.pasteAndGoPasteboard()) != nil
+        else { return native }
+
+        let menu = native.copy() as! NSMenu
+        let item = NSMenuItem(title: "Paste and Go", action: #selector(go(_:)), keyEquivalent: "")
+        item.target = self
+        if let paste = menu.items.firstIndex(where: { $0.action == #selector(NSText.paste(_:)) }) {
+            menu.insertItem(item, at: paste + 1)
+        } else {
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    @objc private func go(_ sender: NSMenuItem) {
+        guard let field, field.currentEditor() === self, field.canPasteAndGo(), let navigate = field.pasteAndGo,
+              let url = Self.website(on: field.pasteAndGoPasteboard()) else { return }
+        navigate(url)
+    }
+
+    private static func website(on pasteboard: NSPasteboard) -> URL? {
+        guard let items = pasteboard.pasteboardItems, items.count == 1, let item = items.first,
+              let raw = item.string(forType: .URL) ?? item.string(forType: .string) else { return nil }
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.rangeOfCharacter(from: .whitespacesAndNewlines.union(.controlCharacters)) == nil,
+              let url = Address.url(from: text),
+              let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http",
+              let host = url.host, !host.isEmpty else { return nil }
+        return url
+    }
+}
+
 final class RoomyFieldCell: NSTextFieldCell {
+    override func fieldEditor(for controlView: NSView) -> NSTextView? {
+        (controlView as? WebsiteAddressField)?.addressEditor ?? super.fieldEditor(for: controlView)
+    }
+
     /// What is kept clear past the caret at the end of the text.
     static let margin: CGFloat = 4
 

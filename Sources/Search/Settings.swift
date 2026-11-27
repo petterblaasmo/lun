@@ -680,6 +680,8 @@ struct SettingsPanel: View {
             // Coming from another browser, now or any time later: the same
             // page as File › Bring Things Over… and the Welcome's.
             Pill("Bring Things Over…") { browser.lead(to: InternalPage(.importing)) }
+        case "general.exportSpaces":
+            Pill("Export Spaces…") { browser.exportSpaces() }
         case "sync":
             // On asks for the folder first; cancelled, it stays off.
             // Never with Sync with iCloud: the two would undo each other.
@@ -707,6 +709,7 @@ struct SettingsPanel: View {
         case "downloads.folder": Pill("Change…") { chooseFolder() }
         case "downloads.ask": Switch(on: $prefs.asksWhereToSave)
         case "downloads.button": Switch(on: $prefs.alwaysShowsDownloads)
+        case "downloads.screenshots": ScreenshotsSwitch(prefs: prefs)
         case "downloads.open":
             PopUp("Open Downloads", shows: prefs.downloadsOpening.title, selection: $prefs.downloadsOpening) {
                 ForEach(DownloadsOpening.allCases) { Text($0.title).tag($0) }
@@ -808,6 +811,7 @@ struct SettingsPanel: View {
             ))
         case "motion.light": Switch(on: $prefs.lightMotion)
         case "motion.instant": Switch(on: $prefs.instantMotion)
+        case "motion.downloads": Switch(on: $prefs.animatesDownloads)
         case "note.split": Always()
         default: EmptyView()
         }
@@ -826,6 +830,7 @@ struct SettingsPanel: View {
         case "tabs.keepWindow": Switch(on: $prefs.keepWindowAfterLast)
         case "tabs.closeGoesBack": Switch(on: $prefs.closeGoesBack)
         case "home.grid": Switch(on: $prefs.homeGrid)
+        case "home.tiles": Switch(on: $prefs.homeTiles)
         case "tabs.undoReopens": Switch(on: $prefs.undoReopensTab)
         case "tabs.switcherBehindFirst": Switch(on: $prefs.switcherBehindFirst)
         case "tabs.switcherLeavesOutPins": Switch(on: $prefs.switcherLeavesOutPins)
@@ -857,6 +862,7 @@ struct SettingsPanel: View {
             ))
         case "tabs.clickAddressOnly": Switch(on: $prefs.tabClickAddressOnly)
         case "tabs.clickKeepsName": Switch(on: $prefs.tabClickKeepsName)
+        case "tabs.clickRenames": Switch(on: $prefs.tabClickRenames)
         case "note.groups", "note.awake": Always()
         default: EmptyView()
         }
@@ -903,6 +909,7 @@ struct SettingsPanel: View {
         case "float.minimize": Switch(on: $prefs.floatMinimizes)
         case "media.click": Switch(on: $prefs.waitsForPlay)
         case "video.keys": Switch(on: $prefs.videoKeys)
+        case "meet.pip": Switch(on: $prefs.meetPiP)
         case "fullscreen.escapeTwice": Switch(on: $prefs.escapeTwice)
         case "fullscreen.keepsWindow": Switch(on: $prefs.keepsWindow)
         case "translate.target":
@@ -913,6 +920,7 @@ struct SettingsPanel: View {
             Steps(stops: Preferences.zooms, value: $prefs.pageZoom, home: 1) { "\(Int(($0 * 100).rounded()))%" }
         case "pages.120": Segmented(options: FastPages.allCases.map { ($0, $0.title) }, selection: $prefs.fastPages)
         case "pages.capture": Switch(on: $prefs.capturesPages)
+        case "hiding.shapes": Switch(on: $prefs.hidingShapes)
         case "pages.capture.copyOnly": Switch(on: $prefs.copiesCapturesOnly)
         case "sites.styles": SiteStylesControl(prefs: prefs)
         case "autocorrect": Switch(on: $prefs.autocorrect)
@@ -949,6 +957,7 @@ struct SettingsPanel: View {
         case "links.ask": Switch(on: $prefs.asksSpaceForLinks)
         case "pins.keep": Switch(on: $prefs.pinsKeepSite)
         case "pins.list": Switch(on: $prefs.listsPins)
+        case "pins.preview": Switch(on: $prefs.pinPreviews)
         case "pins.folders": Switch(on: $prefs.pinFolders)
         case "pins.commandNewTab": Switch(on: $prefs.pinCommandOpensTab)
         case "pins.linksNewTab": Switch(on: $prefs.pinLinksOpenTabs)
@@ -1021,6 +1030,7 @@ struct SettingsPanel: View {
             }
         case "links.peek.stays": Switch(on: $prefs.peekStays)
         case "links.optionSplit": Switch(on: $prefs.optionClickSplits)
+        case "split.controls": Switch(on: $prefs.splitControls)
         case "keys.backspaceBack": Switch(on: $prefs.backspaceGoesBack)
         case "autoscroll": Switch(on: $prefs.autoScroll)
         case "wheel.smooth": Switch(on: $prefs.wheelGlides)
@@ -1041,6 +1051,7 @@ struct SettingsPanel: View {
         case "about.licences": Pill("Show Licences…") { LicencesWindow.show() }
         case "about.feedback": Pill("Send Feedback…") { Links.writeFeedback() }
         case "about.notes": Pill("What's New…") { browser.lead(to: InternalPage(.notes)) }
+        case "developer.local": Switch(on: $prefs.developerLocal)
         case "bench": Switch(on: $prefs.bench)
         case "agents": Switch(on: $prefs.agents)
         case "news.updates": OptInSettingsField(betaOnly: false) { _ = browser.open($0, foreground: true) }

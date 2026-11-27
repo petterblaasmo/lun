@@ -23,10 +23,10 @@ enum RetiredSettings {
         // Fixed at their default.
         "downloads.button", "sidebar.foldIcons", "layout.cardsFullScreen", "toolbar.left", "tabs.compact",
         "window.glass.style", "tabs.liquid", "sidebar.doorsUp", "helm.shown", "foot.shown", "sidebar.foldButton",
-        "tabs.reading", "bookmarks.iconsOnly", "bookmarks.newTabOnly", "tabs.newAfterLast", "tabs.keepWindow",
+        "tabs.reading", "bookmarks.newTabOnly", "tabs.newAfterLast", "tabs.keepWindow",
         "tabs.closeGoesBack", "tabs.switcherBehindFirst", "tabs.switcherLeavesOutPins", "tabs.lazy",
         "tabs.sleep.dim", "tabs.shortcuts", "tabs.address", "tabs.clickAddressOnly", "tabs.clickKeepsName",
-        "search.shift", "field.top", "reader.twins", "float.style", "float.minimize",
+        "search.shift", "reader.twins", "float.style", "float.minimize",
         "fullscreen.escapeTwice", "fullscreen.keepsWindow", "pages.120", "spaces.buttons", "pins.keep",
         "pins.commandNewTab", "field.hidesPage", "newtab.recent", "passkeys", "privacy.clickIDs", "privacy.gpc",
         "keys.backspaceBack", "swipe.history", "updates.notice",
@@ -78,10 +78,10 @@ enum RetiredSettings {
         "window.glass.style", "tabs.liquid", "sidebar.doorsUp",
         "helm.back.hidden", "helm.forward.hidden", "helm.reload.hidden",
         "foot.extensions.hidden", "foot.bookmarks.hidden", "foot.profile.hidden",
-        "sidebar.foldButton", "tabs.reading", "bookmarks.iconsOnly", "bookmarks.newTabOnly",
+        "sidebar.foldButton", "tabs.reading", "bookmarks.newTabOnly",
         "tabs.newAfterLast", "tabs.keepWindow", "tabs.closeGoesBack", "tabs.switcherBehindFirst",
         "tabs.switcherLeavesOutPins", "tabs.lazy", "tabs.sleep.dim", "tabs.shortcuts", "tabs.address",
-        "tabs.clickAddressOnly", "tabs.clickKeepsName", "search.shift", "search.shiftCustom", "field.top",
+        "tabs.clickAddressOnly", "tabs.clickKeepsName", "search.shift", "search.shiftCustom",
         "reader.twins", "float.style", "float.minimize", "fullscreen.escapeTwice", "fullscreen.keepsWindow",
         "pages.120", "pages.120.mode", "spaces.buttons", "pins.home", "pins.peek", "pins.commandNewTab",
         "field.hidesPage", "newtab.recent", "passkeys", "privacy.clickIDs", "privacy.gpc",
@@ -109,7 +109,7 @@ enum RetiredSettings {
         "Links from pins open in a new tab", "Keep the window when its last tab closes",
         "Clicking the tab you're on keeps its name", "Fade scroll bars", "Update ready, in the window",
         "Bookmarks bar only on new tabs",
-        "Click the tab you're on to edit its address", "Icons only on the bookmarks bar", "Sidebar button",
+        "Click the tab you're on to edit its address", "Sidebar button",
         "One button per space", "Buttons at the top", "Dim sleeping tabs", "High contrast tab text",
         "Keep the card in full screen", "⌘-click on a pin opens a new tab", "Close goes back",
         "Tab numbers while ⌘ is held", "Escape twice to leave full screen", "Pins keep their site",
@@ -130,6 +130,12 @@ enum RetiredSettings {
     /// New offer if it had one; and whether it had been fixed on rather than
     /// at its default.
     static let returned: [(key: String, wasFixed: Bool)] = [
+        // Return takes the top suggestion: the field from any app follows
+        // it too now.
+        ("field.top", false),
+        // Icons only on the bookmarks bar: it tiles the bookmarks in the
+        // column too now.
+        ("bookmarks.iconsOnly", false),
         // Capture pages: Copy captures only sits under it.
         ("pages.capture", true),
     ]

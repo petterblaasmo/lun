@@ -32,6 +32,27 @@ final class HomeGridTests: XCTestCase {
         XCTAssertEqual(list.homeSites.map(\.label), ["A"], "a change to the list shows at once")
     }
 
+    /// The Home grid's tiles get a backing of their own over a theme only
+    /// (idea 881): a light picture with the Mac in dark mode left their ink
+    /// on near white. A chosen picture that can't be read is no theme. The
+    /// site chips lie on the field's card, which is theirs.
+    func testABackingGoesUnderTheTilesOverATheme() throws {
+        _ = NSApplication.shared
+        let prefs = Shared.prefs
+        let was = (prefs.homeTheme, prefs.homeThemeImage)
+        defer { (prefs.homeTheme, prefs.homeThemeImage) = was }
+        prefs.homeTheme = .off
+        XCTAssertFalse(HomeBackground.behind(prefs))
+        prefs.homeTheme = .mountainLake
+        XCTAssertTrue(HomeBackground.behind(prefs))
+        prefs.homeTheme = .custom
+        prefs.homeThemeImage = "/nowhere/\(UUID().uuidString).png"
+        XCTAssertFalse(HomeBackground.behind(prefs))
+        let shape = RoundedRectangle(cornerRadius: Radius.card)
+        prefs.homeTheme = .solid
+        XCTAssertGreaterThan(NSHostingView(rootView: WallBacking(shape: shape).frame(width: 40, height: 20)).fittingSize.width, 0)
+    }
+
     func testGridIsDrawnOnABlankTabOnlyWithSites() {
         _ = NSApplication.shared
         let browser = Browser(record: WindowRecord())
