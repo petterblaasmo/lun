@@ -44,7 +44,9 @@ enum RetiredSettings {
         // install, was a second place for a page to be. The window itself
         // is still there for whoever asks for it from a tab's menu.
         "links.little",
-        // Always on (see `fixed`).
+        // Always on (see `fixed`). The loading line no longer reads its
+        // switch at all: it shows for everyone, tabs in sight or folded
+        // away (upstream 98550e04).
         "downloads.open", "sidebar.slides", "fold.loadingLine", "sidebar.narrowIcons", "sidebar.player",
         "tabs.pinCounts", "tabs.give", "motion.light", "tabs.frontBeside", "tabs.swipeBackCloses",
         "tabs.undoReopens", "tabs.popupWindows", "links.little.tabs", "reader.follows", "video.keys",

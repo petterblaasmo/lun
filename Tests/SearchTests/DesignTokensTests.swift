@@ -88,7 +88,7 @@ final class DesignTokensTests: XCTestCase {
             "SpaceSwipe.swift": (1, "a space's name field has the keys"),
             "PinFolderViews.swift": (1, "where a carried pin would land"),
             "BookmarksPage.swift": (1, "where a carried bookmark would land"),
-            "Fold.swift": (1, "a page is loading, with the column folded away"),
+            "Fold.swift": (1, "a page is loading, with the tabs in sight or folded away"),
             "AgentBanner.swift": (2, "a coding agent is working: on its card, and on its tab"),
             "Snap.swift": (1, "the part of a page being captured"),
             "MeCard.swift": (1, "a box just filled in from your card"),

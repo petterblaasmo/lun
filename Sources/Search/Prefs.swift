@@ -1202,7 +1202,10 @@ final class Preferences: ObservableObject {
     }
 
     /// With the tabs folded away (⌘S), a line along the page's top while it
-    /// loads, as Arc's (idea 269). Off unless asked for.
+    /// loads, as Arc's (idea 269). Off unless asked for. Upstream took the
+    /// switch out (98550e04): the line shows for everyone, tabs in sight or
+    /// not, and no longer reads this. Lun keeps it retired, fixed on
+    /// (RetiredSettings), so what still reads it agrees.
     @Published var showsLoadingLine: Bool {
         didSet { store.set(showsLoadingLine, forKey: "fold.loadingLine") }
     }
