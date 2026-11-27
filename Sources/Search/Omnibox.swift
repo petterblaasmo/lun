@@ -62,7 +62,12 @@ struct Omnibox: View {
     /// in the middle of the window (idea 753).
     var high = false
 
-    init(browser: Browser, over: Bool, fitted: Bool = false, tab: Tab.ID? = nil, listOnly: CGFloat? = nil, high: Bool = false) {
+    /// The site chips' editor open, for a picture in a test (HomeTilesTests).
+    var tilesEditorForTest: HomeTiles.Editing?
+
+    init(browser: Browser, over: Bool, fitted: Bool = false, tab: Tab.ID? = nil, listOnly: CGFloat? = nil, high: Bool = false,
+         tilesEditorForTest: HomeTiles.Editing? = nil) {
+        self.tilesEditorForTest = tilesEditorForTest
         self.high = high
         self.browser = browser
         self.typing = browser.typing
@@ -133,8 +138,8 @@ struct Omnibox: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    /// The field, and under a rule the places it thinks you mean, on one
-    /// ground.
+    /// The field, and under a rule the places it thinks you mean, or a
+    /// blank tab's site chips before anything is typed, on one ground.
     private var card: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.middle, style: .continuous)
         return VStack(spacing: 0) {
@@ -146,6 +151,10 @@ struct Omnibox: View {
                 rows(large: true)
                     .padding(8)
                     .transition(.opacity)
+            } else if !over {
+                // A blank tab's site chips, where the rows would be
+                // (Settings › Site tiles on a new tab, HomeTiles.swift).
+                CardTiles(browser: browser, editorForTest: tilesEditorForTest)
             }
         }
             .background {

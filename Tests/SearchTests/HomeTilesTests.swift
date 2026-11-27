@@ -254,13 +254,14 @@ final class HomeTilesTests: XCTestCase {
         let h = HomeTiles.chipHeight, g = HomeTiles.gap
         let widths = HomeTiles.widths(browser)
         XCTAssertEqual(widths.count, 12, "twelve chips, no +")
-        let lines = HomeTiles.lines(widths, in: Metrics.fieldWidth)
-        XCTAssertTrue((2...3).contains(lines), "twelve short names: two or three lines in the field's width, got \(lines)")
+        let lines = HomeTiles.lines(widths, in: HomeTiles.width)
+        XCTAssertTrue((2...3).contains(lines), "twelve short names: two or three lines on the card, got \(lines)")
         XCTAssertEqual(HomeTiles.height(browser), CGFloat(lines) * h + CGFloat(lines - 1) * g)
         let narrow = HomeTiles.lines(widths, in: 200)
         XCTAssertGreaterThan(narrow, lines, "more lines when narrow")
         XCTAssertEqual(HomeTiles.height(browser, width: 200), CGFloat(narrow) * h + CGFloat(narrow - 1) * g)
-        XCTAssertEqual(HomeGrid.height(browser), HomeTiles.height(browser), "what lies under it makes room for the chips")
+        XCTAssertEqual(HomeTiles.under(browser), 1 + HomeTiles.insetY * 2 + HomeTiles.height(browser), "the card grows by their rule, room and lines")
+        XCTAssertEqual(HomeGrid.height(browser), HomeTiles.under(browser), "what lies under the card makes room for the chips")
         // The wrap rule itself.
         XCTAssertEqual(HomeTiles.lines([], in: 100), 0)
         XCTAssertEqual(HomeTiles.lines([40, 40], in: 86), 1, "40 + 6 + 40 fits")
@@ -312,21 +313,25 @@ final class HomeTilesTests: XCTestCase {
         try out.map { try shy.write(to: $0.appendingPathComponent("tiles-private.png")) }
         // Narrow window: three to a row.
         browser.bookmarks.adopt([.folder("Home", names.map { .site($0, url("https://\($0.lowercased().filter(\.isLetter)).example/")) })])
-        let narrow = picture(HomePage(browser: browser, field: false), dark: false, size: NSSize(width: 340, height: 620))
+        let narrow = picture(HomePage(browser: browser, field: false).frame(width: 340), dark: false, size: NSSize(width: 340, height: 620))
         try out.map { try narrow.write(to: $0.appendingPathComponent("tiles-narrow.png")) }
     }
 
+    /// A new tab: the card with its chips. The narrow one has the chips
+    /// alone, where the field's NSTextField's own width widens an
+    /// offscreen host past the window's.
     private struct HomePage: View {
         let browser: Browser
         var editing: HomeTiles.Editing?
-        /// The field too; not in the narrow one, where its NSTextField's
-        /// own width widens an offscreen host past the window's.
         var field = true
         var body: some View {
-            ZStack {
+            ZStack(alignment: .top) {
                 Palette.ground
-                HomeTiles(browser: browser, editorForTest: editing)
-                if field { Omnibox(browser: browser, over: false) }
+                if field {
+                    Omnibox(browser: browser, over: false, tilesEditorForTest: editing)
+                } else {
+                    CardTiles(browser: browser, editorForTest: editing).padding(.top, 40)
+                }
             }
         }
     }

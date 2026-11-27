@@ -4,7 +4,9 @@ import SwiftUI
 // Site tiles on a new tab, as Chrome and Google have them: under the field,
 // each site's icon and its name, with a + to add one, and editing, removing
 // and reordering right there. Off unless Settings › Tabs › New tabs turns it
-// on (idea 1285).
+// on (idea 1285). In Lun they are small chips on the new tab's card, under a
+// rule as its rows are (CardTiles, Omnibox.card): the card holds what lies
+// under the field, and over a theme it is their backing.
 //
 // The tiles are the sites of the bookmark folder called Home, the same one
 // the plain Home grid shows (HomeGrid.swift). So they belong to the window's
@@ -271,6 +273,12 @@ struct HomeTiles: View {
     /// A name longer than this ends in an ellipsis.
     static let labelWidth: CGFloat = 140
     static let fontSize: CGFloat = 12
+    /// Their room on the card, from its edges and its rule: a chip's icon
+    /// stands over the column the field's glass and the rows' icons do.
+    static let insetX: CGFloat = 12
+    static let insetY: CGFloat = 12
+    /// How wide a line of them is on a card at its widest.
+    static let width: CGFloat = Omnibox.width - insetX * 2
 
     /// Asked through the field: Tab from an empty field on a new tab goes
     /// to the first tile (Omnibox).
@@ -369,41 +377,32 @@ struct HomeTiles: View {
     }
 
     /// How tall they stand in `width`, nought when not drawn.
-    @MainActor static func height(_ browser: Browser, width: CGFloat = Metrics.fieldWidth) -> CGFloat {
+    @MainActor static func height(_ browser: Browser, width: CGFloat = HomeTiles.width) -> CGFloat {
         guard showing(browser), count(browser) > 0 else { return 0 }
         let lines = CGFloat(lines(widths(browser), in: width))
         return lines * chipHeight + (lines - 1) * gap
     }
 
+    /// How much taller they make the card: their rule, their room and
+    /// their lines. What hangs under the field goes under that (HomeGrid).
+    @MainActor static func under(_ browser: Browser) -> CGFloat {
+        let chips = height(browser)
+        return chips > 0 ? 1 + insetY * 2 + chips : 0
+    }
+
     var body: some View {
-        if prefs.homeTiles, browser.active?.isBlank == true, typing.typed.isEmpty {
-            GeometryReader { page in
-                let width = min(Metrics.fieldWidth, max(0, page.size.width - 28))
-                let top = page.size.height / 2 - 30 + 25 + 14
-                // Lines that don't fit under the field are cut off: a short
-                // window keeps what fits, rather than chips under its edge.
-                let room = max(0, page.size.height - top - 16)
-                content(width: width)
-                    .frame(width: width)
-                    .frame(maxHeight: room, alignment: .top)
-                    .clipped()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, top)
-            }
+        content
             .onReceive(NotificationCenter.default.publisher(for: HomeTiles.focusFirst)) { note in
                 guard (note.object as? Browser) === browser, editing == nil else { return }
                 focus = browser.bookmarks.tiles.first.map { .tile($0.id) } ?? (browser.tilesEditable ? .add : nil)
             }
             .onAppear { if let editorForTest { begin(editorForTest) } }
-        }
     }
 
     @ViewBuilder
-    private func content(width: CGFloat) -> some View {
+    private var content: some View {
         if let editing, browser.tilesEditable {
             editor(editing)
-                .frame(width: min(380, width))
-                .frame(maxWidth: .infinity)
         } else {
             let editable = browser.tilesEditable
             let tiles = shownTiles
@@ -413,7 +412,7 @@ struct HomeTiles: View {
                 }
                 if editable, tiles.count < HomeTiles.most { addChip }
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Sites")
         }
@@ -437,20 +436,12 @@ struct HomeTiles: View {
         let focused = focus == .tile(tile.id)
         let lit = hovered == tile.id || focused
         return HStack(spacing: HomeTiles.iconGap) {
-            Group {
-                if let icon = Favicons.shared.cached(for: url) {
-                    Mark(icon: icon, letter: "", size: HomeTiles.iconSize)
-                } else {
-                    Text(verbatim: HomeTiles.letter(label))
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(lit ? Palette.ink : Palette.muted)
-                        .frame(width: HomeTiles.iconSize, height: HomeTiles.iconSize)
-                        .background(RoundedRectangle(cornerRadius: 3.5, style: .continuous).fill(Palette.chip))
-                }
-            }
+            // The site's icon, or its letter in a faint square: the mark the
+            // card's rows and the column's tabs draw.
+            Mark(icon: Favicons.shared.cached(for: url), letter: HomeTiles.letter(label), size: HomeTiles.iconSize, contrast: lit)
             Text(verbatim: label)
                 .font(.system(size: HomeTiles.fontSize))
-                .foregroundStyle(lit ? Palette.ink : Palette.ink.opacity(0.78))
+                .foregroundStyle(lit ? Palette.ink : Palette.soft)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(width: HomeTiles.labelFit(label), alignment: .leading)
@@ -459,6 +450,7 @@ struct HomeTiles: View {
         .frame(height: HomeTiles.chipHeight)
         // Focused by keys, as hovered: the fill a shade deeper.
         .background(Capsule(style: .continuous).fill(lit ? Palette.fill : Palette.chip))
+        .animation(Motion.quick, value: lit)
         .overlay(alignment: .topTrailing) {
             // Hovered, a small × to take it off; right-click for the rest.
             if editable, hovered == tile.id, dragged == nil {
@@ -467,10 +459,10 @@ struct HomeTiles: View {
                         .font(.system(size: 7, weight: .bold))
                         .foregroundStyle(Palette.muted)
                         .frame(width: 15, height: 15)
-                        .background(Circle().fill(Palette.ground))
+                        .background(Circle().fill(Palette.raised))
                         .overlay(Circle().strokeBorder(Palette.hairline))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(Gives())
                 .help("Remove")
                 .offset(x: 4, y: -5)
                 .accessibilityHidden(true)
@@ -488,7 +480,8 @@ struct HomeTiles: View {
                 order = nil
             }
         }
-        .onTapGesture { open(tile) }
+        // It gives under the press, as the card's rows do.
+        .pressed(to: Motion.give) { open(tile) }
         .focusable()
         .focusEffectDisabled()
         .focused($focus, equals: .tile(tile.id))
@@ -577,8 +570,8 @@ struct HomeTiles: View {
         // Fainter than a site's chip until hovered or focused.
         .background(Capsule(style: .continuous).fill(lit ? Palette.fill : Palette.chipFaint))
         .contentShape(Capsule())
-        .onHover { addHovered = $0 }
-        .onTapGesture { begin(.new) }
+        .hovers($addHovered)
+        .pressed(to: Motion.give) { begin(.new) }
         .focusable()
         .focusEffectDisabled()
         .focused($focus, equals: .add)
@@ -608,41 +601,40 @@ struct HomeTiles: View {
 
     // MARK: the editor
 
+    /// In the chips' place on the card, on its ground: a name and an
+    /// address side by side, and the card's own pills.
     private func editor(_ editing: Editing) -> some View {
         let isNew = editing == .new
         return VStack(alignment: .leading, spacing: 8) {
             Text(isNew ? "Add a site" : "Edit site")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Palette.ink)
-            field("Name", text: $name, focus: .name)
-                .onSubmit { focus = .address }
-            field("Address", text: $address, focus: .address)
-                .onSubmit(save)
+            HStack(spacing: 8) {
+                field("Name", text: $name, focus: .name)
+                    .frame(width: 180)
+                    .onSubmit { focus = .address }
+                field("Address", text: $address, focus: .address)
+                    .onSubmit(save)
+            }
             if let problem {
                 Text(verbatim: problem)
                     .font(.system(size: 11))
-                    .foregroundStyle(Palette.unsafe)
+                    .foregroundStyle(Palette.danger)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.updatesFrequently)
             }
             HStack(spacing: 8) {
                 if case let .tile(id) = editing {
-                    Button("Remove") { remove(id) }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Palette.muted)
+                    Pill("Remove", tint: Palette.danger) { remove(id) }
                 }
                 Spacer()
-                Button("Cancel", action: close)
-                    .controlSize(.small)
-                Button(isNew ? "Add" : "Save", action: save)
-                    .controlSize(.small)
+                Pill("Cancel", action: close)
+                Pill(isNew ? "Add" : "Save", filled: true, action: save)
                     .disabled(address.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Palette.ground))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.hairline))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .onExitCommand(perform: close)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isNew ? "Add a site" : "Edit site")
@@ -654,8 +646,9 @@ struct HomeTiles: View {
             .font(.system(size: 12))
             .padding(.horizontal, 9)
             .frame(height: 26)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Palette.ink.opacity(0.04)))
-            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(focus == which ? Palette.faint : Palette.hairline))
+            // A field on a card, as a space's name is (SpaceSwipe).
+            .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(Palette.fill))
+            .overlay(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).strokeBorder(focus == which ? Palette.faint : .clear))
             .focused($focus, equals: which)
             .accessibilityLabel(title)
     }
@@ -726,8 +719,41 @@ struct HomeTiles: View {
     }
 }
 
-/// Chips side by side, each line centred, wrapping to the next when the
-/// line is full: the same rule as HomeTiles.lines.
+/// The chips on a new tab's card, under a rule as its rows are
+/// (Omnibox.card): there while a blank tab's field is empty with Settings ›
+/// Site tiles on a new tab on, and gone once something is typed, when the
+/// rows take their place. A view of its own, so only it watches the
+/// settings and what is typed.
+struct CardTiles: View {
+    let browser: Browser
+    @ObservedObject private var typing: FieldState
+    @ObservedObject private var prefs: Preferences
+    /// Rendered for a picture in a test, with the editor open.
+    var editorForTest: HomeTiles.Editing?
+
+    init(browser: Browser, editorForTest: HomeTiles.Editing? = nil) {
+        self.browser = browser
+        typing = browser.typing
+        prefs = browser.prefs
+        self.editorForTest = editorForTest
+    }
+
+    var body: some View {
+        if prefs.homeTiles, HomeTiles.showing(browser), HomeTiles.count(browser) > 0 {
+            VStack(spacing: 0) {
+                Rectangle().fill(Palette.hairline).frame(height: 1).padding(.horizontal, 20)
+                HomeTiles(browser: browser, editorForTest: editorForTest)
+                    .padding(.horizontal, HomeTiles.insetX)
+                    .padding(.vertical, HomeTiles.insetY)
+            }
+            .transition(.opacity)
+        }
+    }
+}
+
+/// Chips side by side from the card's leading edge, as its field and rows
+/// read, wrapping to the next line when one is full: the same rule as
+/// HomeTiles.lines.
 struct ChipFlow: Layout {
     var gap: CGFloat
 
@@ -771,9 +797,8 @@ struct ChipFlow: Layout {
         let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
         var y = bounds.minY
         for line in rows(sizes, width: bounds.width) {
-            let lineWidth = lineWidth(line, sizes)
             let lineHeight = line.map { sizes[$0].height }.max() ?? 0
-            var x = bounds.minX + (bounds.width - lineWidth) / 2
+            var x = bounds.minX
             for i in line {
                 subviews[i].place(at: CGPoint(x: x, y: y + (lineHeight - sizes[i].height) / 2), proposal: ProposedViewSize(sizes[i]))
                 x += sizes[i].width + gap

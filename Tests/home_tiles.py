@@ -41,7 +41,9 @@ def names(r):
 def main():
     t = sv.T()
     try:
-        sv.setup()
+        # The plain Home grid on, as upstream has it by default (Lun keeps it
+        # off unless asked), so the last check sees the folder go back to it.
+        sv.setup(**{"home.grid": True})
         sv.launch()
 
         r = tiles()
