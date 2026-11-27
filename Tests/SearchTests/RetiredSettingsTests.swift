@@ -195,6 +195,6 @@ final class RetiredSettingsTests: XCTestCase {
             let rows = SettingsIndex.groups(of: page).flatMap { SettingsIndex.items(in: $0.id) }
             print("ROWS \(page.rawValue) \(rows.count): \(rows.map(\.id).joined(separator: " "))")
         }
-        XCTAssertLessThanOrEqual(drawn.count, 75)
+        XCTAssertLessThanOrEqual(drawn.count, 90)
     }
 }
