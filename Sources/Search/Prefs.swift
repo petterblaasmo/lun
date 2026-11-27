@@ -14,6 +14,11 @@ import WebKit
 enum Glyph: String, CaseIterable, Identifiable {
     case letters, icons
 
+    /// What a tab wears until it is chosen: the site's icon. A site without
+    /// an icon still shows its letter (Mark). Outside a test run it is what
+    /// every tab wears: the row that chose is gone (RetiredSettings).
+    static let standard: Glyph = .icons
+
     var id: String { rawValue }
 
     var title: String {
@@ -558,6 +563,18 @@ final class Preferences: ObservableObject {
     @Published var showsPinCounts: Bool {
         didSet { store.set(showsPinCounts, forKey: "tabs.pinCounts") }
     }
+    /// A site on this Mac (localhost, 127.0.0.1, .test…) in Developer Mode
+    /// by itself (DevMode.swift). On unless turned off: nobody without a
+    /// local server ever sees it.
+    @Published var developerLocal: Bool {
+        didSet { store.set(developerLocal, forKey: DevMode.localKey) }
+    }
+    /// A card with a picture of a pin's page, and what it says is waiting,
+    /// when the pointer rests on the pin (PinPreview.swift). On unless
+    /// turned off.
+    @Published var pinPreviews: Bool {
+        didSet { store.set(pinPreviews, forKey: "pins.preview") }
+    }
     /// Tab titles in full ink (black or white) instead of the soft greys
     /// used for tabs that aren't the one you're on. Off unless asked for.
     @Published var highContrastText: Bool {
@@ -735,6 +752,13 @@ final class Preferences: ObservableObject {
     /// Capture… in the View menu (see Snap.swift). Off unless asked for.
     @Published var capturesPages: Bool {
         didSet { store.set(capturesPages, forKey: "pages.capture") }
+    }
+
+    /// Hide Elements moves and resizes too: a drag on what is outlined, or
+    /// on its right or bottom edge (see Veiling.picker). Off unless turned
+    /// on; off, a press hides at once, as it always has.
+    @Published var hidingShapes: Bool {
+        didSet { store.set(hidingShapes, forKey: "hiding.shapes") }
     }
 
     /// Your own style for a site, Edit Site Style… in the View menu (see
@@ -1372,7 +1396,7 @@ final class Preferences: ObservableObject {
         liquidTabs = store.bool(forKey: "tabs.liquid")
         // Site icons for everyone: its row is gone (RetiredSettings), and
         // the key is left where it is, as the mark of an install from before.
-        glyph = Store.testing ? store.string(forKey: "glyph").flatMap(Glyph.init) ?? .icons : .icons
+        glyph = Store.testing ? store.string(forKey: "glyph").flatMap(Glyph.init) ?? Glyph.standard : Glyph.standard
         engine = store.string(forKey: "search.engine").flatMap(Engine.init) ?? .standard
         customEngine = store.string(forKey: "search.custom") ?? ""
         customSuggest = store.string(forKey: "search.customSuggest") ?? ""
@@ -1414,6 +1438,10 @@ final class Preferences: ObservableObject {
         showsTabShortcuts = store.bool(forKey: "tabs.shortcuts")
         showsReading = store.bool(forKey: "tabs.reading")
         showsPinCounts = store.bool(forKey: "tabs.pinCounts")
+        // On by default, but off in test runs unless a test asks, so no
+        // other probe's pages on 127.0.0.1 wear the bar.
+        developerLocal = store.object(forKey: DevMode.localKey) as? Bool ?? !Store.testing
+        pinPreviews = store.object(forKey: "pins.preview") as? Bool ?? true
         // The Mac's own Increase Contrast decides, where a switch of Lun's
         // did (RetiredSettings); followContrast keeps it in step.
         highContrastText = store.bool(forKey: "tabs.highContrast") || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
@@ -1565,6 +1593,7 @@ final class Preferences: ObservableObject {
         darkensPages = dusk
         Dusk.shared.on = dusk
         capturesPages = store.bool(forKey: "pages.capture")
+        hidingShapes = store.bool(forKey: "hiding.shapes")
         let styles = store.bool(forKey: "sites.styles")
         sitesStyles = styles
         SiteStyles.shared.on = styles
@@ -1703,7 +1732,14 @@ final class Preferences: ObservableObject {
         take(\.liquidTabs, store.bool(forKey: "tabs.liquid"))
         take(\.bounces, store.bool(forKey: "pages.bounce"))
         Swipe.bounces = bounces
-        take(\.glyph, "glyph", store.string(forKey: "glyph").flatMap(Glyph.init), or: .icons)
+        // As launch reads it: a line from before, letters among them, is
+        // read only on a test run, or the settings file changing would put
+        // letters back on an install that chose them before the row went.
+        if Store.testing {
+            take(\.glyph, "glyph", store.string(forKey: "glyph").flatMap(Glyph.init), or: Glyph.standard)
+        } else {
+            take(\.glyph, Glyph.standard)
+        }
         take(\.tabsGive, store.bool(forKey: "tabs.give"))
         take(\.tabClickAddressOnly, store.bool(forKey: "tabs.clickAddressOnly"))
         take(\.tabClickKeepsName, store.bool(forKey: "tabs.clickKeepsName"))
