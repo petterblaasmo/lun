@@ -1035,6 +1035,14 @@ struct SpaceName: View {
 /// own order, the swipe's and ⌃1–⌃9's, so a button never moves when you
 /// switch. They stand in for the dot, with Settings › Spaces › One
 /// button per space (Preferences.spaceButtons).
+///
+/// A button dragged along the row moves its space (#247): the others stand
+/// aside as it passes, with a tap for each, and letting go is
+/// Browser.moveSpace. Nothing is moved until then, so Escape, or letting go
+/// off the row, leaves the order as it was, and no drag ever switches
+/// space. A press that moves less than SpaceCarry.slop is the click it
+/// always was. Move Left and Move Right stay in the menu, for the keys and
+/// VoiceOver.
 struct SpaceButtons: View {
     @ObservedObject var browser: Browser
     /// One above the other, in the column of icons.
@@ -1042,6 +1050,20 @@ struct SpaceButtons: View {
     /// Narrower than 26 each, down to 20, where the row has less room than
     /// that: the column's foot, narrowed (idea 1010).
     var squeezes = false
+
+    /// The button in hand, nil at rest.
+    @State private var carry: SpaceCarry?
+    /// The row's length as laid out, for how far one button is from the next.
+    @State private var length: CGFloat = 0
+    /// Put back by SwiftUI when the drag is called off as well as when it
+    /// ends (see CarryGuard).
+    @GestureState private var carrying = false
+    @State private var ticket = UUID()
+    /// Escape put it back with the button still down: the rest of that
+    /// drag moves nothing.
+    @State private var calledOff = false
+    @State private var escape: Any?
+    private static let row = "spaceButtons"
 
     /// How many buttons are drawn, for the foot to make room for them.
     /// One space still has its button: it is the way to the menu, and to
@@ -1055,11 +1077,134 @@ struct SpaceButtons: View {
             let layout = vertical ? AnyLayout(VStackLayout(spacing: 2)) : AnyLayout(HStackLayout(spacing: 2))
             layout {
                 ForEach(Array(browser.spaces.enumerated()), id: \.element.id) { index, space in
+                    let aside = carry?.offset(of: index) ?? 0
+                    let held = carry?.id == space.id
                     SpaceButton(browser: browser, space: space, index: index, current: space.id == (browser.spaceHeading ?? browser.spaceID),
                                 squeezes: squeezes)
+                        .offset(x: vertical ? 0 : aside, y: vertical ? aside : 0)
+                        // Under the hand exactly; the others slide.
+                        .transaction { if held, carry?.onRow == true { $0.animation = nil } }
+                        .zIndex(held ? 1 : 0)
+                        // Before the button's own press: once the pointer
+                        // has moved, letting go is not a click on it.
+                        .highPriorityGesture(drag(space, from: index))
                 }
             }
+            .coordinateSpace(.named(SpaceButtons.row))
+            .onGeometryChange(for: CGFloat.self) { vertical ? $0.size.height : $0.size.width } action: { length = $0 }
+            .onChange(of: carrying) { _, now in
+                guard !now else { return }
+                calledOff = false
+                if CarryGuard.close(ticket) { putDown(moving: false) }
+            }
         }
+    }
+
+    /// Measured along the row itself, not from the button: the button in
+    /// hand moves under the pointer, and would report no travel at all.
+    private func drag(_ space: Space, from index: Int) -> some Gesture {
+        DragGesture(minimumDistance: SpaceCarry.slop, coordinateSpace: .named(SpaceButtons.row))
+            .updating($carrying) { _, carrying, _ in carrying = true }
+            .onChanged { value in
+                guard !calledOff else { return }
+                let count = browser.spaces.count
+                var next = carry ?? SpaceCarry(id: space.id, from: index, count: count,
+                                               step: SpaceCarry.step(length: length, count: count))
+                if carry == nil {
+                    CarryGuard.open(ticket) { putDown(moving: false) }
+                    watchEscape()
+                }
+                next.along = vertical ? value.translation.height : value.translation.width
+                next.across = vertical ? value.translation.width : value.translation.height
+                let passed = next.over != (carry?.over ?? index)
+                // One tap for each button it passes, as a dragged tab gives.
+                if passed, next.onRow { NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now) }
+                withAnimation(passed || next.onRow != carry?.onRow ? Motion.settle : nil) { carry = next }
+            }
+            .onEnded { _ in
+                calledOff = false
+                if CarryGuard.close(ticket) { putDown(moving: true) }
+            }
+    }
+
+    /// Let go, or called off: into the place it is over, or back in its own.
+    private func putDown(moving: Bool) {
+        if let escape { NSEvent.removeMonitor(escape) }
+        escape = nil
+        guard let carry else { return }
+        withAnimation(Motion.settle) {
+            self.carry = nil
+            if moving, let landing = carry.landing { browser.moveSpace(carry.id, to: landing) }
+        }
+    }
+
+    /// Escape, while a button is in hand, puts it back and goes no further.
+    private func watchEscape() {
+        guard escape == nil else { return }
+        escape = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.keyCode == 53 else { return event }
+            MainActor.assumeIsolated {
+                calledOff = true
+                if CarryGuard.close(ticket) { putDown(moving: false) }
+            }
+            return nil
+        }
+    }
+}
+
+/// A space's button carried along its row (SpaceButtons): where the hand
+/// has taken it, the place it is over, and how far the others stand aside.
+/// Nothing here moves a space; letting go on `landing` does.
+struct SpaceCarry: Equatable {
+    /// The space in hand, and the place it was picked up from.
+    let id: UUID
+    let from: Int
+    /// The row: how many buttons, and how far one is from the next.
+    let count: Int
+    let step: CGFloat
+    /// How far the hand has taken it: along the row, and off its line.
+    var along: CGFloat = 0
+    var across: CGFloat = 0
+
+    /// How far the pointer moves before a press is a carry: short of this
+    /// it is still a click.
+    static let slop: CGFloat = 4
+    /// How far off the row the hand may be, beside it or past either end,
+    /// and still be on it: a button's own size.
+    static let reach: CGFloat = 26
+
+    /// From one button to the next in a row this long: the buttons share
+    /// it evenly, two points between them.
+    static func step(length: CGFloat, count: Int) -> CGFloat {
+        count > 0 ? (length + 2) / CGFloat(count) : 0
+    }
+
+    /// As far as it can go toward the row's start and its end.
+    private var least: CGFloat { -CGFloat(from) * step }
+    private var most: CGFloat { CGFloat(count - 1 - from) * step }
+
+    /// The hand is on the row: letting go here moves the button.
+    var onRow: Bool {
+        abs(across) <= SpaceCarry.reach && along >= least - SpaceCarry.reach && along <= most + SpaceCarry.reach
+    }
+
+    /// The place it is over: its own again once the hand is off the row.
+    var over: Int {
+        guard onRow, step > 0 else { return from }
+        return min(count - 1, max(0, from + Int((along / step).rounded())))
+    }
+
+    /// Where letting go puts it; nil leaves the order as it is.
+    var landing: Int? { over == from ? nil : over }
+
+    /// How far the button at `index` is drawn from its place: the one in
+    /// hand under the pointer, kept to the row; each one it has passed, a
+    /// place toward where it came from.
+    func offset(of index: Int) -> CGFloat {
+        if index == from { return onRow ? min(most, max(least, along)) : 0 }
+        if index > from, index <= over { return -step }
+        if index < from, index >= over { return step }
+        return 0
     }
 }
 
