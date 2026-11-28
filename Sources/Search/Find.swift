@@ -15,7 +15,13 @@ final class FindState: ObservableObject {
 /// Looking for a word on the page. A pill in the top corner, the same white and
 /// hairline as everything else that floats, and gone the moment it isn't wanted.
 struct FindBar: View {
-    @ObservedObject var browser: Browser
+    /// Not watched: all the bar draws is in `seeking`. Over a split the bar
+    /// is in a hosting view of its own (PaneStage), and watching the whole
+    /// window from there had SwiftUI draw the window while a change to it
+    /// was still being announced: the hidden column, drawn for the `peeking`
+    /// it was leaving, stood out with the pointer away and went as it came
+    /// to the edge (HiddenColumnFindTests).
+    let browser: Browser
     var availableWidth: CGFloat? = nil
     var onPillFrame: ((CGRect) -> Void)? = nil
     /// The words and the page's answer, which `browser` doesn't announce.
@@ -49,7 +55,7 @@ struct FindBar: View {
                     Text("Find on page")
                         .foregroundStyle(Palette.muted)
                 }
-                TextField("", text: $browser.needle)
+                TextField("", text: Binding(get: { browser.needle }, set: { browser.needle = $0 }))
                     .textFieldStyle(.plain)
                     .foregroundStyle(Palette.ink)
                     .accessibilityLabel("Find on page")
@@ -87,9 +93,9 @@ struct FindBar: View {
             }
 
             Menu {
-                Toggle("Match case", isOn: $browser.matchCase)
+                Toggle("Match case", isOn: Binding(get: { browser.matchCase }, set: { browser.matchCase = $0 }))
                     .help("Match uppercase and lowercase letters exactly.")
-                Toggle("Whole words", isOn: $browser.wholeWords)
+                Toggle("Whole words", isOn: Binding(get: { browser.wholeWords }, set: { browser.wholeWords = $0 }))
                     .disabled(browser.findResult?.nativeFallback == true && !browser.wholeWords)
                     .help("Match complete words. This option is unavailable for PDF pages.")
             } label: {
