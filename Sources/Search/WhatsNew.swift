@@ -60,6 +60,9 @@ enum WhatsNew {
         Toggle(title: "AI on pages", detail: "Summarize a page or ask about it. Choose where it runs in Settings › AI.",
                since: "1.0.5", get: { $0.ai }, set: { $0.ai = $1 }),
     ] : []) + [
+        Toggle(title: "Full screen stays on this desktop", detail: "A video fills the screen where it is, without sliding to a desktop of its own.",
+               since: "0.1.3", get: { $0.fullScreenInPlace }, set: { $0.fullScreenInPlace = $1 }),
+
         Toggle(title: "Links from pins open in a new tab", detail: "A link clicked in a pinned tab opens in a tab of its own, and the pin stays on its page.",
                since: "1.0.20", get: { $0.pinLinksOpenTabs }, set: { $0.pinLinksOpenTabs = $1 }),
 

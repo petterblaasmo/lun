@@ -255,4 +255,25 @@ final class FullScreenInPlaceTests: XCTestCase {
         XCTAssertEqual(told.heard, ["in", "in", "entered", "entered"])
         watched.close(); other.close()
     }
+
+    func testTheSwitch() throws {
+        let item = try XCTUnwrap(SettingsIndex.item("fullscreen.inPlace"))
+        XCTAssertEqual(item.group, "video")
+        XCTAssertEqual(item.keys, ["fullscreen.inPlace"])
+        XCTAssertTrue(SettingsIndex.find("full screen").contains { $0.id == "fullscreen.inPlace" })
+        XCTAssertFalse(RetiredSettings.rows.contains("fullscreen.inPlace"))
+        XCTAssertTrue(WhatsNew.toggles.contains { $0.title == item.title })
+
+        let name = "inplace-\(UUID().uuidString)"
+        let store = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { store.removePersistentDomain(forName: name) }
+        XCTAssertFalse(store.bool(forKey: "fullscreen.inPlace"), "off unless turned on")
+
+        let prefs = Shared.prefs
+        XCTAssertFalse(prefs.fullScreenInPlace)
+        prefs.fullScreenInPlace = true
+        XCTAssertTrue(FullScreenInPlace.on)
+        prefs.fullScreenInPlace = false
+        XCTAssertFalse(FullScreenInPlace.on)
+    }
 }
