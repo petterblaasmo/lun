@@ -2962,7 +2962,8 @@ enum ExtensionShims {
         });
       }
       const ownPanel = !chrome.sidePanel;
-      define("sidePanel", ["open", "close", "setOptions", "getOptions", "setPanelBehavior", "getPanelBehavior"]);
+      define("sidePanel", ["open", "close", "setOptions", "getOptions", "setPanelBehavior", "getPanelBehavior", "getLayout"],
+        ["onOpened", "onClosed"]);
       // A tab's own panel options, and which of Search's tabs that is: the
       // button asks the tab in front, which has no number on Search's side.
       // Told after the options themselves, so a sidePanel.open right after
@@ -3092,6 +3093,51 @@ enum ExtensionShims {
           if (typeof callback !== "function") return p;
           p.then((g) => callback(g), (e) => withLastError(e, callback));
         });
+      }
+      // The side panel opens and closes in Lun's hands too: while an
+      // extension listens, the browser says when its panel has, and it is
+      // told as Chrome tells it (PanelOpenedInfo, PanelClosedInfo). The
+      // window's number is WebKit's, which the browser doesn't have: it
+      // comes from the tab, for a tab's own panel, else from the window's
+      // frame, which the browser sends as windows.getAll gives it.
+      if (ownPanel && chrome.sidePanel && chrome.sidePanel.onOpened) {
+        const panel = chrome.sidePanel, told = ["onOpened", "onClosed"];
+        const near = (a, b) => Math.abs(a - b) <= 2;
+        const windowOf = async (said) => {
+          if (typeof said.tabId === "number" && chrome.tabs && typeof chrome.tabs.get === "function") {
+            const tab = await Promise.resolve(chrome.tabs.get(said.tabId)).catch(() => null);
+            if (tab && typeof tab.windowId === "number") return tab.windowId;
+          }
+          const w = said.w || {};
+          const same = [...await frames()].filter(([, f]) =>
+            near(f.left, w.left) && near(f.top, w.top) && near(f.width, w.width) && near(f.height, w.height));
+          if (same.length === 1) return same[0][0];
+          // Two windows with one frame, or none it is shown: the one in front.
+          const front = chrome.windows && typeof chrome.windows.getLastFocused === "function"
+            ? await Promise.resolve(chrome.windows.getLastFocused()).catch(() => null) : null;
+          return front && typeof front.id === "number" ? front.id : -1;
+        };
+        // One after the other: a panel that gives way to another is closed
+        // before the other is opened, however long each window takes to find.
+        let last = Promise.resolve();
+        const line = watching("search.panel", () => ({ listen: true, worker }), (m) => {
+          const name = m.opened ? "onOpened" : m.closed ? "onClosed" : null;
+          if (!name) return;
+          const said = m.opened || m.closed;
+          last = last.then(() => windowOf(said)).then((windowId) => {
+            const info = { path: String(said.path || ""), windowId };
+            if (typeof said.tabId === "number") info.tabId = said.tabId;
+            for (const f of [...panel[name].listeners]) try { f(info); } catch (e) { setTimeout(() => { throw e; }); }
+          }, () => {});
+        });
+        for (const name of told) {
+          const { addListener: add, removeListener: remove } = panel[name];
+          panel[name].addListener = (f) => { add(f); line.start(); };
+          panel[name].removeListener = (f) => {
+            remove(f);
+            if (!told.some((n) => panel[n].listeners.size)) line.stop();
+          };
+        }
       }
       define("fontSettings",
         ["getFontList", "getFont", "setFont", "clearFont", "getDefaultFontSize", "setDefaultFontSize",
@@ -6275,6 +6321,8 @@ enum ExtensionShims {
             return nil
         case "sidePanel.getPanelBehavior":
             return ["openPanelOnActionClick": panelOnClick.contains(id)]
+        case "sidePanel.getLayout":
+            return ["side": browser.sidePanelSide]
         case "sidePanel.placed":
             if let number = first as? Int, let tab = located(args.dropFirst().first, context: context, owner: owner) {
                 panelTabIDs[id, default: [:]][number] = tab.id
@@ -7104,6 +7152,27 @@ enum ExtensionShims {
 
     static func defaultPanel(_ context: WKWebExtensionContext) -> String? {
         (context.webExtension.manifest["side_panel"] as? [String: Any])?["default_path"] as? String
+    }
+
+    /// What sidePanel.onOpened and onClosed say of a panel, less the
+    /// window's number, which is WebKit's: the shim finds it from the tab,
+    /// or from `w`, the window's frame as windows.getAll() gives it (turned
+    /// over, see Extensions.tab(windowFrame:)). `tabId` only for a tab's own
+    /// panel, as in Chrome. `path` as the extension gave it, when that is
+    /// the page shown; else the page's own place in the package.
+    static func panelInfo(_ id: String, url: URL, tab: Tab.ID?, in browser: Browser) -> [String: Any] {
+        let number = tab.flatMap { tab in panelTabIDs[id]?.filter { $0.value == tab }.map(\.key).max() }
+        let context = Extensions.shared.contexts[id]
+        let given = [number.flatMap { panelTabs[id]?[$0]?.path }, panelPath[id], context.flatMap(defaultPanel)].compactMap { $0 }
+        let path = given.first { path in context.flatMap { page(path, in: $0) } == url }
+            ?? String((url.path + (url.query.map { "?" + $0 } ?? "")).drop { $0 == "/" })
+        var info: [String: Any] = ["path": path]
+        if let number { info["tabId"] = number }
+        if let window = browser.window {
+            let frame = window.frame, height = (window.screen ?? NSScreen.main)?.frame.height ?? 0
+            info["w"] = ["left": frame.minX, "top": height - frame.maxY, "width": frame.width, "height": frame.height]
+        }
+        return info
     }
 
     /// One of the extension's own pages, from the path it gave: resolved

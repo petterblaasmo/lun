@@ -16,6 +16,10 @@ import WebKit
 // changed — only now it is asked when they have, not every few seconds.
 // Nobody listening, nothing runs: no timer, no observer, no reading.
 //
+// The side panel's opening and closing (chrome.sidePanel.onOpened and
+// onClosed) are told the same way, on a port of their own: they happen in
+// Lun's window, where WebKit has no panel to tell of.
+//
 // The shim says hello on a new port until it is answered, as the socket
 // does (see ExtensionSocket): WebKit drops what a worker posts in a port's
 // first moments, and what Search posts in them is often lost too. So the
@@ -191,11 +195,55 @@ final class IdleWatch {
     }
 }
 
+/// Tells an extension that listens when its side panel has opened or
+/// closed in a window (chrome.sidePanel.onOpened, onClosed).
+@MainActor
+final class PanelWatch {
+    private var ears: [ExtensionEar] = []
+
+    var isListened: Bool { !ears.isEmpty }
+
+    func add(_ ear: ExtensionEar) {
+        ears.removeAll { !$0.hears() }
+        if !ears.contains(where: { $0 === ear }) { ears.append(ear) }
+    }
+
+    func remove(_ ear: ExtensionEar) {
+        ears.removeAll { $0 === ear }
+    }
+
+    /// A window's panel is no longer what it was. An extension's page gone
+    /// from it is that panel closed, one come into it that panel opened,
+    /// each said to that extension alone. The same panel given another of
+    /// its pages has done neither. `describe` is what is said of a panel
+    /// (ExtensionShims.panelInfo), asked for only when someone will hear it.
+    func changed(from old: SidePanelContent?, to new: SidePanelContent?,
+                 describe: (_ extensionID: String, _ url: URL, _ tab: Tab.ID?) -> [String: Any]) {
+        guard !ears.isEmpty, old != new else { return }
+        func page(_ content: SidePanelContent?) -> (id: String, url: URL, tab: Tab.ID?)? {
+            guard case .page(let id, let url, let tab)? = content else { return nil }
+            return (id, url, tab)
+        }
+        let was = page(old), now = page(new)
+        if let was, let now, was.id == now.id, was.tab == now.tab { return }
+        for (word, panel) in [("closed", was), ("opened", now)] {
+            guard let panel else { continue }
+            let hearing = ears.filter { $0.extensionID == panel.id && $0.hears() }
+            guard !hearing.isEmpty else { continue }
+            let info = describe(panel.id, panel.url, panel.tab)
+            for ear in hearing { ear.say([word: info]) }
+        }
+    }
+}
+
 @available(macOS 15.4, *)
 @MainActor
 enum ExtensionWatch {
     static let groupsPort = ExtensionShims.application + ".groups"
     static let idlePort = ExtensionShims.application + ".idle"
+    static let panelPort = ExtensionShims.application + ".panel"
+
+    static let panel = PanelWatch()
 
     // Every window's groups, as tabGroups.query lists them. Private tabs are
     // never in a group today; if that ever changes, leave private windows out
@@ -245,16 +293,17 @@ enum ExtensionWatch {
     /// What is being watched for extensions, for the bench: nothing, with
     /// none listening.
     static var status: [String: Any] {
-        ["groups": groups.isListened, "idle": idle.isRunning, "ports": open.count]
+        ["groups": groups.isListened, "idle": idle.isRunning, "panel": panel.isListened, "ports": open.count]
     }
 
-    /// A port the shim opened to hear of groups or of idleness. Only to an
-    /// extension that asked for the permission, as for the calls the shim
-    /// makes: what it is told here is no more than it could ask.
+    /// A port the shim opened to hear of groups, of idleness or of its side
+    /// panel. Only to an extension that asked for the permission, as for the
+    /// calls the shim makes: what it is told here is no more than it could ask.
     static func connect(_ port: WKWebExtension.MessagePort, from context: WKWebExtensionContext) throws {
         let id = context.uniqueIdentifier
         let forIdle = port.applicationIdentifier == idlePort
-        let permission = forIdle ? "idle" : "tabGroups"
+        let forPanel = port.applicationIdentifier == panelPort
+        let permission = forIdle ? "idle" : forPanel ? "sidePanel" : "tabGroups"
         guard ExtensionShims.allowed(id, context: context).contains(permission) else {
             throw ExtensionShims.Unsupported(what: "The extension never asked for \u{201C}\(permission)\u{201D}")
         }
@@ -279,6 +328,8 @@ enum ExtensionWatch {
                     ear.told = "active"
                     let every = (hello["every"] as? NSNumber)?.doubleValue ?? 60
                     idle.add(ear, threshold: every.isFinite ? max(15, every) : 60)
+                } else if forPanel {
+                    panel.add(ear)
                 } else {
                     groups.add(ear)
                 }
@@ -295,6 +346,7 @@ enum ExtensionWatch {
     private static func release(_ ear: ExtensionEar) {
         groups.remove(ear)
         idle.remove(ear)
+        panel.remove(ear)
         open[ObjectIdentifier(ear)] = nil
         ear.close()
     }

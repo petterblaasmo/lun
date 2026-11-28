@@ -641,7 +641,16 @@ final class Browser: NSObject, ObservableObject {
     /// The side panel, beside the page (see SidePanel.swift): up or
     /// not, and what is in it.
     @Published var sidePanelShown = false
-    @Published var sidePanel: SidePanelContent?
+    @Published var sidePanel: SidePanelContent? {
+        // Every way the panel comes and goes passes here: an extension that
+        // listens is told its panel has opened or closed (ExtensionWatch).
+        didSet {
+            guard #available(macOS 15.4, *) else { return }
+            ExtensionWatch.panel.changed(from: oldValue, to: sidePanel) { id, url, tab in
+                ExtensionShims.panelInfo(id, url: url, tab: tab, in: self)
+            }
+        }
+    }
     /// What Find a setting held in each Settings tab, for the tab to have
     /// it again when it is gone back to (SettingsPanel.tabID). Not
     /// published: only the panel reads it, as it appears.
