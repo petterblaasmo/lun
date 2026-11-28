@@ -212,6 +212,33 @@ final class FullScreenInPlaceTests: XCTestCase {
         window.close()
     }
 
+    /// AppKit takes the menu bar and the Dock going as a change of screen,
+    /// and pulls a window that hangs over the screen's edge whole onto it
+    /// (and one far off back to where it last was). Every window of the
+    /// app's is where it was, in and out.
+    func testOtherWindowsStayWhereTheyWere() throws {
+        let screen = try XCTUnwrap(NSScreen.main).frame
+        let window = lent()
+        let over = NSWindow(contentRect: NSRect(x: screen.midX, y: screen.midY, width: 400, height: 300),
+                            styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        over.isReleasedWhenClosed = false
+        // On screen as far as AppKit knows, and clear (Tests/NoWindows);
+        // then dragged half off it, as a person parks a window.
+        over.orderBack(nil)
+        defer { over.close() }
+        over.setFrame(NSRect(x: screen.maxX - 150, y: screen.minY - 120, width: 400, height: 300), display: false)
+        let was = over.frame
+        XCTAssertGreaterThan(was.maxX, screen.maxX, "it hangs over the edge to begin with")
+
+        FullScreenInPlace.wait(for: window, inPlace: true)
+        ask(window, Self.enter); settle()
+        XCTAssertEqual(NSApp.presentationOptions, [.autoHideMenuBar, .autoHideDock])
+        XCTAssertEqual(over.frame, was)
+        ask(window, Self.exit); settle()
+        XCTAssertEqual(over.frame, was)
+        window.close()
+    }
+
     func testTwoVideosShareTheBars() {
         let one = lent(), two = lent()
         for window in [one, two] {

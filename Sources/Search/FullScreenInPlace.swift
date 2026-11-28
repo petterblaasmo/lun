@@ -114,6 +114,8 @@ enum FullScreenInPlace {
 
     private static func hold(_ window: NSWindow) -> Held {
         let held = Held(window)
+        // One left by a window that went without closing: its watch with it.
+        if let closes = holds[ObjectIdentifier(window)]?.closes { NotificationCenter.default.removeObserver(closes) }
         holds[ObjectIdentifier(window)] = held
         // The page closed while in it, its tab or its process gone: WebKit
         // closes the window without asking to leave.
@@ -220,7 +222,7 @@ enum FullScreenInPlace {
         held.strip = nil
         guard !filling, let before = barsBefore else { return }
         barsBefore = nil
-        NSApp.presentationOptions = before
+        ask(before)
     }
 
     // MARK: - the screen's edges
@@ -230,7 +232,19 @@ enum FullScreenInPlace {
     private static func hideBars() {
         guard barsBefore == nil else { return }
         barsBefore = NSApp.presentationOptions
-        NSApp.presentationOptions = [.autoHideMenuBar, .autoHideDock]
+        ask([.autoHideMenuBar, .autoHideDock])
+    }
+
+    /// AppKit takes a change of these as a change of screen and, before the
+    /// setter returns, fits every window of the app's to it: one hanging
+    /// over the screen's edge is pulled whole onto it, going in and coming
+    /// back, and never put back (measured 28 Nov 2026, macOS 26.6: 150
+    /// points off the right edge and 120 below, brought to the corner).
+    /// Each is returned to where it was, in the same turn.
+    private static func ask(_ options: NSApplication.PresentationOptions) {
+        let were = NSApp.windows.map { ($0, $0.frame) }
+        NSApp.presentationOptions = options
+        for (window, frame) in were where window.frame != frame { window.setFrame(frame, display: false) }
     }
 
     /// Beside a camera housing WebKit keeps its window below the menu bar's
