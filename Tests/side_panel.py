@@ -265,13 +265,33 @@ def main():
             if split:
                 sv.quit(); continue
 
-            # chrome.sidePanel as Chrome answers it.
+            # chrome.sidePanel as Chrome answers it. Its later members too:
+            # which side the panel is on, and its opening and closing told
+            # with the page's path and the window's number.
+            sv.cmd({"do": "eval", "id": page, "js": """window.__ev = [];
+                chrome.sidePanel.onOpened.addListener((info) => __ev.push(["opened", info]));
+                chrome.sidePanel.onClosed.addListener((info) => __ev.push(["closed", info]));
+                chrome.sidePanel.getLayout().then((l) => window.__side = l.side, (e) => window.__side = String(e));
+                chrome.windows.getCurrent().then((w) => window.__w = w.id); 1"""})
+            time.sleep(1.5)
+            heard = lambda: json.loads(sv.cmd({"do": "eval", "id": page, "js": "JSON.stringify(window.__ev)"}).get("value") or "[]")
+            mine = sv.cmd({"do": "eval", "id": page, "js": "window.__w"}).get("value")
+            t.ok("getLayout: on the right, the column on the left",
+                 sv.cmd({"do": "eval", "id": page, "js": "window.__side"}).get("value") == "right")
             sv.cmd({"do": "eval", "id": page, "js": "chrome.sidePanel.open({windowId: 1}).then(() => window.__o = 'ok', e => window.__o = String(e)); 1"})
             time.sleep(1.2)
             t.ok("sidePanel.open opens it", up(), panel())
+            t.ok("onOpened: its path and this window", heard() == [["opened", {"path": "panel.html", "windowId": mine}]] and isinstance(mine, int), (heard(), mine))
             sv.cmd({"do": "eval", "id": page, "js": "chrome.sidePanel.close({windowId: 1}).then(() => window.__c = 'ok', e => window.__c = String(e)); 1"})
             time.sleep(0.8)
             t.ok("sidePanel.close closes it", not up(), panel())
+            t.ok("onClosed: the same", heard()[1:] == [["closed", {"path": "panel.html", "windowId": mine}]], heard())
+            ui(side="right")
+            sv.cmd({"do": "eval", "id": page, "js": "chrome.sidePanel.getLayout().then((l) => window.__side = l.side); 1"})
+            time.sleep(0.6)
+            t.ok("getLayout: on the left, the column on the right",
+                 sv.cmd({"do": "eval", "id": page, "js": "window.__side"}).get("value") == "left")
+            ui(side="left")
             sv.cmd({"do": "eval", "id": page, "js": "chrome.sidePanel.getOptions({}).then(o => window.__g = JSON.stringify(o)); 1"})
             time.sleep(0.6)
             g = json.loads(sv.cmd({"do": "eval", "id": page, "js": "window.__g"}).get("value") or "{}")
@@ -286,6 +306,9 @@ def main():
             time.sleep(1.5)
             st = panel()
             t.ok("per tab: open for this tab", st["shown"] and st["content"]["url"].endswith("panel.html?for=a") and st["content"]["tab"] != "", st)
+            last = heard()[-1]
+            t.ok("per tab: onOpened names the tab", last[0] == "opened" and last[1].get("path") == "panel.html?for=a"
+                 and isinstance(last[1].get("tabId"), int) and last[1].get("windowId") == mine, last)
             # What the page holds, to tell it kept from loaded again (idea 643).
             panel("eval", js="window.__kept = 643; 1")
             sv.sp("select", id=c); time.sleep(0.6)

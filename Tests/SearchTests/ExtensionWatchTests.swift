@@ -218,4 +218,86 @@ final class ExtensionWatchTests: XCTestCase {
         XCTAssertEqual(IdleWatch.wait(after: "active", quiet: 59, threshold: 60), 2)
         XCTAssertEqual(IdleWatch.wait(after: "idle", quiet: 90, threshold: 60), 15)
     }
+
+    // MARK: the side panel
+
+    @MainActor private final class Panels {
+        let watch = PanelWatch()
+        var told: [String: [[String: Any]]] = [:]
+        var described = 0
+        func listen(_ id: String, alive: Bool = true) {
+            watch.add(ExtensionEar(extensionID: id, say: { [unowned self] in told[id, default: []].append($0) }, hears: { alive }))
+        }
+        func change(from old: SidePanelContent?, to new: SidePanelContent?) {
+            watch.changed(from: old, to: new) { [unowned self] id, url, tab in
+                described += 1
+                return ["path": url.lastPathComponent, "own": tab != nil]
+            }
+        }
+    }
+
+    private func panel(_ id: String, _ page: String = "panel.html", tab: Tab.ID? = nil) -> SidePanelContent {
+        .page(extensionID: id, url: URL(string: "webkit-extension://\(id)/\(page)")!, tab: tab)
+    }
+
+    func testAPanelIsNotDescribedWhileNobodyListens() {
+        let panels = Panels()
+        panels.change(from: nil, to: panel("one"))
+        panels.change(from: panel("one"), to: nil)
+        XCTAssertEqual(panels.described, 0)
+        XCTAssertFalse(panels.watch.isListened)
+        // Nor to an extension that listens for a panel that isn't its own.
+        panels.listen("two")
+        panels.change(from: nil, to: panel("one"))
+        XCTAssertEqual(panels.described, 0)
+        XCTAssertNil(panels.told["two"])
+    }
+
+    func testAPanelOpenedAndClosedIsSaidToItsExtension() {
+        let panels = Panels()
+        panels.listen("one")
+        panels.listen("two")
+        panels.change(from: nil, to: panel("one"))
+        XCTAssertEqual(panels.told["one"]?.count, 1)
+        XCTAssertEqual((panels.told["one"]?[0]["opened"] as? [String: Any])?["path"] as? String, "panel.html")
+        XCTAssertNil(panels.told["two"], "another extension's panel is none of its business")
+
+        // The same panel, set again or given another of its pages, has
+        // neither opened nor closed.
+        panels.change(from: panel("one"), to: panel("one"))
+        panels.change(from: panel("one"), to: panel("one", "other.html"))
+        XCTAssertEqual(panels.told["one"]?.count, 1)
+
+        // Another extension's takes its place: closed to the one, opened to the other.
+        panels.change(from: panel("one", "other.html"), to: panel("two"))
+        XCTAssertEqual((panels.told["one"]?.last?["closed"] as? [String: Any])?["path"] as? String, "other.html")
+        XCTAssertNotNil(panels.told["two"]?.last?["opened"])
+
+        // A website or Downloads in its place closes it too.
+        panels.change(from: panel("two"), to: .downloads)
+        XCTAssertNotNil(panels.told["two"]?.last?["closed"])
+        XCTAssertEqual(panels.told["two"]?.count, 2)
+    }
+
+    func testATabsOwnPanelGoesAndComesWithItsTab() {
+        let panels = Panels(), tab = UUID()
+        panels.listen("one")
+        // The window's panel gives way to the tab's own: not the same panel.
+        panels.change(from: panel("one"), to: panel("one", tab: tab))
+        XCTAssertEqual(panels.told["one"]?.count, 2)
+        XCTAssertEqual((panels.told["one"]?[0]["closed"] as? [String: Any])?["own"] as? Bool, false)
+        XCTAssertEqual((panels.told["one"]?[1]["opened"] as? [String: Any])?["own"] as? Bool, true)
+        // Another tab in front, then back (Browser.sidePanelFollows).
+        panels.change(from: panel("one", tab: tab), to: nil)
+        panels.change(from: nil, to: panel("one", tab: tab))
+        XCTAssertEqual(panels.told["one"]?.compactMap { $0.keys.first }, ["closed", "opened", "closed", "opened"])
+    }
+
+    func testAContextThatHasGoneIsNotToldOfThePanel() {
+        let panels = Panels()
+        panels.listen("one", alive: false)
+        panels.change(from: nil, to: panel("one"))
+        XCTAssertEqual(panels.described, 0)
+        XCTAssertNil(panels.told["one"])
+    }
 }

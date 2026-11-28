@@ -187,6 +187,13 @@ extension Browser {
         sidePanel = .site(url: url, space: spaceID)
     }
 
+    /// Which side of the window the panel is on, as chrome.sidePanel's
+    /// getLayout says it: away from the column, so on the left only when
+    /// the column is on the right (ContentView's `sideOnRight`).
+    var sidePanelSide: String {
+        prefs.sidebar && prefs.sidePosition == .right ? "left" : "right"
+    }
+
     /// Closed: an extension's page is let go, as Chrome does.
     func closeSidePanel() {
         if case .page(_, _, let tab?) = sidePanel { SidePanelPages.shared.unbind(tab, in: self) }

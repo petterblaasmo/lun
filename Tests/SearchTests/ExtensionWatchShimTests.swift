@@ -218,4 +218,81 @@ final class ExtensionWatchShimTests: XCTestCase {
         XCTAssertEqual(js.evaluateScript("portsNamed('search.idle').length")?.toInt32(), 1, "one port for two listeners")
         XCTAssertEqual(js.evaluateScript("intervals.length")?.toInt32(), 0)
     }
+
+    // MARK: the side panel
+
+    func testTheSidePanelHasChromesLaterMembers() throws {
+        let js = try page()
+        XCTAssertEqual(js.evaluateScript("""
+        [typeof chrome.sidePanel.getLayout, typeof chrome.sidePanel.onOpened.addListener,
+         typeof chrome.sidePanel.onClosed.addListener, typeof chrome.sidePanel.onOpened.hasListener].join()
+        """)?.toString(), "function,function,function,function")
+        js.evaluateScript("chrome.sidePanel.getLayout();")
+        drain(js)
+        XCTAssertEqual(js.evaluateScript("callsTo('sidePanel.getLayout')")?.toInt32(), 1, "the browser says which side")
+        XCTAssertEqual(js.evaluateScript("portsNamed('search.panel').length")?.toInt32(), 0, "nobody listens, no port")
+    }
+
+    func testThePanelOpeningAndClosingAreToldAsChromeTellsThem() throws {
+        let js = try page()
+        js.evaluateScript(#"""
+        globalThis.seen = [];
+        chrome.windows = {
+          getAll: () => Promise.resolve([{ id: 7, left: 10, top: 21, width: 800, height: 600 },
+                                         { id: 9, left: 400, top: 40, width: 800, height: 600 }]),
+          getLastFocused: () => Promise.resolve({ id: 9 }),
+        };
+        chrome.tabs = { get: (id) => id === 42 ? Promise.resolve({ id: 42, windowId: 9 }) : Promise.reject(new Error("No tab")) };
+        chrome.sidePanel.onOpened.addListener((info) => seen.push("opened " + JSON.stringify(info)));
+        chrome.sidePanel.onClosed.addListener((info) => seen.push("closed " + JSON.stringify(info)));
+        globalThis.panelPort = portsNamed('search.panel')[0];
+        """#)
+        XCTAssertEqual(js.evaluateScript("portsNamed('search.panel').length")?.toInt32(), 1, "one port for both events")
+        XCTAssertEqual(js.evaluateScript("JSON.stringify(panelPort.posts[0])")?.toString(), #"{"listen":true,"worker":false}"#)
+        js.evaluateScript("panelPort.onMessage.fire({ listening: true });")
+        drain(js)
+        XCTAssertEqual(js.evaluateScript("JSON.stringify(seen)")?.toString(), "[]", "the browser's answer is not news")
+
+        // The window's own panel: its number found from the frame the
+        // browser gives, a point or two out. No tab named, none told.
+        js.evaluateScript(#"""
+        panelPort.onMessage.fire({ opened: { path: "panel.html", w: { left: 10, top: 20, width: 800, height: 600 } } });
+        """#)
+        drain(js)
+        XCTAssertEqual(js.evaluateScript("JSON.stringify(seen)")?.toString(), #"["opened {\"path\":\"panel.html\",\"windowId\":7}"]"#)
+
+        // It gives way to a tab's own panel: closed first, then opened, and
+        // the tab's window is the window.
+        js.evaluateScript(#"""
+        seen.length = 0;
+        panelPort.onMessage.fire({ closed: { path: "panel.html", w: { left: 10, top: 20, width: 800, height: 600 } } });
+        panelPort.onMessage.fire({ opened: { path: "panel.html?for=a", tabId: 42, w: { left: 10, top: 20, width: 800, height: 600 } } });
+        """#)
+        drain(js)
+        XCTAssertEqual(js.evaluateScript("JSON.stringify(seen)")?.toString(),
+                       #"["closed {\"path\":\"panel.html\",\"windowId\":7}","opened {\"path\":\"panel.html?for=a\",\"windowId\":9,\"tabId\":42}"]"#)
+
+        // A tab since closed, in a window no frame answers to: the window in front.
+        js.evaluateScript(#"""
+        seen.length = 0;
+        panelPort.onMessage.fire({ closed: { path: "panel.html?for=a", tabId: 5, w: { left: 0, top: 0, width: 1, height: 1 } } });
+        """#)
+        drain(js)
+        XCTAssertEqual(js.evaluateScript("JSON.stringify(seen)")?.toString(),
+                       #"["closed {\"path\":\"panel.html?for=a\",\"windowId\":9,\"tabId\":5}"]"#)
+    }
+
+    func testThePanelPortClosesWithTheLastListener() throws {
+        let js = try page()
+        js.evaluateScript(#"""
+        globalThis.a = () => {}; globalThis.b = () => {};
+        chrome.sidePanel.onOpened.addListener(a);
+        chrome.sidePanel.onClosed.addListener(b);
+        chrome.sidePanel.onOpened.removeListener(a);
+        """#)
+        XCTAssertEqual(js.evaluateScript("portsNamed('search.panel')[0].disconnects")?.toInt32(), 0, "one still listens")
+        js.evaluateScript("chrome.sidePanel.onClosed.removeListener(b);")
+        XCTAssertEqual(js.evaluateScript("portsNamed('search.panel')[0].disconnects")?.toInt32(), 1)
+        XCTAssertEqual(js.evaluateScript("portsNamed('search.panel').length")?.toInt32(), 1)
+    }
 }

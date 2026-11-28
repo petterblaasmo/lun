@@ -2395,7 +2395,7 @@ extension Extensions: WKWebExtensionControllerDelegate {
             ExtensionSocket.connect(port, from: extensionContext.uniqueIdentifier)
             return
         }
-        if port.applicationIdentifier == ExtensionWatch.groupsPort || port.applicationIdentifier == ExtensionWatch.idlePort {
+        if [ExtensionWatch.groupsPort, ExtensionWatch.idlePort, ExtensionWatch.panelPort].contains(port.applicationIdentifier) {
             try ExtensionWatch.connect(port, from: extensionContext)
             return
         }
