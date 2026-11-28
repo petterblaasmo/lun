@@ -183,46 +183,63 @@ final class UpdateNoticeTests: XCTestCase {
         let rep: NSBitmapImageRep
     }
 
-    /// Over the window's top corner while a newer build waits, light and
-    /// dark, and gone once answered.
-    func testThePopupIsDrawnOverTheCorner() async throws {
+    /// The bubble the first time: in the column in place of the quiet card,
+    /// and the quiet card once answered; with the tabs across the top, in
+    /// the page's bottom corner. Light and dark.
+    func testTheBubbleComesFirst() async throws {
         _ = NSApplication.shared
         let prefs = Shared.prefs
         let updater = Updater.shared
-        let before = (prefs.sidebar, prefs.sidePosition, prefs.showsUpdateReady, prefs.updateHiddenBuild, updater.poppedBuild)
+        let before = (prefs.sidebar, prefs.sidePosition, prefs.showsUpdateReady, prefs.updateHiddenBuild, updater.poppedBuild,
+                      prefs.sideHides)
         restore = {
             (prefs.sidebar, prefs.sidePosition, prefs.showsUpdateReady, prefs.updateHiddenBuild) = (before.0, before.1, before.2, before.3)
             updater.answerPopup(before.4)
+            prefs.sideHides = before.5
         }
-        prefs.sidebar = true
         prefs.sidePosition = .left
+        prefs.sideHides = false
         prefs.showsUpdateReady = true
         prefs.updateHiddenBuild = 0
         updater.answerPopup(0)
         let browser = Browser(record: WindowRecord())
         browsers.append(browser)
         browser.welcoming = false
+        browser.folded = false
+        browser.tabs.last?.restore(url: URL(string: "about:blank#one")!, title: "A page")
 
         for dark in [false, true] {
             let look = dark ? "dark" : "light"
-            let host = try show(UpdatePopup(browser: browser, prefs: prefs).background(Palette.ground),
+            // In the column.
+            prefs.sidebar = true
+            let column = try show(Column(browser: browser, prefs: prefs), width: Metrics.side, height: 400, dark: dark)
+            let band = 400 - 36 - Int(prefs.sideRow) - 8
+            updater.setStageForTest(.ready(release(800)))
+            let bubble = try await picture(column, "bubble-column-\(look)")
+            updater.answerPopup(800)
+            let quiet = try await picture(column, "bubble-answered-\(look)")
+            XCTAssertGreaterThan(differs(bubble, quiet, rows: band..<(400 - 36)), 40, "\(look): the bubble, then the quiet card")
+            updater.answerPopup(0)
+            close(column)
+
+            // The page's bottom corner, with the tabs across the top.
+            prefs.sidebar = false
+            let page = try show(UpdatePopup(browser: browser, prefs: prefs).background(Palette.ground),
                                 width: 900, height: 360, dark: dark)
             updater.setStageForTest(.none)
-            let none = try await picture(host, nil)
+            let none = try await picture(page, nil)
             updater.setStageForTest(.ready(release(800)))
-            let ready = try await picture(host, "popup-ready-\(look)")
-            XCTAssertGreaterThan(differs(none, ready, rows: Int(Metrics.strip)..<220), 4_000, "\(look): the popup is drawn")
-            updater.setStageForTest(.waiting(release(800)))
-            let waiting = try await picture(host, "popup-waiting-\(look)")
-            XCTAssertGreaterThan(differs(none, waiting, rows: Int(Metrics.strip)..<220), 4_000, "\(look): Install too")
+            let ready = try await picture(page, "bubble-corner-\(look)")
+            XCTAssertGreaterThan(differs(none, ready, rows: 300..<360), 1_000, "\(look): drawn in the bottom corner")
+            XCTAssertEqual(differs(none, ready, rows: 0..<280), 0, "\(look): small, nothing above the corner")
             updater.answerPopup(800)
-            let answered = try await picture(host, nil)
+            let answered = try await picture(page, nil)
             XCTAssertEqual(differs(none, answered), 0, "\(look): answered, it goes")
             updater.setStageForTest(.ready(release(801)))
-            let newer = try await picture(host, nil)
-            XCTAssertGreaterThan(differs(none, newer), 4_000, "\(look): a newer build comes again")
+            let newer = try await picture(page, nil)
+            XCTAssertGreaterThan(differs(none, newer), 1_000, "\(look): a newer build comes again")
             updater.answerPopup(0)
-            close(host)
+            close(page)
         }
     }
 

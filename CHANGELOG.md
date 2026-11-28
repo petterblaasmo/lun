@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- A new version comes as a popup in the window's top corner, once, with Restart and Later. The quiet card in the column stays.
+- A new version first comes as a small bubble at the foot of the column, with Restart and ×, or in the page's bottom corner when the column is hidden or in icons.
 
 ## 0.1.2
 
