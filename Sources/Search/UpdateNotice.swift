@@ -15,8 +15,8 @@ import SwiftUI
 // or anything private, and it never takes the keys.
 //
 // The quiet card alone was easy to miss. So a newer build first comes as a
-// small bubble in its place (UpdateBubble): raised, with the version, a
-// filled Restart and ×, once a build. × puts the bubble away and the quiet
+// bubble in its place (UpdateBubble): outlined, with a dot, the version and
+// a bold Restart, × under the pointer, once a build. × puts the bubble away and the quiet
 // card stays. With no column of words to hold it (tabs across the top, the
 // column hidden or in icons), the bubble sits in the page's bottom corner on
 // the column's side instead (UpdatePopup).
@@ -191,49 +191,57 @@ struct UpdateNoticePill: View {
     }
 }
 
-/// A newer build, the first time: one raised line with the version, a
-/// filled Restart (or Install) and ×. In the column in place of the quiet
-/// card, or in the page's bottom corner where there is no column of words.
+/// A newer build, the first time: one outlined line with a dot, the
+/// version and Restart (or Install) in bold; × under the pointer. In the
+/// column in place of the quiet card, or in the page's bottom corner,
+/// on the ground, where there is no column of words.
 struct UpdateBubble: View {
     let kind: UpdateNotice.Kind
     let release: Updater.Release
     let row: CGFloat
     let title: CGFloat
+    /// Over a page rather than on the column: on the window's ground.
+    var grounded = false
+
+    @State private var hovering = false
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
         HStack(spacing: 8) {
+            Circle()
+                .fill(Palette.ink)
+                .frame(width: 6, height: 6)
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 7) {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Palette.ink)
-                    words(UpdateNotice.popupTitle(kind, version: release.version))
-                }
                 words(UpdateNotice.popupTitle(kind, version: release.version))
                 words(UpdateNotice.title(kind))
                 // Narrowest of all: the button says the rest.
                 words("Update")
             }
             Spacer(minLength: 0)
-            CardButton(title: UpdateNotice.button(kind), filled: true) {
-                Updater.shared.answerPopup(release.build)
-                UpdateNotice.act(kind)
+            if hovering {
+                UpdateNoticeCross(help: "Hide; Update ready stays in the column") { answer() }
+                    .transition(.opacity)
             }
-            UpdateNoticeCross(help: "Hide; Update ready stays in the column") {
-                Updater.shared.answerPopup(release.build)
+            UpdateBubbleButton(title: UpdateNotice.button(kind), size: title) {
+                answer()
+                UpdateNotice.act(kind)
             }
         }
         .padding(.leading, 10)
-        .padding(.trailing, 6)
+        .padding(.trailing, 10)
         .frame(height: row)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background(shape.fill(grounded ? Palette.ground : .clear))
+        .overlay(shape.strokeBorder(Palette.hairline, lineWidth: 1))
+        .contentShape(shape)
+        .hovers($hovering)
+        .animation(Motion.quick, value: hovering)
         .contextMenu {
             Button(UpdateNotice.button(kind)) {
-                Updater.shared.answerPopup(release.build)
+                answer()
                 UpdateNotice.act(kind)
             }
-            Button("Hide") { Updater.shared.answerPopup(release.build) }
+            Button("Hide") { answer() }
         }
         .help(kind == .ready
               ? "A new version of Lun is downloaded. Restart to use it, or it starts the next time you open Lun."
@@ -242,12 +250,36 @@ struct UpdateBubble: View {
         .accessibilityLabel(UpdateNotice.popupTitle(kind, version: release.version))
     }
 
+    private func answer() { Updater.shared.answerPopup(release.build) }
+
     private func words(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: title, weight: .medium))
-            .foregroundStyle(Palette.ink)
+            .font(.system(size: title))
+            .foregroundStyle(Palette.soft)
             .lineLimit(1)
             .truncationMode(.tail)
+    }
+}
+
+/// Restart or Install on the bubble: bold words, no capsule.
+private struct UpdateBubbleButton: View {
+    let title: String
+    let size: CGFloat
+    let act: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: act) {
+            Text(title)
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(Palette.ink.opacity(hovering ? 0.7 : 1))
+                .lineLimit(1)
+                .fixedSize()
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(Gives(to: 0.95))
+        .focusable(false)
+        .hovers($hovering)
     }
 }
 
@@ -265,7 +297,7 @@ struct UpdatePopup: View {
         let fresh = browser.welcoming || inColumn ? nil : UpdateNotice.popup(updater, prefs)
         ZStack(alignment: corner) {
             if let fresh {
-                UpdateBubble(kind: fresh.kind, release: fresh.release, row: 30, title: 12)
+                UpdateBubble(kind: fresh.kind, release: fresh.release, row: 32, title: 13, grounded: true)
                     .fixedSize()
                     .padding(Self.margin)
                     .transition(.card(from: right ? .bottomTrailing : .bottomLeading))
@@ -288,15 +320,12 @@ struct UpdatePopup: View {
 /// is drawn behind the label, for a control that has to know where it is.
 struct CardButton<Spot: View>: View {
     let title: String
-    /// In ink, for the one thing to press (UpdateBubble's Restart).
-    var filled = false
     let act: () -> Void
     let spot: Spot
     @State private var hovering = false
 
-    init(title: String, filled: Bool = false, act: @escaping () -> Void, @ViewBuilder spot: () -> Spot) {
+    init(title: String, act: @escaping () -> Void, @ViewBuilder spot: () -> Spot) {
         self.title = title
-        self.filled = filled
         self.act = act
         self.spot = spot()
     }
@@ -305,11 +334,11 @@ struct CardButton<Spot: View>: View {
         Button(action: act) {
             Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(filled ? Palette.ground : hovering ? Palette.ink : Palette.soft)
+                .foregroundStyle(hovering ? Palette.ink : Palette.soft)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 2)
-                .background(filled ? Palette.ink.opacity(hovering ? 0.86 : 1) : Palette.ground, in: Capsule())
-                .overlay(Capsule().strokeBorder(filled ? .clear : Palette.hairline, lineWidth: 1))
+                .background(Palette.ground, in: Capsule())
+                .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
                 .contentShape(Capsule())
                 .background(spot)
                 .fixedSize()
@@ -323,8 +352,8 @@ struct CardButton<Spot: View>: View {
 }
 
 extension CardButton where Spot == EmptyView {
-    init(title: String, filled: Bool = false, act: @escaping () -> Void) {
-        self.init(title: title, filled: filled, act: act) { EmptyView() }
+    init(title: String, act: @escaping () -> Void) {
+        self.init(title: title, act: act) { EmptyView() }
     }
 }
 
