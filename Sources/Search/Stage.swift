@@ -139,8 +139,10 @@ struct Swiping: View {
                     .id(pull.back)
                     // A short fade and a little growth, both ways. Anything
                     // longer is still arriving when a quick flick has already
-                    // let go.
-                    .transition(.pop)
+                    // let go. From its own edge, as the list above: grown
+                    // from the middle of a frame as wide as the window, it
+                    // faded in well inside the page and slid to the edge.
+                    .transition(.pop(from: pull.back ? .leading : .trailing))
             }
         }
         .animation(Motion.dissolve, value: pull == nil)

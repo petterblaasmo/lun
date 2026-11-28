@@ -1124,8 +1124,14 @@ extension AnyTransition {
     }
 
     /// A small sign: a badge, a tick, a count.
-    static var pop: AnyTransition {
-        .scale(scale: 0.6).combined(with: .opacity)
+    static var pop: AnyTransition { pop(from: .center) }
+
+    /// The same sign standing at one edge of a frame far wider than
+    /// itself, as the swipe's disc does: grown from that edge. From the
+    /// frame's middle it came in well inside the frame and slid out to its
+    /// edge.
+    static func pop(from anchor: UnitPoint) -> AnyTransition {
+        .scale(scale: 0.6, anchor: anchor).combined(with: .opacity)
     }
 }
 
