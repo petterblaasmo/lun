@@ -192,6 +192,15 @@ final class PageFind {
     const answer = (status, count = 0, index = 0, more = false) => ({ status, count, index, more });
     if (epoch < state.generation) return answer("stale");
 
+    const findRules = "::highlight(search-find-match) { background-color: #ffff00; color: #000; }"
+        + "::highlight(search-find-current) { background-color: #ff9632; color: #000; }";
+    // The current match is selected too, and a selection is painted over a
+    // highlight: on a page with selection colours of its own the match took
+    // those. While the selection is the match, it is drawn as nothing, so
+    // the orange under it and black text are what show. (Up here because
+    // clearing, just below, needs the rules.)
+    const quietSelection = "::selection { background-color: transparent !important; color: #000 !important; }";
+
     function sameRange(left, right) {
         try {
             return left.compareBoundaryPoints(0, right) === 0
@@ -678,6 +687,21 @@ final class PageFind {
         state.current = match;
     }
 
+    function quiet(highlights, on) {
+        if (highlights.quiet === on) return;
+        highlights.quiet = on;
+        try { highlights.sheet.replaceSync(on ? findRules + quietSelection : findRules); } catch (_) {}
+    }
+
+    function selectionIsCurrent(win) {
+        const current = state.current;
+        if (current?.kind !== "range" || current.win !== win) return false;
+        try {
+            const selection = win.getSelection();
+            return selection.rangeCount === 1 && sameRange(selection.getRangeAt(0), current.range);
+        } catch (_) { return false; }
+    }
+
     // The selection alone is drawn pale grey while the find bar has the keys,
     // so every match is painted too: yellow, the current one orange. Matches
     // in fields keep only their selection.
@@ -688,6 +712,7 @@ final class PageFind {
     function unpaint() {
         for (const highlights of state.painted) {
             try { highlights.all.clear(); highlights.current.clear(); } catch (_) {}
+            quiet(highlights, false);
         }
         state.painted = [];
     }
@@ -697,14 +722,17 @@ final class PageFind {
         let highlights = state.highlights.get(win);
         if (!highlights) {
             const sheet = new win.CSSStyleSheet();
-            sheet.replaceSync(
-                "::highlight(search-find-match) { background-color: #ffff00; color: #000; }"
-                + "::highlight(search-find-current) { background-color: #ff9632; color: #000; }"
-            );
+            sheet.replaceSync(findRules);
             const current = new win.Highlight();
             current.priority = 1;
-            highlights = { sheet, all: new win.Highlight(), current };
+            highlights = { sheet, all: new win.Highlight(), current, quiet: false };
             state.highlights.set(win, highlights);
+            // Text selected by hand while Find is open is not the match: it
+            // has the page's selection colours back until the next match.
+            const made = highlights;
+            doc.addEventListener("selectionchange", () => {
+                if (!selectionIsCurrent(win)) quiet(made, false);
+            });
         }
         // A page may set its own sheets, or these names, again at any time.
         if (!doc.adoptedStyleSheets.includes(highlights.sheet)) {
@@ -745,7 +773,11 @@ final class PageFind {
         }
         const current = state.matches[state.index];
         if (current?.kind === "range") {
-            try { painted.get(current.win)?.current.add(current.range); } catch (_) {}
+            try {
+                const highlights = painted.get(current.win);
+                highlights?.current.add(current.range);
+                if (highlights && selectionIsCurrent(current.win)) quiet(highlights, true);
+            } catch (_) {}
         }
     }
 

@@ -62,6 +62,7 @@ private final class PageFindHarness: NSObject, NSApplicationDelegate {
         <!doctype html><html><head><meta charset="utf-8"><style>
         html, body { margin: 0; font: 16px sans-serif; }
         #long { width: 240px; }
+        #tinted ::selection { background: #000080; color: #fff; }
         </style></head><body>
         <div id="seventeen">\(seventeen)</div>
         <p id="case">Alpha alpha ALPHA</p>
@@ -87,6 +88,7 @@ private final class PageFindHarness: NSObject, NSApplicationDelegate {
         <p><i id="mainoriginal">mainoriginal</i> <span id="sharedmain">sharedmark</span></p>
         <input id="sharedcontrol" value="sharedmark">
         <iframe id="frame" srcdoc="&lt;p&gt;&lt;i id='original'&gt;originalframe&lt;/i&gt; frameword &lt;span&gt;sharedmark&lt;/span&gt;&lt;/p&gt;"></iframe>
+        <p id="tinted"><a href="https://find-tests.invalid/elsewhere">tintedlink</a> <span>handpicked</span></p>
         <div id="dynamic"><span>dynamicword</span></div>
         <div id="live" style="display:none">livepivot</div>
         <div id="horizontal" style="width:180px;height:48px;overflow:auto;white-space:nowrap"><span>\(String(repeating: "side filler ", count: 70)) horizontalword</span></div>
@@ -187,6 +189,7 @@ private final class PageFindHarness: NSObject, NSApplicationDelegate {
         let absent = await update("not-on-this-page")
         check(!absent.found && absent.count == 0 && absent.index == nil, "No matches reports zero and no current index")
 
+        await checkCurrentMatchKeepsItsColours()
         await checkSameQuerySelectionCleanup()
         await checkFrameAndSelectionRestoration()
         await checkControlsAndMutation()
@@ -220,6 +223,76 @@ private final class PageFindHarness: NSObject, NSApplicationDelegate {
         _ = try? await evaluate("document.querySelector('#card').shadowRoot.firstElementChild.append(' shadowword three')")
         let mutated = await update("shadowword")
         check(mutated.count == 3, "A change inside the shadow tree is seen before Next (got \(describe(mutated)))")
+    }
+
+    /// The current match is selected as well as painted, and a selection is
+    /// drawn over a highlight: on a link, on a page with selection colours of
+    /// its own, it must still read black on orange. Text selected by hand
+    /// while Find is open keeps the page's colours.
+    private func checkCurrentMatchKeepsItsColours() async {
+        let selectionStyle = """
+        (() => { const style = getComputedStyle(document.querySelector('#tinted a'), '::selection');
+                 return style.backgroundColor + ' ' + style.color; })()
+        """
+        let quiet = "rgba(0, 0, 0, 0) rgb(0, 0, 0)", pages = "rgb(0, 0, 128) rgb(255, 255, 255)"
+        let hit = await update("tintedlink")
+        expect(hit, count: 1, index: 1, "A link under the page's own selection colours is found")
+        let onMatch = (try? await evaluate(selectionStyle)) as? String
+        check(onMatch == quiet, "While the selection is the current match it paints nothing of its own (got \(onMatch ?? "nil"))")
+        let drawn = await colours(of: "document.querySelector('#tinted a')")
+        check(drawn.map { isOrange($0.most) && isBlack($0.darkest) } == true,
+              "The current match reads black on orange over a link (got \(drawn.map { "\($0)" } ?? "no picture"))")
+
+        _ = try? await evaluate("getSelection().selectAllChildren(document.querySelector('#tinted span'))")
+        var byHand: String?
+        for _ in 0..<80 {
+            byHand = (try? await evaluate(selectionStyle)) as? String
+            if byHand == pages { break }
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+        check(byHand == pages, "Text selected by hand while Find is open keeps the page's selection colours (got \(byHand ?? "nil"))")
+        let handDrawn = await colours(of: "document.querySelector('#tinted span')")
+        check(handDrawn.map { !isOrange($0.most) && $0.most.blue > $0.most.red } == true,
+              "That selection is drawn in the page's colours (got \(handDrawn.map { "\($0)" } ?? "no picture"))")
+
+        let again = await update("tintedlink")
+        expect(again, count: 1, index: 1, "Next selects the match again")
+        let back = (try? await evaluate(selectionStyle)) as? String
+        check(back == quiet, "On Next the match's selection paints nothing again (got \(back ?? "nil"))")
+        _ = await clear()
+        let after = (try? await evaluate(selectionStyle)) as? String
+        check(after == pages, "Clear gives the page its selection colours back (got \(after ?? "nil"))")
+    }
+
+    private typealias Colour = (red: Int, green: Int, blue: Int)
+    private func isOrange(_ colour: Colour) -> Bool { colour.red > 220 && (110...200).contains(colour.green) && colour.blue < 120 }
+    private func isBlack(_ colour: Colour) -> Bool { max(colour.red, colour.green, colour.blue) < 40 }
+
+    /// The colour most of an element is drawn in, and the darkest in it: its
+    /// ground and its text, when the text is the darker. The selection is in
+    /// the picture, as on screen.
+    private func colours(of element: String) async -> (most: Colour, darkest: Colour)? {
+        try? await Task.sleep(for: .milliseconds(100))
+        guard let box = (try? await evaluate(
+            "(() => { const r = \(element).getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })()"
+        )) as? [Double], box.count == 4 else { return nil }
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = CGRect(x: box[0], y: box[1], width: box[2], height: box[3])
+        let image: NSImage? = await withCheckedContinuation { continuation in
+            web.takeSnapshot(with: configuration) { image, _ in continuation.resume(returning: image) }
+        }
+        guard let data = image?.tiffRepresentation, let bitmap = NSBitmapImageRep(data: data) else { return nil }
+        var counts: [[Int]: Int] = [:]
+        for y in 0..<bitmap.pixelsHigh {
+            for x in 0..<bitmap.pixelsWide {
+                guard let pixel = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
+                let key = [pixel.redComponent, pixel.greenComponent, pixel.blueComponent].map { Int(($0 * 255).rounded()) }
+                counts[key, default: 0] += 1
+            }
+        }
+        guard let most = counts.max(by: { $0.value < $1.value })?.key,
+              let darkest = counts.keys.min(by: { $0.reduce(0, +) < $1.reduce(0, +) }) else { return nil }
+        return ((most[0], most[1], most[2]), (darkest[0], darkest[1], darkest[2]))
     }
 
     /// Past the walk's element budget, a word in the part not read is left
