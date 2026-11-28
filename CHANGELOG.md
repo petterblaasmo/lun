@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- A new version first comes as a small bubble at the foot of the column, with Restart and ×, or in the page's bottom corner when the column is hidden or in icons.
+
 ## 0.1.2
 
 - After launch Lun rests in one process, at about 40 MB instead of 66, and the column only draws the rows in sight.

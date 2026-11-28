@@ -49,6 +49,22 @@ final class UpdateNoticeTests: XCTestCase {
         XCTAssertEqual(UpdateNotice.button(.waiting), "Install")
     }
 
+    func testThePopupComesOnceABuild() {
+        let next = release(500)
+        XCTAssertEqual(UpdateNotice.popup(.ready(next), on: true, hidden: 0, answered: 0)?.kind, .ready)
+        XCTAssertEqual(UpdateNotice.popup(.waiting(next), on: true, hidden: 0, answered: 0)?.release.build, 500)
+        XCTAssertNil(UpdateNotice.popup(.none, on: true, hidden: 0, answered: 0))
+        XCTAssertNil(UpdateNotice.popup(.fetching(next), on: true, hidden: 0, answered: 0), "nothing while it downloads")
+        XCTAssertNil(UpdateNotice.popup(.offered(next), on: true, hidden: 0, answered: 0), "a disk image offered stays in the menu")
+        XCTAssertNil(UpdateNotice.popup(.ready(next), on: false, hidden: 0, answered: 0), "switched off")
+        XCTAssertNil(UpdateNotice.popup(.ready(next), on: true, hidden: 500, answered: 0), "the card put away")
+        XCTAssertNil(UpdateNotice.popup(.ready(next), on: true, hidden: 0, answered: 500), "answered once")
+        XCTAssertEqual(UpdateNotice.popup(.ready(release(501)), on: true, hidden: 0, answered: 500)?.release.build, 501,
+                       "a newer build comes again")
+        XCTAssertEqual(UpdateNotice.popupTitle(.ready, version: "0.1.3"), "Lun 0.1.3 is ready")
+        XCTAssertEqual(UpdateNotice.popupTitle(.waiting, version: "0.1.3"), "Lun 0.1.3 is out")
+    }
+
     func testOnByDefaultAndInSettings() throws {
         // Always on in Lun: no row for it, and its key is put aside.
         XCTAssertNil(SettingsIndex.items.first { $0.id == "updates.notice" })
@@ -165,6 +181,66 @@ final class UpdateNoticeTests: XCTestCase {
 
     private struct Picture {
         let rep: NSBitmapImageRep
+    }
+
+    /// The bubble the first time: in the column in place of the quiet card,
+    /// and the quiet card once answered; with the tabs across the top, in
+    /// the page's bottom corner. Light and dark.
+    func testTheBubbleComesFirst() async throws {
+        _ = NSApplication.shared
+        let prefs = Shared.prefs
+        let updater = Updater.shared
+        let before = (prefs.sidebar, prefs.sidePosition, prefs.showsUpdateReady, prefs.updateHiddenBuild, updater.poppedBuild,
+                      prefs.sideHides)
+        restore = {
+            (prefs.sidebar, prefs.sidePosition, prefs.showsUpdateReady, prefs.updateHiddenBuild) = (before.0, before.1, before.2, before.3)
+            updater.answerPopup(before.4)
+            prefs.sideHides = before.5
+        }
+        prefs.sidePosition = .left
+        prefs.sideHides = false
+        prefs.showsUpdateReady = true
+        prefs.updateHiddenBuild = 0
+        updater.answerPopup(0)
+        let browser = Browser(record: WindowRecord())
+        browsers.append(browser)
+        browser.welcoming = false
+        browser.folded = false
+        browser.tabs.last?.restore(url: URL(string: "about:blank#one")!, title: "A page")
+
+        for dark in [false, true] {
+            let look = dark ? "dark" : "light"
+            // In the column.
+            prefs.sidebar = true
+            let column = try show(Column(browser: browser, prefs: prefs), width: Metrics.side, height: 400, dark: dark)
+            let band = 400 - 36 - Int(prefs.sideRow) - 8
+            updater.setStageForTest(.ready(release(800)))
+            let bubble = try await picture(column, "bubble-column-\(look)")
+            updater.answerPopup(800)
+            let quiet = try await picture(column, "bubble-answered-\(look)")
+            XCTAssertGreaterThan(differs(bubble, quiet, rows: band..<(400 - 36)), 40, "\(look): the bubble, then the quiet card")
+            updater.answerPopup(0)
+            close(column)
+
+            // The page's bottom corner, with the tabs across the top.
+            prefs.sidebar = false
+            let page = try show(UpdatePopup(browser: browser, prefs: prefs).background(Palette.ground),
+                                width: 900, height: 360, dark: dark)
+            updater.setStageForTest(.none)
+            let none = try await picture(page, nil)
+            updater.setStageForTest(.ready(release(800)))
+            let ready = try await picture(page, "bubble-corner-\(look)")
+            XCTAssertGreaterThan(differs(none, ready, rows: 300..<360), 1_000, "\(look): drawn in the bottom corner")
+            XCTAssertEqual(differs(none, ready, rows: 0..<280), 0, "\(look): small, nothing above the corner")
+            updater.answerPopup(800)
+            let answered = try await picture(page, nil)
+            XCTAssertEqual(differs(none, answered), 0, "\(look): answered, it goes")
+            updater.setStageForTest(.ready(release(801)))
+            let newer = try await picture(page, nil)
+            XCTAssertGreaterThan(differs(none, newer), 1_000, "\(look): a newer build comes again")
+            updater.answerPopup(0)
+            close(page)
+        }
     }
 
     private func show<V: View>(_ view: V, width: CGFloat, height: CGFloat, dark: Bool) throws -> NSHostingView<V> {

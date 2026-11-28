@@ -120,6 +120,15 @@ final class Updater: ObservableObject {
     }
 
     private var lastKey: String { "update.checked" }
+    /// The build whose popup was answered (UpdatePopup): it comes once a
+    /// build, and the quiet card in the column stays after it.
+    nonisolated static let poppedKey = "update.popup.answered"
+    @Published private(set) var poppedBuild = Store.settings.integer(forKey: Updater.poppedKey)
+
+    func answerPopup(_ build: Int) {
+        poppedBuild = build
+        Store.settings.set(build, forKey: Updater.poppedKey)
+    }
     nonisolated static let installKey = "update.install"
     /// Settings › About › Install updates on its own. On unless switched off.
     private var installsOnItsOwn: Bool { Store.settings.object(forKey: Updater.installKey) as? Bool ?? true }
