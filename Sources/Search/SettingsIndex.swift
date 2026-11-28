@@ -258,6 +258,12 @@ enum SettingsIndex {
         .init(id: "address.width", group: "window", icon: "arrow.left.and.right",
               title: "Address width", detail: "Before the tabs across the top",
               keys: ["address.width"], words: ["address bar", "url", "width", "wide"], parent: "address.shown"),
+        .init(id: "address.place", group: "window", icon: "rectangle.topthird.inset.filled",
+              title: "Address bar above the page", detail: "With the tabs down the side, a row over the page",
+              more: "The address has a row of its own across the top of the page: back, forward and reload before it, and the extensions after it. It stays when the sidebar is hidden. The sidebar gives those up while the row has them.",
+              keys: ["address.place"],
+              words: ["address bar", "url", "toolbar", "top bar", "top", "above", "position", "extensions", "back", "reload", "navigation", "zen", "chrome"],
+              parent: "address.shown"),
         .init(id: "scrollbars.fade", group: "window", icon: "scroll",
               title: "Fade scroll bars when scrolling stops", detail: "Thin bars over the page that come up only as it scrolls, even with a mouse",
               more: "As macOS draws them with a trackpad, whatever System Settings › Appearance › Show scroll bars says. Off, Lun follows that setting.",
@@ -941,6 +947,7 @@ enum SettingsIndex {
         case "layout.cardsFullScreen": return prefs.sidebar && prefs.cards
         // The address has the row under the tabs to itself (AddressRow).
         case "address.width": return false
+        case "address.place": return prefs.addressLine && prefs.sidebar
         case "tabs.clickKeepsName": return prefs.addressLine && !prefs.iconColumn && !prefs.tabClickRenames
         // A click that edits nothing, or edits the name, has no card to leave out.
         case "tabs.clickAddressOnly": return prefs.iconColumn || !(prefs.tabClickRenames || prefs.tabClickKeepsName && prefs.addressLine)

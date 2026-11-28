@@ -803,6 +803,11 @@ struct SettingsPanel: View {
         case "address.shown": Switch(on: $prefs.addressLine)
         case "scrollbars.fade": Switch(on: $prefs.scrollbarsFade)
         case "address.width": Segmented(options: AddressWidth.allCases.map { ($0, $0.title) }, selection: $prefs.addressWidth)
+        case "address.place":
+            Switch(on: Binding(
+                get: { prefs.addressPlace == .page },
+                set: { on in withAnimation(Motion.glide) { prefs.addressPlace = on ? .page : .side } }
+            ))
         case "window.glass": Switch(on: $prefs.glass)
         case "window.glass.style": Segmented(options: GlassStyle.allCases.map { ($0, $0.title) }, selection: $prefs.glassStyle)
         case "window.glass.clear": Slide(value: $prefs.glassClear).frame(width: 160).accessibilityLabel("Transparency")
