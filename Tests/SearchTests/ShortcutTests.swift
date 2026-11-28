@@ -261,6 +261,76 @@ final class ShortcutTests: XCTestCase {
         XCTAssertEqual(tab.page?.kind, .bookmarks)
     }
 
+    /// New Tab and Open Address on keys of your own: held down, the field
+    /// stays as the press left it, as on ⌘T and ⌘L. A command that isn't
+    /// the field's, Next Tab here, still repeats.
+    func testAReboundFieldKeyHeldDownRunsOnce() async throws {
+        _ = NSApplication.shared
+        ShortcutStore.shared.resetAll()
+        let browser = Browser(record: WindowRecord())
+        let floating = browser.prefs.floatingNewTab
+        browser.prefs.floatingNewTab = true
+        browser.closeAll()
+        let tabs = ["A", "B", "C", "D"].map { name in
+            let tab = Search.Tab(configuration: Web.configuration(space: browser.spaceID))
+            tab.restore(url: URL(string: "about:blank#\(name)")!, title: name)
+            return tab
+        }
+        browser.showRow(tabs, active: tabs[0].id)
+        let window = NSWindow(contentRect: NSRect(x: -20_000, y: -20_000, width: 900, height: 600),
+                              styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: ContentView(browser: browser))
+        window.orderBack(nil)
+        defer {
+            ShortcutStore.shared.resetAll()
+            ContentView.forget(browser)
+            window.contentView = nil
+            window.close()
+            browser.closeAll()
+            browser.prefs.floatingNewTab = floating
+        }
+        var hook: ((NSEvent) -> NSEvent?)?
+        for _ in 0..<50 {
+            hook = ContentView.keyHooks[ObjectIdentifier(browser)]
+            if hook != nil { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let take = try XCTUnwrap(hook)
+        func press(_ code: UInt16, held: Bool = false) throws -> NSEvent {
+            try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                characters: "", charactersIgnoringModifiers: "", isARepeat: held, keyCode: code))
+        }
+
+        // ⌘F6, ⌘F7 and ⌘F8.
+        ShortcutStore.shared.assign(KeyCombo("f6"), to: "file.newTab")
+        ShortcutStore.shared.assign(KeyCombo("f7"), to: "file.openAddress")
+        ShortcutStore.shared.assign(KeyCombo("f8"), to: "tabs.next")
+
+        XCTAssertNil(take(try press(97)))
+        XCTAssertTrue(browser.launching, "the press raises ⌘T's field")
+        for _ in 0..<3 {
+            XCTAssertNil(take(try press(97, held: true)), "a repeat is taken, not left to the menu")
+            XCTAssertTrue(browser.launching, "and the field stays up")
+        }
+        XCTAssertNil(take(try press(97)))
+        XCTAssertFalse(browser.launching, "a second press puts it away")
+
+        XCTAssertNil(take(try press(98)))
+        XCTAssertTrue(browser.editing)
+        XCTAssertNil(take(try press(98, held: true)))
+        XCTAssertTrue(browser.editing, "Open Address, held: its field stays up")
+        XCTAssertNil(take(try press(98)))
+        XCTAssertFalse(browser.editing)
+
+        XCTAssertNil(take(try press(100)))
+        XCTAssertEqual(browser.activeID, tabs[1].id)
+        XCTAssertNil(take(try press(100, held: true)))
+        XCTAssertNil(take(try press(100, held: true)))
+        XCTAssertEqual(browser.activeID, tabs[3].id, "Next Tab, held, goes on through the row")
+    }
+
     private func arrow(_ code: UInt16, in window: NSWindow) throws -> NSEvent {
         try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
             timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,

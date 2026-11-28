@@ -2270,6 +2270,10 @@ struct ContentView: View {
                     }
                     return false
                 }
+                // Held down, the field stays as the press left it, on a key
+                // of your own as on ⌘T and ⌘L below. Taken all the same, or
+                // the menu, which wears the key too, would run it.
+                if event.isARepeat, Command.once.contains(command.id) { return true }
                 command.run(browser)
                 return true
             }
