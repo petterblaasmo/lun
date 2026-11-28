@@ -158,13 +158,15 @@ final class IconColumnTests: XCTestCase {
         let frame = try XCTUnwrap(IconTiles.frames[tab.id])
         Bench.hoverRows[tab.id]?(true)
         try await Task.sleep(for: .milliseconds(800))
-        try await click(corner(frame), in: window)
+        // Quick taps, well inside the cross's dwell: click()'s settling
+        // after each ran past it on CI's slower runner.
+        try await tap(corner(frame), in: window)
         XCTAssertEqual(browser.activeID, tab.id)
         XCTAssertEqual(browser.tabs.count, 3, "The selecting click must not also close the tab")
         XCTAssertTrue(browser.ghosts.isEmpty)
         XCTAssertNil(browser.editingTab)
         // Picked, its cross waits the dwell again.
-        try await click(corner(frame), in: window)
+        try await tap(corner(frame), in: window)
         XCTAssertEqual(browser.tabs.count, 3, "no cross the instant it is picked")
         if browser.editing { browser.edit() }
         try await Task.sleep(for: .milliseconds(700))
@@ -194,6 +196,14 @@ final class IconColumnTests: XCTestCase {
     /// The cross's middle, as a frame to click the middle of.
     private func corner(_ frame: CGRect) -> CGRect {
         IconTile.crossFrame.offsetBy(dx: frame.minX, dy: frame.minY)
+    }
+
+    /// A click with only a moment after it, for what must happen at once.
+    private func tap(_ frame: CGRect, in window: NSWindow) async throws {
+        let centre = point(frame.midX, frame.midY, window)
+        try await send(.leftMouseDown, at: centre, in: window)
+        try await send(.leftMouseUp, at: centre, in: window)
+        try await Task.sleep(for: .milliseconds(80))
     }
 
     private func click(_ frame: CGRect, in window: NSWindow) async throws {
