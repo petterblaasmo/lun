@@ -8,3 +8,4 @@ NoWindowsTests/testWindowsPanelsAndPopoversAreTransparentOnScreen  # the runner'
 PeekSkeletonTests/testSweepAppearsOnlyWithMotionAndStopsOutsideAWindow  # no sweep animation on the runner
 SidebarJoinTests  # its 0.3 s hold is timed with real sleeps: on the runner a different test of it misses each run
 OptionClickTests/testOptionClickAcrossTheTopPutsTheTabBesideThePage  # fails twice in a row on the runner now and then: timing
+DownloadLifecycleTests/testARefusedDownloadsFolderAsksOnceAndKeepsThePick  # times out waiting for the download on the runner now and then, twice in a row: seen on main and on an unrelated pull request, 28 Nov 2026
