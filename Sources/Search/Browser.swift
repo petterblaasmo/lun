@@ -7414,7 +7414,7 @@ final class Browser: NSObject, ObservableObject {
     /// main thread: a long page's PDF runs to tens of megabytes, and a folder
     /// on a network or in iCloud can take its time.
     private func keep(_ result: Result<Data, Error>, at file: URL, failed: String, marked: Bool = false,
-                      finished: ((Bool) -> Void)?) {
+                      from page: URL? = nil, finished: ((Bool) -> Void)?) {
         guard case .success(let data) = result else {
             announce(failed)
             finished?(false)
@@ -7422,7 +7422,7 @@ final class Browser: NSObject, ObservableObject {
         }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let wrote = (try? data.write(to: file, options: .atomic)) != nil
-            if wrote, marked { Browser.markDownloaded(file) }
+            if wrote, marked { Browser.markDownloaded(file, from: page) }
             DispatchQueue.main.async {
                 if wrote { self?.announce("Saved \(file.lastPathComponent)", file: file) } else { self?.announce(failed) }
                 finished?(wrote)
@@ -7436,9 +7436,11 @@ final class Browser: NSObject, ObservableObject {
             finished?(false)
             return
         }
+        // Where it was saved from goes with the file, but not a private tab's.
+        let page = tab.shy || !tab.web.configuration.websiteDataStore.isPersistent ? nil : tab.web.url
         tab.web.createWebArchiveData { [weak self] result in
             guard let self else { finished?(false); return }
-            keep(result, at: file, failed: "Couldn't save page", marked: true, finished: finished)
+            keep(result, at: file, failed: "Couldn't save page", marked: true, from: page, finished: finished)
         }
     }
 
@@ -10658,6 +10660,10 @@ extension Browser: WKDownloadDelegate {
             announce("Download finished")
             return
         }
+        // A private tab's, or one History was cleared under, says only that
+        // Lun downloaded it.
+        let named = listed && entry?.addressForgotten != true
+        Browser.markDownloaded(file, from: named ? source : nil, on: named ? entry?.page : nil)
         guard listed else {
             announce("Saved \(file.lastPathComponent)")
             return
@@ -10684,10 +10690,11 @@ extension Browser: WKDownloadDelegate {
         guard let data, let file = whereToSave(suggestedFilename ?? "") else { return }
         do {
             try data.write(to: file)
-            Browser.markDownloaded(file)
             // A private page's file is named once and listed nowhere, as in
             // `downloadDidFinish`: the list is written to disk and outlives it.
-            if webView.configuration.websiteDataStore.isPersistent, anyTab(for: webView)?.shy != true {
+            let kept = webView.configuration.websiteDataStore.isPersistent && anyTab(for: webView)?.shy != true
+            Browser.markDownloaded(file, from: kept ? originatingURL : nil)
+            if kept {
                 saved(file, from: originatingURL)
             } else {
                 announce("Saved \(file.lastPathComponent)")
@@ -10803,19 +10810,53 @@ extension Browser: WKDownloadDelegate {
         return ["", ".", "..", "/"].contains(last) ? "download" : last
     }
 
-    /// A file written here from a page — the PDF bar's download, Save Page
-    /// As… — marked as downloaded, as WebKit marks a download's: macOS checks
-    /// it when it is first opened, as any other. No address goes with it, so
-    /// a private page's says no more than an ordinary one's.
-    nonisolated static func markDownloaded(_ file: URL) {
+    /// A file a page gave — a download, the PDF bar's, Save Page As… — marked
+    /// as Safari marks one: downloaded from the web, by Lun, from `source` on
+    /// `page`, which Get Info shows as Where from. WebKit's own mark on a
+    /// download names no app, and macOS asked about a file "created by the
+    /// app (null)". What the file is marked with already is added to, never
+    /// taken off. A private page's file is given no address: the mark
+    /// outlives the tab.
+    nonisolated static func markDownloaded(_ file: URL, from source: URL? = nil, on page: URL? = nil) {
+        var file = file
+        let source = Keep.address(of: source), page = Keep.address(of: page)
         var values = URLResourceValues()
-        values.quarantineProperties = [
+        values.quarantineProperties = ((try? file.resourceValues(forKeys: [.quarantinePropertiesKey]))?.quarantineProperties ?? [:])
+            .merging(downloadMark(from: source, on: page)) { _, ours in ours }
+        try? file.setResourceValues(values)
+        // macOS keeps the name in a list of its own and leaves the mark's
+        // field for it empty. Written there too, as Safari's is, the file
+        // still says who downloaded it once that list has been emptied.
+        var mark = [UInt8](repeating: 0, count: 512)
+        let size = getxattr(file.path, quarantine, &mark, mark.count, 0, 0)
+        var fields = size > 0 ? String(decoding: mark[..<size], as: UTF8.self).components(separatedBy: ";") : []
+        if fields.count > 2, fields[2].isEmpty {
+            fields[2] = "Lun"
+            let named = Array(fields.joined(separator: ";").utf8)
+            setxattr(file.path, quarantine, named, named.count, 0, 0)
+        }
+        let from = [source, page].compactMap { $0 }
+        guard !from.isEmpty, let list = try? PropertyListSerialization.data(fromPropertyList: from, format: .binary, options: 0)
+        else { return }
+        _ = list.withUnsafeBytes { setxattr(file.path, whereFrom, $0.baseAddress, list.count, 0, 0) }
+    }
+
+    /// What Lun says of a file in its mark. macOS 26 stores neither address
+    /// from it, and Where from is what says them there.
+    nonisolated static func downloadMark(from source: String?, on page: String?) -> [String: Any] {
+        var mark: [String: Any] = [
             kLSQuarantineAgentNameKey as String: "Lun",
             kLSQuarantineTypeKey as String: kLSQuarantineTypeWebDownload as String,
         ]
-        var file = file
-        try? file.setResourceValues(values)
+        mark[kLSQuarantineAgentBundleIdentifierKey as String] = Bundle.main.bundleIdentifier
+        mark[kLSQuarantineDataURLKey as String] = source.flatMap(URL.init(string:))
+        mark[kLSQuarantineOriginURLKey as String] = page.flatMap(URL.init(string:))
+        return mark
     }
+
+    nonisolated static let quarantine = "com.apple.quarantine"
+    /// Where Spotlight and Get Info read a file's "Where from".
+    nonisolated static let whereFrom = "com.apple.metadata:kMDItemWhereFroms"
 
     private func saved(_ file: URL, from source: URL?, keepsAddress: Bool = true) {
         loot.add(Keep(name: file.lastPathComponent, from: source?.host() ?? "", path: file.path, date: Date(),

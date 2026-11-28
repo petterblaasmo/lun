@@ -70,6 +70,10 @@ final class FetchEntry: ObservableObject, Identifiable {
     /// The page's own view while it is there; the row never keeps it, nor
     /// its web process, alive once its tab has closed.
     weak var webView: WKWebView?
+    /// The page it was asked for from, noted on the finished file. The
+    /// view's own address is the file's already, when a link turned out to
+    /// be a download.
+    let page: URL?
     private(set) var store: WKWebsiteDataStore?
     var destination: URL?
     /// The name asked for, before " 2" and so on: a retry is numbered afresh.
@@ -90,6 +94,7 @@ final class FetchEntry: ObservableObject, Identifiable {
         self.retryName = name
         self.request = request
         self.webView = webView
+        self.page = webView?.backForwardList.currentItem?.url
         self.store = webView?.configuration.websiteDataStore
     }
 
