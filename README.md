@@ -18,7 +18,7 @@
   <a href="https://github.com/petterblaasmo/lun/issues/new/choose">Say what you find</a>
 </p>
 
-<p align="center"><sub>Apple silicon · macOS 14 or later · version 0.1.1 · MIT</sub></p>
+<p align="center"><sub>Apple silicon · macOS 14 or later · version 0.1.2 · MIT</sub></p>
 
 <p align="center">
   <picture>
@@ -93,7 +93,7 @@ That is all there is on screen. Lun runs on WebKit, the engine already in every 
 
 Get `Lun.dmg` from the [newest release](https://github.com/petterblaasmo/lun/releases/latest), open it, and drag Lun to Applications. It is signed and notarised, and keeps itself up to date from there.
 
-It is early: version 0.1.1. Expect rough edges, and [say what you find](https://github.com/petterblaasmo/lun/issues/new/choose).
+It is early: version 0.1.2. Expect rough edges, and [say what you find](https://github.com/petterblaasmo/lun/issues/new/choose).
 
 ## A few keys
 

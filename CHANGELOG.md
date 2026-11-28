@@ -1,7 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 
+- After launch Lun rests in one process, at about 40 MB instead of 66, and the column only draws the rows in sight.
+- Pages redraw less for links, forms and address changes.
+- File › Export Spaces writes every space to a file, and Bring Things Over brings spaces from Ardia, Yab and Dia.
+- Developer Mode for local sites: a bar with the whole address, Web Inspector and Reload Ignoring Cache. Any site can turn it on from its site card or with ⇧⌥⌘I.
+- Hide Elements hides everything that looks the same, and can move and resize an element.
+- The floating video works with any site's player. Google Meet opens its own mini window.
+- A new tab can show your sites as chips on its card. Home bookmarks and your own site styles are on to begin with.
+- Pins show a speaker when their page plays sound, and a preview of the page when you hover over them.
+- Split View has its controls in a capsule over the page.
+- New screenshots appear in Downloads as they land, and a new download flies into the downloads button.
+- Paste and Go in the address field's right-click menu. Arrows in Settings put profiles in order.
+- Back, Forward and Reload are dimmed rather than hidden when they can't be used.
+- Icons only on the bookmarks bar carries over to the sidebar. Return in the address field from another app opens the top suggestion.
+- New switches, all off to begin with: Copy captures only, Double click to rename a tab, and the loading line.
 - A site that couldn't be found for a moment, as the Wi-Fi changes or a VPN comes up, loads by itself after a few tries.
 - Sync with iCloud says why it isn't syncing, tries again, and names the profile that syncs.
 - Extensions: NordPass's popup keeps its size, ClickUp Brain starts, and the Fabric clipper no longer reloads pages in a loop.
