@@ -674,4 +674,8 @@ extension Command {
     /// Edit Site Style…: with Your own style for a site off, not listed,
     /// and its key goes on to the page.
     static let styles: Set<String> = ["view.style"]
+    /// New Tab and Open Address raise the field, and put it away when it
+    /// is up: a key held down runs them once, or its repeats would raise
+    /// and lower the field over and over. Every other command repeats.
+    static let once: Set<String> = ["file.newTab", "file.openAddress"]
 }
