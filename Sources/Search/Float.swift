@@ -183,6 +183,54 @@ final class Float {
         return NSRect(x: anchor.x - across * wide, y: anchor.y - up * tall, width: wide, height: tall)
     }
 
+    /// A corner of the window, to size it by with a mouse.
+    enum Corner: CaseIterable {
+        case topLeft, topRight, bottomLeft, bottomRight
+        var left: Bool { self == .topLeft || self == .bottomLeft }
+        var top: Bool { self == .topLeft || self == .topRight }
+
+        /// The corner of `frame` across from this one, which stays where it
+        /// is while this one is dragged.
+        func across(of frame: NSRect) -> NSPoint {
+            NSPoint(x: left ? frame.maxX : frame.minX, y: top ? frame.minY : frame.maxY)
+        }
+    }
+
+    /// How far in from a corner a press sizes the window rather than moves
+    /// it. The one corner that did, 22 points of it, was half under the
+    /// window's own rounding: a mouse rarely caught it.
+    nonisolated static let cornerReach: CGFloat = 32
+
+    /// The corner of `bounds` that `point` is at, if any. Up is up.
+    nonisolated static func corner(at point: NSPoint, in bounds: NSRect) -> Corner? {
+        let left = point.x < bounds.minX + cornerReach, right = point.x > bounds.maxX - cornerReach
+        let bottom = point.y < bounds.minY + cornerReach, top = point.y > bounds.maxY - cornerReach
+        guard bounds.contains(point), left != right, top != bottom else { return nil }
+        return top ? (left ? .topLeft : .topRight) : (left ? .bottomLeft : .bottomRight)
+    }
+
+    /// How wide the window `was` is asked to be with `corner` dragged by
+    /// `pull`: by whichever way the pointer has gone further, across or up
+    /// and down, so a corner pulled straight down sizes it too.
+    nonisolated static func pulled(_ was: NSRect, by corner: Corner, _ pull: CGVector) -> CGFloat {
+        guard was.height > 0 else { return was.width }
+        let across = corner.left ? -pull.dx : pull.dx
+        let along = (corner.top ? pull.dy : -pull.dy) * was.width / was.height
+        return was.width + (abs(across) >= abs(along) ? across : along)
+    }
+
+    /// The pointer over a corner: the two-headed arrow along its diagonal.
+    /// Before macOS 15 there is none to ask for, and it is the cross it was.
+    static func pointer(for corner: Corner) -> NSCursor {
+        guard #available(macOS 15, *) else { return .crosshair }
+        switch corner {
+        case .topLeft: return .frameResize(position: .topLeft, directions: .all)
+        case .topRight: return .frameResize(position: .topRight, directions: .all)
+        case .bottomLeft: return .frameResize(position: .bottomLeft, directions: .all)
+        case .bottomRight: return .frameResize(position: .bottomRight, directions: .all)
+        }
+    }
+
     /// `frame` in whole points, its top edge where it was to the nearest
     /// one. A window's frame is taken out to the pixels around it when it
     /// isn't on them, a point or so wider at a time, or two on a screen
@@ -688,7 +736,7 @@ final class Float {
             addTrackingArea(
                 NSTrackingArea(
                     rect: bounds,
-                    options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                    options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
                     owner: self
                 )
             )
@@ -698,7 +746,22 @@ final class Float {
             fade(to: 1)
             onEnter?()
         }
-        override func mouseExited(with event: NSEvent) { fade(to: 0) }
+        override func mouseExited(with event: NSEvent) {
+            fade(to: 0)
+            NSCursor.arrow.set()
+        }
+
+        /// Set as the pointer moves, not by cursor rects: those are the key
+        /// window's, and this one rarely is.
+        override func mouseMoved(with event: NSEvent) {
+            pointer(at: convert(event.locationInWindow, from: nil)).set()
+        }
+
+        /// The pointer for a place in the window: over a corner that sizes
+        /// it, which way; anywhere else the arrow.
+        func pointer(at point: NSPoint) -> NSCursor {
+            sizing(at: point).map(Float.pointer) ?? .arrow
+        }
 
         private func fade(to value: CGFloat) {
             near = value > 0
@@ -734,20 +797,27 @@ final class Float {
 
         private var grab = NSPoint.zero
         private var origin = NSRect.zero
-        private var stretching = false
+        private var stretching: Float.Corner?
 
-        private func atCorner(_ point: NSPoint) -> Bool {
-            point.x > bounds.maxX - 22 && point.y < bounds.minY + 22
-        }
-
-        override func resetCursorRects() {
-            addCursorRect(
-                NSRect(x: bounds.maxX - 22, y: bounds.minY, width: 22, height: 22),
-                cursor: .crosshair
-            )
+        /// The corner a press at `point` would size the window by. None
+        /// under a button, which is pressed instead, nor on the sliver of a
+        /// docked window, which a click brings back.
+        private func sizing(at point: NSPoint) -> Float.Corner? {
+            guard docked == nil, superview.map({ hitTest(convert(point, to: $0)) === self }) ?? true else { return nil }
+            return Float.corner(at: point, in: bounds)
         }
 
         override func mouseDown(with event: NSEvent) {
+            press(at: convert(event.locationInWindow, from: nil), pointer: NSEvent.mouseLocation)
+        }
+
+        override func mouseDragged(with event: NSEvent) {
+            drag(to: NSEvent.mouseLocation)
+        }
+
+        /// The button down at `point` in the window, with the pointer at
+        /// `pointer` on screen. Apart from the event, so a test can press.
+        func press(at point: NSPoint, pointer: NSPoint) {
             guard let window else { return }
             // A click on the sliver of a docked window brings it back.
             if docked != nil {
@@ -757,22 +827,24 @@ final class Float {
             }
             ignoringDrag = false
             stopGlide()
-            grab = NSEvent.mouseLocation
+            grab = pointer
             origin = window.frame
-            stretching = atCorner(convert(event.locationInWindow, from: nil))
+            stretching = sizing(at: point)
         }
 
-        override func mouseDragged(with event: NSEvent) {
+        /// The pointer, still down, now at `now` on screen: the window goes
+        /// with it, or the corner it was pressed at does, the one across
+        /// from it staying where it is.
+        func drag(to now: NSPoint) {
             guard let window, !ignoringDrag else { return }
-            let now = NSEvent.mouseLocation
             let dx = now.x - grab.x
             let dy = now.y - grab.y
 
-            guard stretching else {
+            guard let corner = stretching else {
                 window.setFrameOrigin(NSPoint(x: origin.minX + dx, y: origin.minY + dy))
                 return
             }
-            resize(to: origin.width + dx, from: origin)
+            resize(to: Float.pulled(origin, by: corner, CGVector(dx: dx, dy: dy)), from: origin, around: corner.across(of: origin))
         }
 
         /// Two fingers on the trackpad move the window. There is nothing to
