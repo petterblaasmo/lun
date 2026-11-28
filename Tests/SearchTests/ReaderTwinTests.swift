@@ -155,7 +155,8 @@ final class ReaderTwinTests: XCTestCase {
           from: reader.querySelector('.office-from').textContent,
           heading: reader.querySelector('h2').id,
           link: reader.querySelector('a').href,
-          styled: getComputedStyle(reader).maxWidth
+          styled: getComputedStyle(reader).maxWidth,
+          wrap: CSS.supports('text-wrap', 'pretty') ? getComputedStyle(reader.querySelector('p')).textWrapStyle : 'unknown here'
         };
         """) as? [String: Any]
         XCTAssertEqual(drawn?["title"] as? String, "Guide")
@@ -163,6 +164,9 @@ final class ReaderTwinTests: XCTestCase {
         XCTAssertEqual(drawn?["heading"] as? String, "step-one")
         XCTAssertEqual(drawn?["link"] as? String, server.url("/next").absoluteString)
         XCTAssertNotEqual(drawn?["styled"] as? String, "none")
+        // A WebKit that doesn't know the value drops it, which is the plan.
+        XCTAssertTrue(Reader.sheet.contains("text-wrap:pretty"))
+        XCTAssertTrue(["pretty", "unknown here"].contains(drawn?["wrap"] as? String), "\(drawn?["wrap"] ?? "nil")")
     }
 
     func testTheGuessStillReadsAPageWithoutATwin() async throws {
