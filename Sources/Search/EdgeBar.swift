@@ -26,11 +26,16 @@ final class EdgeBarState: ObservableObject {
     private var arriving: DispatchWorkItem?
     /// Gone once the pointer has stayed away.
     private var leaving: DispatchWorkItem?
+    /// Where the pointer was last seen, to tell one still rising.
+    private var last: CGPoint?
 
     /// How long the pointer rests on the edge before the card comes: the
     /// folded strip's wait, for the same reason, since the top edge is
     /// crossed on every trip to the menu bar.
     static let dwell: TimeInterval = Fold.dwell
+    /// The rest this one waits for: `dwell`, or longer in a test that moves
+    /// the pointer with real sleeps, which a slow runner stretches past 0.05 s.
+    var resting: TimeInterval = EdgeBarState.dwell
     /// How long after the pointer has left the card it stays, for a hand
     /// that overshoots one of its buttons: longer than the column's grace,
     /// as it is a far smaller thing to stay on.
@@ -41,6 +46,8 @@ final class EdgeBarState: ObservableObject {
     /// and something is on its way across the edge, a tab or the window
     /// itself.
     func pointer(at point: CGPoint?, in size: CGSize, pressed: Bool) {
+        let last = self.last
+        self.last = point
         if shown {
             if let point, EdgeBar.holds(point, in: size) {
                 leaving?.cancel()
@@ -51,6 +58,12 @@ final class EdgeBarState: ObservableObject {
                 DispatchQueue.main.asyncAfter(deadline: .now() + EdgeBarState.grace, execute: going)
             }
         } else if let point, !pressed, EdgeBar.brings(point, in: size) {
+            // Still rising, from the top left: on its way past the edge to
+            // the menu bar, so the wait starts again (Fold.rising).
+            if let last, point.y < last.y {
+                arriving?.cancel()
+                arriving = nil
+            }
             guard arriving == nil else { return }
             let coming = DispatchWorkItem { [weak self] in
                 guard let self else { return }
@@ -58,7 +71,7 @@ final class EdgeBarState: ObservableObject {
                 self.shown = true
             }
             arriving = coming
-            DispatchQueue.main.asyncAfter(deadline: .now() + EdgeBarState.dwell, execute: coming)
+            DispatchQueue.main.asyncAfter(deadline: .now() + resting, execute: coming)
         } else {
             // Crossed the edge without stopping.
             arriving?.cancel()

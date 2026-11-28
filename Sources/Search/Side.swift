@@ -314,7 +314,7 @@ struct SideBar: View {
             .animation(doorsFoot ? SideBar.footIn : SideBar.doorsOut) {
                 $0.modifier(EndInset(bottom: footHeight))
             }
-            .padding(.bottom, (browser.player == nil ? 0 : rowHeight + SideBar.playerGap)
+            .padding(.bottom, CGFloat(browser.players.count) * (rowHeight + SideBar.playerGap)
                      + (agentHere && !icons ? agentCard + SideBar.playerGap : 0)
                      + (updateHere ? rowHeight + SideBar.playerGap : 0))
 
@@ -328,7 +328,8 @@ struct SideBar: View {
                         .padding(.bottom, SideBar.playerGap)
                         .transition(.opacity)
                 }
-                if let tab = browser.player {
+                // One row for each tab playing out of sight, the newest on top.
+                ForEach(browser.players, id: \.id) { tab in
                     PlayerRow(browser: browser, prefs: prefs, tab: tab)
                         .padding(.horizontal, Metrics.sideInset)
                         .padding(.bottom, SideBar.playerGap)
@@ -414,12 +415,16 @@ struct SideBar: View {
         .background {
             ZStack {
                 // On glass the window's ground shows through (Glass.swift).
-                if !browser.glassUnder { onFrame ? Palette.frame : Palette.ground }
+                if browser.columnGlass {
+                    GlassGround(prefs: prefs, look: browser.wash, frosted: true)
+                } else if browser.columnGround {
+                    onFrame ? Palette.frame : Palette.ground
+                }
                 if landing { greys.hover }
                 // The space's colour, if it has one: over the ground, so the
                 // column stays opaque and folded out over the page it brings
                 // the same wash along. On glass the glass wears it.
-                if !browser.glassUnder { SpaceWash(look: browser.wash) }
+                if browser.columnGround { SpaceWash(look: browser.wash) }
                 if prefs.splitView {
                     SplitDropZone(browser: browser, tab: nil, kind: .strip)
                 }
@@ -461,7 +466,7 @@ struct SideBar: View {
             $0.disablesAnimations = true
         }
         .animation(Motion.quick, value: landing)
-        .animation(Motion.quick, value: browser.player?.id)
+        .animation(Motion.quick, value: browser.players.map(\.id))
         .animation(Motion.glide, value: browser.activeID)
         .animation(Motion.glide, value: browser.editingTab)
         .animation(Motion.settle, value: browser.tabs.map(\.id))
@@ -649,7 +654,7 @@ struct SideBar: View {
                     // every space, so it stays put while the rows under it
                     // scroll, and while a swipe brings another space in.
                     if showsMarks {
-                        SideBookmarks(browser: browser, prefs: prefs, bookmarks: browser.bookmarks, compact: icons, room: marksRoom)
+                        SideBookmarks(browser: browser, prefs: prefs, bookmarks: browser.bookmarks, compact: icons, lined: marksLined, room: marksRoom)
                     }
                     // A row too long for the window scrolls between the pins
                     // and the foot, rather than running under the lights at one
@@ -829,8 +834,8 @@ struct SideBar: View {
         let pinLines = folders.isEmpty ? listed.map { PinRowLine.pin($0, depth: 0) }
             : Browser.pinRowLines(listed, folders: folders, showing: row.active)
         let (groups, rest) = row.drawn(groupsOn: prefs.usesTabGroups, splitView: prefs.splitView)
-        let (lines, tints) = previewLines(row, pins: pinLines, groups: groups, rest: rest,
-                                         keeps: showsLine(kept: pins.count + listed.count + groups.count, listed: listed.count, loose: rest.filter { !$0.isBlank }.count))
+        let keeps = showsLine(kept: pins.count + listed.count + groups.count, listed: listed.count, loose: rest.filter { !$0.isBlank }.count)
+        let (lines, tints) = previewLines(row, pins: pinLines, groups: groups, rest: rest, keeps: keeps)
         let cells = pinCells(pins.count)
         return VStack(alignment: .leading, spacing: 0) {
             if !pins.isEmpty {
@@ -845,7 +850,9 @@ struct SideBar: View {
                 .padding(.bottom, SideBar.underPins)
             }
             if showsMarks {
-                SideBookmarks(browser: browser, prefs: prefs, bookmarks: browser.bookmarks, compact: icons, room: marksRoom)
+                SideBookmarks(browser: browser, prefs: prefs, bookmarks: browser.bookmarks, compact: icons,
+                              lined: !keeps || !pinLines.isEmpty || !groups.isEmpty,
+                              room: marksRoom)
                     .allowsHitTesting(false)
             }
             // Scrolled as the column will be once the space lands, its tab
@@ -1008,7 +1015,16 @@ struct SideBar: View {
         guard showsMarks else { return 0 }
         let lines = SideBookmarks.lines(browser.bookmarks.roots, tiles: SideBookmarks.tiles(prefs, compact: icons),
                                         room: marksRoom, row: rowHeight)
-        return SideBookmarks.height(lines.count, row: rowHeight)
+        return SideBookmarks.height(lines.count, row: rowHeight, lined: marksLined)
+    }
+    /// The bookmarks' line under them, unless the keep line comes straight
+    /// after: no pinned row, folder or group between (idea 1255). The one
+    /// left is the keep line, which has Clear.
+    private var marksLined: Bool {
+        let between = (prefs.showsPinRows && (!browser.listedPins.isEmpty || browser.showsPinFolderRows))
+            || (prefs.usesTabGroups && !browser.tabGroups.isEmpty)
+        return between || !showsLine(kept: keptCount, listed: browser.listedPins.count,
+                                     loose: looseTabs.filter { !$0.isBlank }.count)
     }
 
     /// The pinned rows, the loose tabs and the row that makes another, added
@@ -2300,14 +2316,19 @@ private struct PinSquare: View, Equatable {
         }
         .animation(Motion.quick, value: CornerSpeaker.shows(for: tab))
         .contentShape(RoundedRectangle(cornerRadius: scale * 10 / 32, style: .continuous))
-        .modifier(TabPress(enabled: !lettering && !pickedAmongOthers, active: live, selected: $selectedOnPress) {
+        .modifier(TabPress(enabled: !lettering && !pickedAmongOthers, active: live, selected: $selectedOnPress, again: { opened in
+            // A double-click: home, from this square or another (PinDouble).
+            guard PinDouble.goesHome(clicks: 2, live: live, opened: opened, wandered: PinDouble.wandered(tab)) else { return }
+            browser.clearTabSelection()
+            browser.goHome(tab)
+        }) {
             browser.clearTabSelection()
             browser.select(tab)
         })
-        .modifier(OneClick(double: live) {
-            guard !selectedOnPress, TabClick.flags.intersection([.command, .shift, .option]).isEmpty else { return }
+        .modifier(OneClick(double: false) {
+            guard !selectedOnPress, !live, TabClick.flags.intersection([.command, .shift, .option]).isEmpty else { return }
             browser.clearTabSelection()
-            if live { browser.goHome(tab) } else { browser.select(tab) }
+            browser.select(tab)
         })
         .modifier(ModifiedTabClick { browser.extendTabSelection(to: tab, modifiers: $0) })
         .modifier(OptionClick { if !lettering { browser.optionClick(tab) } })

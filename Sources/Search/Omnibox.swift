@@ -952,10 +952,13 @@ struct AddressField: NSViewRepresentable {
                 // (HomeTiles.swift), the way down to them by keys.
                 NotificationCenter.default.post(name: HomeTiles.focusFirst, object: browser)
                 return true
-            case #selector(NSResponder.deleteWordBackward(_:)):
-                // ⌥⌫ over an offered ending lets go of it and takes the last
-                // word typed, as it does with no ending there. Left to the
-                // text view it would only take the selected ending.
+            case #selector(NSResponder.deleteWordBackward(_:)),
+                 #selector(NSResponder.deleteToBeginningOfLine(_:)):
+                // ⌥⌫ or ⌘⌫ over an offered ending lets go of it and takes the
+                // last word typed, or the line, as it does with no ending there.
+                // Left to the text view they only took the selected ending,
+                // which the field then offered again: ⌘⌫ did nothing until a
+                // letter was taken with ⌫ (idea 1334).
                 deleting = true
                 let selected = textView.selectedRange()
                 guard browser.ending != nil, selected.length > 0,
@@ -963,7 +966,11 @@ struct AddressField: NSViewRepresentable {
                 else { return false }
                 textView.delete(nil)
                 deleting = true
-                textView.deleteWordBackward(nil)
+                if command == #selector(NSResponder.deleteWordBackward(_:)) {
+                    textView.deleteWordBackward(nil)
+                } else {
+                    textView.deleteToBeginningOfLine(nil)
+                }
                 return true
             case #selector(NSResponder.deleteBackward(_:)) where textView.string.isEmpty && browser.siteChip != nil:
                 // ⌫ on an empty field takes the site out of it.
@@ -993,6 +1000,24 @@ class RoomyField: NSTextField {
     override class var cellClass: AnyClass? {
         get { RoomyFieldCell.self }
         set {}
+    }
+
+    /// Two fingers over a long address being edited move along it: sideways,
+    /// or up and down, as a mouse's wheel can. AppKit's field doesn't scroll
+    /// for them, only for the caret, and passed them on: in the column the
+    /// stroke went on to the next space, and the middle of a long address
+    /// could only be reached with ← and →, a letter at a time. A field not
+    /// being edited, or whose text fits, passes them on as before.
+    override func scrollWheel(with event: NSEvent) {
+        guard let editor = currentEditor() as? NSTextView, let clip = editor.superview as? NSClipView,
+              editor.frame.width > clip.bounds.width else { return super.scrollWheel(with: event) }
+        let dx = event.scrollingDeltaX, dy = event.scrollingDeltaY
+        let delta = abs(dx) >= abs(dy) ? dx : dy
+        // A notch of the wheel says lines, not points.
+        let step = event.hasPreciseScrollingDeltas ? delta : delta * (font?.pointSize ?? 13)
+        var bounds = clip.bounds
+        bounds.origin.x -= step
+        clip.scroll(to: clip.constrainBoundsRect(bounds).origin)
     }
 }
 

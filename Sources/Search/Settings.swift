@@ -16,6 +16,10 @@ struct SettingsPanel: View {
     var asked: String? = nil
     /// Words already in Find a setting when it opens (previews).
     var found: String? = nil
+    /// The Settings tab this is drawn in: what Find a setting holds is kept
+    /// for it, as only the tab on screen is drawn and going to another tab
+    /// took the panel, and the words, away (#1655).
+    var tabID: UUID? = nil
     @Environment(\.asTab) private var asTab
 
     @ObservedObject private var updater = Updater.shared
@@ -129,7 +133,16 @@ struct SettingsPanel: View {
             if asTab { tabbed } else { card }
         }
         .onChange(of: browser.settingsFind) { _, _ in finding = true }
-        .onAppear { if let found { query = found } }
+        // Find a setting takes the keys as Settings opens, as System
+        // Settings' search does: type a setting's name at once (#1611).
+        // A turn later, once the tab has taken the window's keys.
+        .onAppear {
+            if let found { query = found } else if let tabID, let kept = browser.settingsQueries[tabID] { query = kept }
+            DispatchQueue.main.async { finding = true }
+        }
+        .onChange(of: query) { _, words in
+            if let tabID { browser.settingsQueries[tabID] = words.isEmpty ? nil : words }
+        }
     }
 
     /// In a tab of its own (see InternalPages.swift): the sections down the
@@ -212,30 +225,66 @@ struct SettingsPanel: View {
     }
 
     /// Find a setting: the wash, the glass, ⌘F beside it until something
-    /// is typed. Escape empties it.
+    /// is typed. Escape empties it, and then lets go.
+    ///
+    /// What is typed is the field's own, so a key redraws the field alone;
+    /// the results follow once the keys pause (`settle`), or at once when
+    /// it is emptied. Every key redrew the whole of Settings, up to every
+    /// row with its control, and the field lagged (idea 1333).
     private struct FindField: View {
         @Binding var text: String
         var focus: FocusState<Bool>.Binding
+        @State private var typed = ""
+        @State private var pending: Task<Void, Never>?
+
+        /// How long the keys pause before the results follow them.
+        static let settle: Duration = .milliseconds(120)
 
         var body: some View {
+            field
+                .onAppear { typed = text }
+                // Gone before the keys paused (another tab gone to): what
+                // was typed is still what Settings keeps (#1655).
+                .onDisappear { if typed != text { pending?.cancel(); text = typed } }
+                // Emptied or filled from outside (a section picked, a kept query).
+                .onChange(of: text) { _, words in
+                    guard words != typed else { return }
+                    pending?.cancel()
+                    typed = words
+                }
+                .onChange(of: typed) { _, words in
+                    pending?.cancel()
+                    guard words != text else { return }
+                    if words.trimmingCharacters(in: .whitespaces).isEmpty { text = words; return }
+                    pending = Task { @MainActor in
+                        try? await Task.sleep(for: Self.settle)
+                        guard !Task.isCancelled else { return }
+                        text = words
+                    }
+                }
+        }
+
+        private var field: some View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
                 ZStack(alignment: .leading) {
-                    if text.isEmpty {
+                    if typed.isEmpty {
                         Text("Search").foregroundStyle(Palette.muted)
                     }
-                    TextField("", text: $text)
+                    TextField("", text: $typed)
                         .textFieldStyle(.plain)
                         .foregroundStyle(Palette.ink)
                         .focused(focus)
-                        .onExitCommand { text = "" }
+                        // Escape empties it; empty, it lets go of the keys,
+                        // for Tab and the arrows to move around Settings.
+                        .onExitCommand { if typed.isEmpty { focus.wrappedValue = false } else { typed = "" } }
                         .accessibilityLabel("Find a setting")
                 }
                 .font(.system(size: 13))
-                if !text.isEmpty {
-                    IconButton("xmark.circle.fill", label: "Clear", glyph: 11, weight: .regular, size: 16, wash: nil) { text = "" }
+                if !typed.isEmpty {
+                    IconButton("xmark.circle.fill", label: "Clear", glyph: 11, weight: .regular, size: 16, wash: nil) { typed = "" }
                 }
             }
             .padding(.horizontal, 10)
@@ -587,8 +636,18 @@ struct SettingsPanel: View {
             return mailHandler.map { "Email links from other apps go to \($0) now" } ?? item.detail
         case "downloads.folder":
             return prefs.downloads.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
-        case "sync": return icloud.on ? "Off while Sync with iCloud is on" : sync.on ? sync.summary : item.detail
-        case "icloud": return icloud.summary(folderSyncOn: sync.on, otherwise: item.detail)
+        case "sync": return icloud.on && !sync.on ? "Off while Sync with iCloud is on" : sync.on ? sync.summary : item.detail
+        case "icloud":
+            // Which profile goes up, with more than one (idea 1330): only
+            // Personal's tabs, pins and bookmarks reach the iPhone.
+            let summary = icloud.summary(folderSyncOn: sync.on, otherwise: item.detail)
+            let front = Browsers.front.flatMap { $0.isPopup ? nil : $0 }
+            let line = icloud.on && icloud.available
+                ? ICloudSync.profileLine(several: Profiles.shared.several,
+                                         name: Profiles.shared.profile(Profile.personalID).name,
+                                         elsewhere: front.map { $0.profileID != Profile.personalID } ?? false)
+                : nil
+            return line.map { summary + "\n" + $0 } ?? summary
         case "search.engine": return searchDetail
         case "search.shift": return shiftDetail
         case "search.suggest": return suggestDetail
@@ -1187,7 +1246,7 @@ struct SettingsPanel: View {
                 TextField("", text: Binding(
                     get: { current.template },
                     set: { draft?.template = $0 }
-                ), prompt: Text("address with %s for the words, e.g. youtube.com/results?search_query=%s").italic())
+                ), prompt: Text("e.g. https://youtube.com/results?search_query=%s").italic())
                 .textFieldStyle(.plain)
                 .onSubmit(saveDraft)
             }

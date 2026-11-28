@@ -18,7 +18,7 @@ import Security
 
 enum Crx {
     enum Refused: LocalizedError {
-        case notAnID, download(Int), empty, notCrx, unsignedOrWrong, unpack
+        case notAnID, download(Int), empty, notCrx, unsignedOrWrong, unpack, theme
 
         var errorDescription: String? {
             switch self {
@@ -28,8 +28,19 @@ enum Crx {
             case .notCrx: return "What came back isn't a Chrome extension"
             case .unsignedOrWrong: return "The extension's signature doesn't hold up"
             case .unpack: return "The extension couldn't be unpacked"
+            case .theme: return "Chrome themes aren't supported in Lun. Colour a space from its menu › Colour… or in Settings › Appearance › This space's colour, or paint a new tab in Settings › Appearance › New tab"
             }
         }
+    }
+
+    /// A Chrome theme: a manifest with "theme", which only Chrome's own
+    /// window draws from. Lun has nothing to paint with it, so it would
+    /// install and change nothing (idea 1326): refused, saying where
+    /// Lun's own colours are.
+    static func isTheme(_ folder: URL) -> Bool {
+        guard let data = try? Data(contentsOf: folder.appendingPathComponent("manifest.json")),
+              let manifest = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return false }
+        return manifest["theme"] != nil
     }
 
     /// The version of Chrome the store is told it is talking to, and the one

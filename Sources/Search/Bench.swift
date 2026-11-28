@@ -599,6 +599,17 @@ final class Bench {
                     // (PinIconHome): its centre, from the window's top left.
                     "icon": PinIconHome.centre(of: tab.id).map { $0 as Any } ?? NSNull()])
 
+        case "dnsfail":
+            // Test run: the next TIMES loads of HOST fail as if its name
+            // couldn't be looked up (DNSRetry); "network": true, as if the
+            // Mac's network had just changed. What is left to fail.
+            guard Store.testing else { answer(["error": "dnsfail only works on a --test run"]); return }
+            if let host = (request["host"] as? String)?.lowercased() {
+                DNSRetry.testFailures[host] = request["times"] as? Int ?? 1
+            }
+            if request["network"] as? Bool == true { DNSRetry.networkChanged() }
+            answer(["left": DNSRetry.testFailures])
+
         case "select":
             // Picking a tab takes the window over, which the bench never does
             // to someone using it: only on a SEARCH_PROBE run.
@@ -866,13 +877,14 @@ final class Bench {
                 switch act {
                 case "still": tab.still()
                 case "play": tab.playAgain()
-                case "away": tab.stilled = false
-                case "go": browser.select(tab)
+                case "away": tab.handPause()
+                case "go": browser.goToPlayer(tab)
                 default: answer(["error": "act is still, play, away or go"]); return
                 }
             }
             let tab = browser.player
-            answer(["tab": tab.map { Bench.short($0) } ?? "", "stilled": tab?.stilled ?? false,
+            answer(["tab": tab.map { Bench.short($0) } ?? "", "tabs": browser.players.map { Bench.short($0) },
+                    "stilled": tab?.stilled ?? false,
                     "noisy": tab?.noisy ?? false, "sounding": browser.sounding.count])
 
         case "eval":
@@ -1266,6 +1278,29 @@ final class Bench {
                         "folders": browser.pinFolders.map(\.name), "launching": browser.launching,
                         "activeBlank": browser.active?.isBlank ?? false])
             }
+
+        case "picturemenu":
+            // The right-click menu over a picture, as PageView makes it from
+            // WebKit's (PictureMenu.shape), from a menu of WebKit's that is
+            // only described — "items": its items' identifiers, in order —
+            // never shown. "src": the picture's address, "keep": an
+            // extension's right-click items are about. The titles it ends
+            // with, and whether it became this app's. Test runs only.
+            guard Store.testing else { answer(["error": "picturemenu only works on a --test run"]); return }
+            guard let tab = page(request, in: browser), let ids = request["items"] as? [String] else { answer(missing(request)); return }
+            house(tab)
+            let menu = NSMenu()
+            for id in ids {
+                let item = NSMenuItem(title: id.replacingOccurrences(of: "WKMenuItemIdentifier", with: ""), action: nil, keyEquivalent: "")
+                item.identifier = NSUserInterfaceItemIdentifier(id)
+                menu.addItem(item)
+            }
+            let url = (request["src"] as? String).flatMap(URL.init(string:))
+            let web = tab.web
+            let replaced = PictureMenu.shape(menu, picture: url, keep: request["keep"] as? Bool == true,
+                                             items: { web.pictureItems?($0) ?? [] }, retarget: { $0.representedObject = url })
+            answer(["replaced": replaced, "titles": menu.items.filter { !$0.isSeparatorItem }.map(\.title),
+                    "retargeted": menu.items.filter { $0.representedObject != nil }.map(\.title)])
 
         case "linkmenu":
             // A right-click at X Y of a tab's page (its own points from the
@@ -2056,10 +2091,17 @@ final class Bench {
             // event, as the trackpad's settings can send one for the stroke.
             let swipeAfter = request["swipeAfter"] as? Double
             SpaceSwipe.shared.start(for: browser)
-            // Over the column, halfway down; or over the bar across the top.
-            let inWindow = browser.prefs.sidebar
+            // Over the column, halfway down; or over the bar across the top;
+            // or, "overField", over the middle of the field being typed in.
+            var inWindow = browser.prefs.sidebar
                 ? NSPoint(x: min(60, browser.prefs.columnWidth / 2), y: window.frame.height / 2)
                 : NSPoint(x: window.frame.width / 2, y: window.frame.height - Metrics.strip / 2)
+            if request["overField"] as? Bool == true {
+                guard let editor = window.firstResponder as? NSTextView, let field = editor.delegate as? NSTextField
+                else { answer(["error": "no field is being typed in"]); return }
+                let box = field.convert(field.bounds, to: nil)
+                inWindow = NSPoint(x: box.midX, y: box.midY)
+            }
             var taken: [String] = []
             func send(_ phase: Int64, _ momentum: Int64, _ x: Double, _ y: Double = 0) {
                 guard let cg = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: Int32(y), wheel2: Int32(x), wheel3: 0) else { return }
@@ -2267,6 +2309,19 @@ final class Bench {
                 answer(["peek": browser.peekTab?.address?.absoluteString ?? "", "peeking": browser.peeking,
                         "covered": web.covered,
                         "ungated": web.trackingAreas.filter { $0.owner !== web && !($0.owner is PointerGate) }.count])
+            }
+
+        case "edgeask":
+            // What the hidden column's edge asks the page under a point of
+            // the window (from its top-left) before it comes (EdgeAsk, idea
+            // 1308): true, the page has something to press there.
+            guard Store.testing else { answer(["error": "edgeask only works on a --test run"]); return }
+            guard let window = browser.window, let x = request["x"] as? Double, let y = request["y"] as? Double
+            else { answer(["error": "edgeask needs an x and a y"]); return }
+            let point = NSPoint(x: x, y: Double(window.frame.height) - y)
+            EdgeAsk.ask(window, at: point)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                answer(["pages": EdgeAsk.pageHas(window, at: point).map { $0 as Any } ?? NSNull()])
             }
 
         case "loadingline":
@@ -3113,6 +3168,35 @@ final class Bench {
                   let field = editor.delegate as? NSTextField
             else { answer(["error": "no field is being typed in"]); return }
             answer(Bench.caret(editor, in: field))
+
+        case "fieldscroll":
+            // Two fingers over the middle of the field being typed in: DX
+            // sideways, DY up or down, in STEPS moves, each sent to the view
+            // under them there as AppKit sends a scroll. Back: the field's
+            // geometry after, as "caret" tells it, and the view that was
+            // under them. Test runs only.
+            guard Store.testing else { answer(["error": "fieldscroll only works on a --test run"]); return }
+            guard let window = browser.window ?? Links.window, let editor = window.firstResponder as? NSTextView,
+                  let field = editor.delegate as? NSTextField, let frame = window.contentView?.superview
+            else { answer(["error": "no field is being typed in"]); return }
+            let dx = request["dx"] as? Double ?? 0, dy = request["dy"] as? Double ?? 0
+            let steps = max(1, request["steps"] as? Int ?? 5)
+            let box = field.convert(field.bounds, to: nil)
+            let under = frame.hitTest(frame.convert(NSPoint(x: box.midX, y: box.midY), from: nil))
+            // Began, changed for each move after, and ended with no move.
+            for n in 0...steps {
+                let x = n < steps ? dx / Double(steps) : 0, y = n < steps ? dy / Double(steps) : 0
+                guard let cg = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: Int32(y), wheel2: Int32(x), wheel3: 0)
+                else { continue }
+                cg.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+                cg.setIntegerValueField(.scrollWheelEventScrollPhase, value: n == 0 ? 1 : n < steps ? 2 : 4)
+                cg.setDoubleValueField(.scrollWheelEventPointDeltaAxis1, value: y)
+                cg.setDoubleValueField(.scrollWheelEventPointDeltaAxis2, value: x)
+                if let event = NSEvent(cgEvent: cg) { under?.scrollWheel(with: event) }
+            }
+            var out = Bench.caret(editor, in: field)
+            out["under"] = under.map { String(describing: type(of: $0)) } ?? ""
+            answer(out)
 
         case "tab-type":
             // The field in the tab, on the tab in front: the edit begun as a
@@ -6332,6 +6416,9 @@ final class Bench {
             // The tab on screen clicked again: its address opened, as typed
             // into nothing yet, the site card under it.
             if request["opentab"] as? Bool == true, let tab = browser.active { browser.beginTabEdit(tab) }
+            // The address kept in sight clicked: its field, in place, as
+            // AddressLine's own click opens it.
+            if request["inline"] as? Bool == true, !browser.editing { browser.edit(); browser.inlineEdit = true }
             // The tab's menu › Site Information… on the tab on screen.
             // `siteinfoid`: on that tab (a pin, say), as its own menu does.
             if request["siteinfo"] as? Bool == true,
@@ -6514,7 +6601,7 @@ final class Bench {
 
         default:
             answer(["error": "unknown command “\(verb)”", "commands": [
-                "tabs", "open", "go", "openmark", "tiles", "close", "wait", "sleep", "select", "text", "nowplaying", "agent", "kept", "eval", "click", "type", "submit", "shot", "snap", "probe", "key", "textcheck", "resize", "hit", "pointer", "film", "float", "window", "pages", "picture", "pdf", "place", "group", "tospace", "field", "bookmark", "marks", "menu", "keyeq", "fill", "pin", "middle", "windows", "alive", "quit", "towindow", "news", "pull", "magnify", "wheel", "notches", "space", "split", "strip", "column", "fold", "consent", "devtools", "update", "site", "little", "ui", "import", "import-preview", "import-file", "import-file-start", "import-file-status", "import-file-cancel", "remove-folder", "passwords", "accounts", "find", "answer", "visible", "seam", "ai", "notifications", "popups", "suggest", "translate", "profile", "settings",
+                "tabs", "open", "go", "openmark", "tiles", "close", "wait", "sleep", "select", "text", "nowplaying", "agent", "kept", "eval", "picturemenu", "click", "type", "submit", "shot", "snap", "probe", "key", "textcheck", "resize", "hit", "pointer", "film", "float", "window", "pages", "picture", "pdf", "place", "group", "tospace", "field", "bookmark", "marks", "menu", "keyeq", "fill", "pin", "middle", "windows", "alive", "quit", "towindow", "news", "pull", "magnify", "wheel", "notches", "space", "split", "strip", "column", "fold", "consent", "devtools", "update", "site", "little", "ui", "import", "import-preview", "import-file", "import-file-start", "import-file-status", "import-file-cancel", "remove-folder", "passwords", "accounts", "find", "answer", "visible", "seam", "ai", "notifications", "popups", "suggest", "translate", "profile", "settings",
 
                 "tabs", "open", "go", "openmark", "tiles", "close", "wait", "sleep", "select", "text", "nowplaying", "player", "agent", "eval", "click", "type", "submit", "shot", "snap", "probe", "key", "textcheck", "resize", "hit", "pointer", "film", "float", "window", "pages", "picture", "pdf", "place", "group", "tospace", "field", "bookmark", "marks", "menu", "keyeq", "fill", "pin", "middle", "windows", "alive", "quit", "towindow", "news", "pull", "magnify", "wheel", "notches", "space", "split", "strip", "column", "fold", "consent", "devtools", "update", "site", "little", "ui", "import", "import-preview", "import-file", "import-file-start", "import-file-status", "import-file-cancel", "remove-folder", "passwords", "accounts", "find", "answer", "visible", "seam", "ai", "notifications", "popups", "suggest", "translate", "profile", "settings",
             ]])
@@ -7279,6 +7366,10 @@ final class Bench {
             "loading": tab.loading,
             // The failure up over the page instead of it, "" for none.
             "failure": tab.failure ?? "",
+            // Tries made at a page that couldn't be found, and whether
+            // another is still to come (DNSRetry).
+            "dnsTries": tab.dnsRetry.done,
+            "dnsPending": tab.dnsRetry.pending,
             "hollow": tab.hollow,
             "view": tab.built?.url?.absoluteString ?? "",
             "bench": tab.bench,
