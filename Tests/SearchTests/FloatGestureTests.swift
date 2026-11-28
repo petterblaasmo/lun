@@ -162,6 +162,132 @@ final class FloatGestureTests: XCTestCase {
         XCTAssertEqual(Float.whole(was), was)
     }
 
+    // MARK: - a mouse at a corner
+
+    func testEveryCornerIsACornerAndTheRestIsNot() {
+        let bounds = NSRect(x: 0, y: 0, width: 440, height: 247)
+        XCTAssertEqual(Float.corner(at: NSPoint(x: 6, y: 240), in: bounds), .topLeft)
+        XCTAssertEqual(Float.corner(at: NSPoint(x: 434, y: 240), in: bounds), .topRight)
+        XCTAssertEqual(Float.corner(at: NSPoint(x: 6, y: 6), in: bounds), .bottomLeft)
+        XCTAssertEqual(Float.corner(at: NSPoint(x: 434, y: 6), in: bounds), .bottomRight)
+        // Further in than the one corner reached before, where the window's
+        // rounding no longer hides it.
+        XCTAssertEqual(Float.corner(at: NSPoint(x: 440 - 30, y: 30), in: bounds), .bottomRight)
+        XCTAssertGreaterThan(Float.cornerReach, 22)
+
+        for body in [NSPoint(x: 220, y: 123), NSPoint(x: 220, y: 4), NSPoint(x: 4, y: 123), NSPoint(x: 40, y: 200),
+                     NSPoint(x: 400, y: 40), NSPoint(x: -1, y: -1), NSPoint(x: 441, y: 248)] {
+            XCTAssertNil(Float.corner(at: body, in: bounds), "\(body) is not a corner")
+        }
+    }
+
+    func testACornerPulledAnyWayAsksForAWidth() {
+        let was = NSRect(x: 100, y: 100, width: 440, height: 220)
+        XCTAssertEqual(Float.pulled(was, by: .bottomRight, CGVector(dx: 60, dy: 0)), 500)
+        XCTAssertEqual(Float.pulled(was, by: .bottomLeft, CGVector(dx: -60, dy: 0)), 500, "outwards is wider on the left too")
+        XCTAssertEqual(Float.pulled(was, by: .topLeft, CGVector(dx: 60, dy: 0)), 380)
+        XCTAssertEqual(Float.pulled(was, by: .topRight, CGVector(dx: -60, dy: 0)), 380)
+        // Straight up or down: by the height, kept to the window's shape.
+        XCTAssertEqual(Float.pulled(was, by: .topRight, CGVector(dx: 0, dy: 30)), 500)
+        XCTAssertEqual(Float.pulled(was, by: .bottomRight, CGVector(dx: 0, dy: -30)), 500)
+        XCTAssertEqual(Float.pulled(was, by: .bottomLeft, CGVector(dx: 0, dy: 30)), 380)
+        // Both ways at once: whichever went further.
+        XCTAssertEqual(Float.pulled(was, by: .bottomRight, CGVector(dx: 60, dy: -10)), 500)
+        XCTAssertEqual(Float.pulled(was, by: .bottomRight, CGVector(dx: 10, dy: -30)), 500)
+    }
+
+    /// Each corner, pressed and dragged outwards and then back in past where
+    /// it began: the corner across from it never moves, and the picture
+    /// keeps its shape.
+    func testEachCornerSizesTheWindowAboutTheOneAcrossFromIt() throws {
+        for corner in Float.Corner.allCases {
+            try withFloat(flicks: true) { _, panel, controls in
+                let was = panel.frame
+                let held = corner.across(of: was)
+                let inside = NSPoint(x: corner.left ? 8 : was.width - 8, y: corner.top ? was.height - 8 : 8)
+                let out = CGVector(dx: corner.left ? -120 : 120, dy: 0)
+                let hand = NSPoint(x: 500, y: 500)
+
+                controls.press(at: inside, pointer: hand)
+                controls.drag(to: NSPoint(x: hand.x + out.dx, y: hand.y))
+                XCTAssertEqual(panel.frame.width, was.width + 120, accuracy: 1, "\(corner) pulled outwards")
+                XCTAssertEqual(corner.across(of: panel.frame).x, held.x, accuracy: 1, "\(corner): the corner across from it moved")
+                XCTAssertEqual(corner.across(of: panel.frame).y, held.y, accuracy: 1, "\(corner): the corner across from it moved")
+                XCTAssertEqual(panel.frame.width / panel.frame.height, was.width / was.height, accuracy: 0.01, "\(corner): squashed")
+
+                // Still the same press: back in, from where it began.
+                controls.drag(to: NSPoint(x: hand.x - out.dx / 2, y: hand.y))
+                XCTAssertEqual(panel.frame.width, was.width - 60, accuracy: 1, "\(corner) pushed inwards")
+                XCTAssertEqual(corner.across(of: panel.frame).x, held.x, accuracy: 1)
+                XCTAssertEqual(corner.across(of: panel.frame).y, held.y, accuracy: 1)
+
+                // Up or down alone sizes it too.
+                controls.drag(to: NSPoint(x: hand.x, y: hand.y + (corner.top ? 50 : -50)))
+                XCTAssertEqual(panel.frame.height, was.height + 50, accuracy: 1, "\(corner) pulled along its side")
+                XCTAssertEqual(corner.across(of: panel.frame).y, held.y, accuracy: 1)
+
+                // No narrower than its least, the far corner still held.
+                controls.drag(to: NSPoint(x: hand.x - out.dx * 10, y: hand.y))
+                XCTAssertEqual(panel.frame.width, panel.minSize.width, accuracy: 1)
+                XCTAssertEqual(corner.across(of: panel.frame).x, held.x, accuracy: 1)
+            }
+        }
+    }
+
+    func testAPressOnItsBodyStillMovesIt() throws {
+        try withFloat(flicks: true) { _, panel, controls in
+            let was = panel.frame
+            let hand = NSPoint(x: 500, y: 500)
+            controls.press(at: NSPoint(x: was.width / 2, y: was.height / 3), pointer: hand)
+            controls.drag(to: NSPoint(x: hand.x + 40, y: hand.y - 25))
+            XCTAssertEqual(panel.frame, was.offsetBy(dx: 40, dy: -25))
+        }
+    }
+
+    /// The close and return buttons sit in the top corners. Shown, they are
+    /// pressed, not the corner under them; what is left of the corner around
+    /// them still sizes.
+    func testAButtonInACornerIsStillAButton() throws {
+        try withFloat(flicks: true) { _, panel, controls in
+            let ground = try XCTUnwrap(controls.superview)
+            controls.layoutSubtreeIfNeeded()
+            let onClose = NSPoint(x: 29, y: controls.bounds.height - 29)
+            let pastIt = NSPoint(x: 6, y: controls.bounds.height - 6)
+            XCTAssertNotNil(Float.corner(at: onClose, in: controls.bounds), "the button is within the corner's reach")
+
+            controls.mouseEntered(with: try XCTUnwrap(NSEvent.enterExitEvent(
+                with: .mouseEntered, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: panel.windowNumber,
+                context: nil, eventNumber: 0, trackingNumber: 0, userData: nil)))
+            XCTAssertTrue(controls.hitTest(controls.convert(onClose, to: ground)) is NSButton)
+            XCTAssertTrue(controls.hitTest(controls.convert(pastIt, to: ground)) === controls)
+            XCTAssertEqual(controls.pointer(at: onClose), .arrow)
+            XCTAssertNotEqual(controls.pointer(at: pastIt), .arrow)
+        }
+    }
+
+    func testThePointerShowsACornerAndOnlyACorner() throws {
+        try withFloat(flicks: true) { _, panel, controls in
+            let size = controls.bounds.size
+            for corner in [NSPoint(x: 6, y: 6), NSPoint(x: size.width - 6, y: 6),
+                           NSPoint(x: 6, y: size.height - 6), NSPoint(x: size.width - 6, y: size.height - 6)] {
+                XCTAssertNotEqual(controls.pointer(at: corner), .arrow, "\(corner)")
+            }
+            XCTAssertEqual(controls.pointer(at: NSPoint(x: size.width / 2, y: size.height / 2)), .arrow)
+            XCTAssertEqual(controls.pointer(at: NSPoint(x: size.width / 2, y: 4)), .arrow)
+
+            // Docked, a sliver of it is on screen and a click brings it
+            // back: nothing there sizes it.
+            panel.setFrameOrigin(NSPoint(x: screen.maxX - 12 - panel.frame.width, y: screen.midY))
+            swipe(controls, by: CGVector(dx: 100, dy: 0), steps: 10)
+            XCTAssertNotNil(controls.docked)
+            XCTAssertEqual(controls.pointer(at: NSPoint(x: 6, y: 6)), .arrow)
+            let docked = panel.frame.size
+            controls.press(at: NSPoint(x: 6, y: 6), pointer: NSPoint(x: 500, y: 500))
+            controls.drag(to: NSPoint(x: 300, y: 500))
+            XCTAssertEqual(panel.frame.size, docked)
+        }
+    }
+
     func testTheLastOfAPinchIsTakenAsTheFingersLift() throws {
         try withFloat(flicks: false) { _, panel, controls in
             let fingers = Fingers()
