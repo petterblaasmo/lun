@@ -775,24 +775,47 @@ enum ExtensionShims {
         const scriptSrc = Object.getOwnPropertyDescriptor(root.HTMLScriptElement.prototype, "src");
         if (scriptSrc && scriptSrc.set) {
           Object.defineProperty(root.HTMLScriptElement.prototype, "src", { ...scriptSrc, set(value) {
-            try { written.set(this, String(value)); } catch (e) {}
+            try { written.set(this, String(value)); tell(this); } catch (e) {}
             return scriptSrc.set.call(this, value);
           } });
         }
         const setAttribute = Element.prototype.setAttribute;
         Object.defineProperty(Element.prototype, "setAttribute", { configurable: true, writable: true, value: function (name, value) {
-          try { if (this instanceof root.HTMLScriptElement && String(name).toLowerCase() === "src") written.set(this, String(value)); } catch (e) {}
+          try { if (this instanceof root.HTMLScriptElement && String(name).toLowerCase() === "src") { written.set(this, String(value)); tell(this); } } catch (e) {}
           return setAttribute.apply(this, arguments);
         } });
         // Element → its address, while the page's policy may still refuse it.
         const ours = new Map();
+        const ownAddress = (node) => {
+          if (!(node instanceof root.HTMLScriptElement) || !written.has(node)) return null;
+          const address = new URL(written.get(node), document.baseURI).href;
+          return address.startsWith(own) ? address : null;
+        };
         const note = (node) => {
           try {
-            if (!(node instanceof root.HTMLScriptElement) || !written.has(node)) return;
-            const address = new URL(written.get(node), document.baseURI).href;
-            if (!address.startsWith(own)) return;
+            const address = ownAddress(node);
+            if (!address) return;
             ours.set(node, address);
             setTimeout(() => ours.delete(node), 30000);
+          } catch (e) {}
+        };
+        // Such a script finds its other files from document.currentScript.src
+        // (webpack's automatic public path does), and in the page's world
+        // WebKit gives it webkit-masked-url://hidden/ there too:
+        // FrankerFaceZ's styles, fonts and chunks pointed nowhere on Twitch.
+        // So the script is told its address: said here, once the element is
+        // in the document with it and before the file can have run, to the
+        // browser's own listener in the page's world, the first on the way
+        // and the last (ExtensionPageScript.addresses), which gives it to
+        // that element's src while it is the script running.
+        const told = new WeakSet();
+        const tell = (node) => {
+          try {
+            if (told.has(node) || !node.isConnected) return;
+            const address = ownAddress(node);
+            if (!address) return;
+            told.add(node);
+            node.dispatchEvent(new CustomEvent("search-script-address", { detail: address }));
           } catch (e) {}
         };
         const watch = (proto, name, all) => {
@@ -800,7 +823,9 @@ enum ExtensionShims {
           if (typeof f !== "function") return;
           Object.defineProperty(proto, name, { configurable: true, writable: true, value: function (...args) {
             if (all) args.forEach(note); else note(args[0]);
-            return f.apply(this, args);
+            const result = f.apply(this, args);
+            if (all) args.forEach(tell); else tell(args[0]);
+            return result;
           } });
         };
         watch(root.Node.prototype, "appendChild");
@@ -809,7 +834,12 @@ enum ExtensionShims {
         for (const name of ["append", "prepend", "after", "before", "replaceWith"]) watch(Element.prototype, name, true);
         if (Element.prototype.insertAdjacentElement) {
           const f = Element.prototype.insertAdjacentElement;
-          Object.defineProperty(Element.prototype, "insertAdjacentElement", { configurable: true, writable: true, value: function (where, node) { note(node); return f.call(this, where, node); } });
+          Object.defineProperty(Element.prototype, "insertAdjacentElement", { configurable: true, writable: true, value: function (where, node) {
+            note(node);
+            const result = f.call(this, where, node);
+            tell(node);
+            return result;
+          } });
         }
         // Taken now: the page can't reach this world, and WebKit gives the
         // browser the tab and frame a message comes from.

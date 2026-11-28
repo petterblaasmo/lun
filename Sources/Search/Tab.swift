@@ -1413,6 +1413,13 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
         if let external = ExtensionExternal.script {
             add(external, .atDocumentStart, mainFrameOnly: false, in: .page)
         }
+        // Every frame, in the page's own world and ahead of its scripts,
+        // wherever extensions' content scripts run: a script one of them
+        // puts in the page is told its own address there (see
+        // ExtensionPageScript.addresses).
+        if #available(macOS 15.4, *), carriesExtensions {
+            add(ExtensionPageScript.addresses, .atDocumentStart, mainFrameOnly: false, in: .page)
+        }
         // Passkeys stand in the page's own world — they replace the page's
         // functions — and reach Search through a bridge in Search's, off or on:
         // an extension's page script can carry the patch either way (see

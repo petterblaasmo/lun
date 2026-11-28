@@ -29,6 +29,19 @@ import WebKit
 // page's own descriptor put back in a microtask), then the file. Nothing
 // else: no inline code, no other extension's file, no frame. Every refusal
 // goes to the extension's error list.
+//
+// And such a script, however it came to run, is told where it is from
+// (addresses, below). In the page's world WebKit gives an extension's
+// address as webkit-masked-url://hidden/, to the extension's own script as
+// well, and a bundle that finds its styles and chunks from
+// document.currentScript.src (webpack's automatic public path) points them
+// nowhere: FrankerFaceZ on Twitch (#228). Chrome gives the address to
+// anyone. Here the element's own `src` gives it only while that element is
+// the script running; the page reading the element gets what it got before.
+// The file is one the manifest opens to that page, or it would not run
+// there, so the page can fetch it by that address already: what a page
+// that sets traps for the running script could now learn, the address of a
+// file open to it, tells it nothing it couldn't ask for.
 
 @available(macOS 15.4, *)
 @MainActor
@@ -140,10 +153,15 @@ enum ExtensionPageScript {
 
     /// What is evaluated: the check, the element, then the file. A source
     /// that starts in strict mode keeps it: its "use strict" goes first.
-    nonisolated static func evaluation(source: String, expected: String, token: String) -> String {
+    /// The element reads its `src` as `address` while the file runs, as it
+    /// would loaded by WebKit (see addresses): put back with currentScript.
+    nonisolated static func evaluation(source: String, expected: String, token: String, address: String = "") -> String {
         let strict = source.range(of: #"^\s*(?:(?://[^\n]*\n|/\*[\s\S]*?\*/)\s*)*(["'])use strict\1"#, options: .regularExpression) != nil
-        let quoted = (try? JSONSerialization.data(withJSONObject: [expected], options: [.withoutEscapingSlashes]))
-            .flatMap { String(data: $0, encoding: .utf8) }.map { String($0.dropFirst().dropLast()) } ?? "\"\""
+        let literal = { (text: String) in
+            (try? JSONSerialization.data(withJSONObject: [text], options: [.withoutEscapingSlashes]))
+                .flatMap { String(data: $0, encoding: .utf8) }.map { String($0.dropFirst().dropLast()) } ?? "\"\""
+        }
+        let quoted = literal(expected), from = literal(address)
         let name = "search-page-script-" + token
         return (strict ? "\"use strict\";" : "") + """
         (() => {
@@ -154,17 +172,61 @@ enum ExtensionPageScript {
           document.dispatchEvent(new Event("\(name)-ask"));
           document.removeEventListener("\(name)", take, true);
           const saved = Object.getOwnPropertyDescriptor(document, "currentScript");
+          const ours = element instanceof HTMLScriptElement && element.isConnected;
+          const src = ours && Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, "src");
+          const savedSrc = ours && Object.getOwnPropertyDescriptor(element, "src");
           queueMicrotask(() => {
             try { if (saved) Object.defineProperty(document, "currentScript", saved); else delete document.currentScript; } catch (e) {}
+            try { if (savedSrc) Object.defineProperty(element, "src", savedSrc); else if (src) delete element.src; } catch (e) {}
           });
-          if (element instanceof HTMLScriptElement && element.isConnected) {
+          if (ours) {
             try { Object.defineProperty(document, "currentScript", { configurable: true, get: () => element }); } catch (e) {}
+            try {
+              if (src && \(from)) Object.defineProperty(element, "src", { configurable: true, enumerable: true,
+                get: () => \(from), set(value) { src.set.call(element, value); } });
+            } catch (e) {}
           }
         })();
         """ + source + "\n;void 0"
     }
 
     nonisolated static let movedMarker = "search: the page has moved on"
+
+    // MARK: - telling it its address
+
+    /// In the page's own world, in every frame, before any of the page's
+    /// scripts — so what it calls is WebKit's, whatever the page replaces
+    /// later, and its listener is the first on the window, where every
+    /// event starts: it stops the event there, and no listener of the
+    /// page's hears an address. A content script's shim says the address on
+    /// the element it has just put in the page (ExtensionShims, `tell`);
+    /// the element then gets a `src` of its own that reads as the address
+    /// while it is document.currentScript, as WebKit's own getter says, and
+    /// as WebKit gives it otherwise. No prototype of the page's is changed.
+    /// The page can say an address for a script of its own; it only fools
+    /// itself, and the first said for an element stays.
+    nonisolated static let addresses = """
+    (() => {
+      const apply = Reflect.apply, define = Object.defineProperty, page = document;
+      const getter = (proto, name) => Object.getOwnPropertyDescriptor(proto, name).get;
+      const current = getter(Document.prototype, "currentScript");
+      const src = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, "src");
+      const target = getter(Event.prototype, "target"), detail = getter(CustomEvent.prototype, "detail");
+      const stop = Event.prototype.stopImmediatePropagation;
+      const told = new WeakSet(), has = told.has, add = told.add;
+      addEventListener("search-script-address", (event) => {
+        apply(stop, event, []);
+        let element, address;
+        // Not a script element, or not an event with a detail: nothing.
+        try { element = apply(target, event, []); address = apply(detail, event, []); apply(src.get, element, []); } catch (e) { return; }
+        if (typeof address !== "string" || apply(has, told, [element])) return;
+        apply(add, told, [element]);
+        define(element, "src", { __proto__: null, configurable: true, enumerable: true,
+          get() { return apply(current, page, []) === element ? address : apply(src.get, element, []); },
+          set(value) { apply(src.set, element, [value]); } });
+      }, true);
+    })();
+    """
 
     // MARK: - the handler
 
@@ -250,8 +312,8 @@ enum ExtensionPageScript {
         ran.insert(key)
         if ran.count > 1000 { ran.removeAll() }
         guard let expected = pageAddress(page) else { throw Refused(why: "the page's address can't be checked") }
-        let script = evaluation(source: source, expected: expected, token: token)
         let address = URL(string: "\(Extensions.scheme)://\(id)/\(relative)")
+        let script = evaluation(source: source, expected: expected, token: token, address: address?.absoluteString ?? "")
         typealias Evaluate = @convention(c) (AnyObject, Selector, NSString, NSURL?, WKFrameInfo?, WKContentWorld, Bool,
                                              @escaping @convention(block) (Any?, Error?) -> Void) -> Void
         let call = unsafeBitCast(web.method(for: evaluate), to: Evaluate.self)
