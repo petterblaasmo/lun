@@ -314,10 +314,11 @@ final class LittleWindow: NSObject, NSWindowDelegate {
     /// Its keys, before the browser's: ⌃Tab goes to the other small
     /// windows, ⌘O keeps it, Escape and ⌘W close it, and the page's own
     /// commands — copying its address, reloading it, zooming it, back and
-    /// forward, previous and next among the small windows — act on this
-    /// page, on whatever keys Settings › Shortcuts gives them. Left to the
-    /// menus, they acted on the browser's tab, in a window behind this one
-    /// or none, and said so there if anywhere. Everything else is the page's.
+    /// forward, printing, sharing and saving it, previous and next among
+    /// the small windows — act on this page, on whatever keys Settings ›
+    /// Shortcuts gives them. Left to the menus, they acted on the browser's
+    /// tab, in a window behind this one or none, and said so there if
+    /// anywhere. Everything else is the page's.
     func take(_ event: NSEvent) -> Bool {
         if let combo = KeyCombo(event: event) {
             let keys = ShortcutStore.shared
@@ -330,6 +331,15 @@ final class LittleWindow: NSObject, NSWindowDelegate {
             if combo == keys.key(for: "view.zoomIn") { tab.magnify(by: 1.1); return true }
             if combo == keys.key(for: "view.zoomOut") { tab.magnify(by: 1 / 1.1); return true }
             if combo == keys.key(for: "view.actualSize") { tab.resetZoom(); return true }
+            // Print, Share, Save Page As and Export as PDF: this page, and
+            // the sheet on this window. Taken here, not left to the menu,
+            // whose items are greyed by the browser's tab, or by there
+            // being no browser window at all.
+            let owner = browser ?? Browsers.acting
+            if combo == keys.key(for: "file.print") { owner.printPage(in: window); return true }
+            if combo == keys.key(for: "file.share") { owner.share(in: window); return true }
+            if combo == keys.key(for: "file.savePage") { owner.savePage(in: window); return true }
+            if combo == keys.key(for: "file.exportPDF") { owner.exportPDF(in: window); return true }
             // An arrow the text system uses moves the caret in this page.
             if combo.movesCaret, tab.typing || tab.built?.inputContext != nil { return false }
             if combo == keys.key(for: "tabs.back") { tab.back(); return true }
@@ -476,9 +486,18 @@ final class LittleWindow: NSObject, NSWindowDelegate {
         window.close()
     }
 
+    /// File's Share, Save Page As, Export as PDF and Print are about this
+    /// page while this window has the keys (Browser.filed): the menus are
+    /// drawn again as it takes them and gives them up, so those items are
+    /// greyed by the page they would act on.
+    func windowDidBecomeKey(_ notification: Notification) {
+        Front.shared.objectWillChange.send()
+    }
+
     /// Stepping away puts the switcher away, and makes this the one ⌃Tab
     /// comes back to first.
     func windowDidResignKey(_ notification: Notification) {
+        Front.shared.objectWillChange.send()
         let switcher = LittleWindow.switcher
         if switcher.home == tab.id { switcher.cancel() }
         guard !kept else { return }
