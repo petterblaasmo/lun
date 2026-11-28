@@ -85,6 +85,17 @@ def main():
              s["address"].endswith("/kettle") and len(urls()) == count, (s["address"], urls()))
 
         sv.sp("select", id=b); time.sleep(0.5)
+        kettle = next(u for u in urls() if u.endswith("/kettle"))
+        cmd_t()
+        s = type_in(kettle + "?utm_source=news&fbclid=IwAR2xYz")
+        t.ok("a link pasted with tracking tags: its open tab, picked",
+             s["picked"] == 0 and s["offers"][0][1] == "open" and s["offers"][0][2].endswith("/kettle"), (s["picked"], s["offers"][:2]))
+        count = len(urls())
+        s = go()
+        t.ok("Return switches to it rather than opening a copy",
+             s["address"].endswith("/kettle") and len(urls()) == count, (s["address"], urls()))
+
+        sv.sp("select", id=b); time.sleep(0.5)
         cmd_t()
         s = type_in("ttle")
         t.ok("words inside a name: listed and picked", s["picked"] == 0 and s["offers"][0][1] == "open", (s["picked"], s["offers"][:2]))
