@@ -197,6 +197,34 @@ final class SharedPinPageTests: XCTestCase {
         }
     }
 
+    /// Float a video when you leave its tab: the page in front here and in
+    /// front there too never leaves the screen, so nothing is asked of it;
+    /// with another tab in front there, its video is asked for as before.
+    func testAVideoStaysInAPageThatStaysInFront() throws {
+        try withSharedPin { browser, pin in
+            let second = addSpace("Second", to: browser)
+            let third = addSpace("Third", to: browser)
+            let floats = browser.prefs.floatsOnLeave
+            defer {
+                if let pending = browser.spaceFloat.pending { browser.spaceFloat.finish(pending) }
+                browser.prefs.floatsOnLeave = floats
+            }
+            browser.prefs.floatsOnLeave = true
+            _ = pin.web
+            pin.playingVideo = true
+
+            // Read ahead of the visit, it opens on its first pin.
+            browser.parked[second.id] = browser.loadRow(second.id)
+            browser.switchSpace(to: second.id)
+            XCTAssertTrue(browser.active === pin)
+            XCTAssertNil(browser.spaceFloat.pending, "In front in both: its video isn't asked to float")
+
+            browser.switchSpace(to: third.id)
+            XCTAssertEqual(browser.active?.isBlank, true)
+            XCTAssertNotNil(browser.spaceFloat.pending, "Behind another tab there: asked, as on leaving any space")
+        }
+    }
+
     // MARK: - asleep and awake
 
     func testAPageAsleepGoesAlongAsleep() throws {
