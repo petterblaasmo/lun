@@ -34,7 +34,9 @@ enum Reader {
         "margin:0 0 8px;letter-spacing:-0.01em}",
         "#office-reader .office-from{font:400 12px/1 -apple-system,sans-serif;color:var(--r-quiet);",
         "margin:0 0 40px;text-transform:uppercase;letter-spacing:.06em}",
-        "#office-reader p{margin:0 0 1.35em}",
+        // Pretty: no word left alone on a paragraph's last line, where WebKit
+        // knows how (it drops the declaration where it doesn't).
+        "#office-reader p{margin:0 0 1.35em;text-wrap:pretty}",
         "#office-reader img,#office-reader video,#office-reader iframe{max-width:100%;",
         "height:auto;border-radius:6px;margin:1.6em 0;display:block}",
         // A photo, a touch dimmer on dark, so it doesn't glare.
