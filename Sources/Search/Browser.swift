@@ -1824,6 +1824,21 @@ final class Browser: NSObject, ObservableObject {
         }
     }
 
+    /// The other browser's cookies, into the store this window's space
+    /// signs in to: its profile's, or its own for a space signed out of the
+    /// others. Not the profile's whichever space is on screen, as history
+    /// is: a sign-in belongs where its pages will open.
+    func takeSignIns(_ found: Chromium.SignIns, then done: @escaping () -> Void) {
+        Store.network()
+        let jar = Spaces.store(for: spaceID).httpCookieStore
+        let group = DispatchGroup()
+        for cookie in found.cookies {
+            group.enter()
+            jar.setCookie(cookie) { group.leave() }
+        }
+        group.notify(queue: .main, execute: done)
+    }
+
     /// Something another browser exported: a bookmarks page, a passwords
     /// file, or Safari's own export (see ImportFile). Read once, never copied.
     func importFile() {
