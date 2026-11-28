@@ -46,6 +46,7 @@ enum KeptSettings {
 
     static func take() {
         guard kept.isEmpty else { return }
+        keep("refusesCookieBanners", \.refusesCookieBanners)
         keep("copiesCapturesOnly", \.copiesCapturesOnly)
         keep("homeTiles", \.homeTiles)
         keep("animatesDownloads", \.animatesDownloads)

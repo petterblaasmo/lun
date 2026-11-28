@@ -1059,6 +1059,7 @@ struct SettingsPanel: View {
                 }
             }))
         case "shield": Switch(on: $prefs.shielded)
+        case "privacy.cookieBanners": Switch(on: $prefs.refusesCookieBanners)
         case "sites.keep": Switch(on: Binding(get: { !prefs.keepsSignIns }, set: { prefs.keepsSignIns = !$0 }))
         case "privacy.clickIDs": Switch(on: $prefs.removesClickIDs)
         case "privacy.gpc": Switch(on: $prefs.sendsPrivacySignal)

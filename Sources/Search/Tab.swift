@@ -48,6 +48,7 @@ enum Web {
             controller.removeScriptMessageHandler(forName: name, contentWorld: .page)
         }
         controller.removeScriptMessageHandler(forName: HoveredLink.name, contentWorld: .defaultClient)
+        controller.removeScriptMessageHandler(forName: Autoconsent.name, contentWorld: Autoconsent.world)
     }
 
     /// What every view says it is after "AppleWebKit … (KHTML, like Gecko)"
@@ -1186,6 +1187,7 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
         controller.add(translateRelay, contentWorld: Web.world, name: TranslateRelay.name)
         meetPiP.tab = self
         controller.add(meetPiP, contentWorld: Web.world, name: MeetPiPRelay.name)
+        controller.addScriptMessageHandler(Autoconsent.shared, contentWorld: Autoconsent.world, name: Autoconsent.name)
         PopupGestureRelay.install(on: controller)
         Shield.shared.protect(controller)
         built = web
@@ -1392,6 +1394,11 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
         // Only while Settings says so: off, pages get nothing at all.
         if HoveredLink.on {
             add(HoveredLink.script, .atDocumentStart, mainFrameOnly: false, in: .defaultClient)
+        }
+        // Only with Refuse cookie banners on: off, pages get nothing at all.
+        // Every frame, in a world of its own (see Autoconsent.swift).
+        if Autoconsent.on, let consent = Autoconsent.script {
+            scripts.append(consent)
         }
         // The main frame only: a middle-click on a link inside an ad iframe is
         // that frame's own business, and its link is not this tab's to open.
