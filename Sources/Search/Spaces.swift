@@ -379,6 +379,15 @@ struct Parked {
     /// on the main thread. Nil when unknown, for the file to say.
     var groups: [TabGroup]? = nil
 
+    /// One tab of the row given another's place: in front if that one was,
+    /// and in its pair (see Browser.bringPinPages).
+    mutating func replaceTab(at index: Int, with tab: Tab) {
+        let old = tabs[index].id
+        tabs[index] = tab
+        if active == old { active = tab.id }
+        for at in splits.indices where splits[at].contains(old) { splits[at].replace(old, with: tab.id) }
+    }
+
     /// The row as it is drawn while it passes during a swipe between spaces,
     /// the same way it is drawn on screen: each group under its heading,
     /// folded or not as it was left — a folded one shows only the tab in
@@ -485,10 +494,27 @@ extension Browser {
         // next space doesn't keep that page running out of sight.
         if prefs.peekStays, peekTab != nil { closePeek() }
         cancelTabEdit()
+        // A pin kept in every space has one page in this window, and it
+        // comes along (see pinPages). The row it comes to is read now if it
+        // never was, for its own tabs for those pins to change places with.
+        if sharesPinPages(in: spaceID) { sharedPinOwner = spaceID }
+        let owner = sharedPinOwner
+        if parked[id] == nil, let owner, owner != id, sharesPinPages(in: id),
+           (owner == spaceID ? tabs : parked[owner]?.tabs ?? []).contains(where: \.everywhere) {
+            parked[id] = loadRow(id, entering: true)
+        }
+        let coming = pinPages(from: owner, to: id)
         let returningVideo = parked[id].map { row in
             guard let active = row.active else { return false }
             let visible = prefs.splitView ? row.splits.first { $0.contains(active) }?.tabs ?? [active] : [active]
-            return visible.contains { $0 == floating || $0 == pictured }
+            return visible.contains { member in
+                // The page of a pin every space shows is in front there as
+                // the one coming with you, not as that row's own tab for it:
+                // in front here too, its video never leaves the screen.
+                let page = row.tabs.first { $0.id == member }?.pinID.flatMap { coming[$0] }
+                let arriving = page?.id ?? member
+                return arriving == floating || arriving == pictured || (page != nil && arriving == activeID)
+            }
         } ?? false
         if !returningVideo { leavingSpace() }
         // Off the main thread: the row is parked in memory just below, and
@@ -501,10 +527,15 @@ extension Browser {
         // stream keeps playing in the space you left, as it does in a tab
         // you left. ⌘⇧M, or its speaker, stops it.
         parked[spaceID] = Parked(tabs: tabs, active: activeID, splits: splits, groups: tabGroups)
+        if !coming.isEmpty, let owner, var row = parked[id] {
+            bringPinPages(coming, from: owner, into: &row)
+            parked[id] = row
+        }
         // Its loose rows, for the space coming in (see rowKey).
         let leaving = looseRow
 
         spaceID = id
+        if sharesPinPages(in: id) { sharedPinOwner = id }
         sitePanelFollowsSpace()
         // A space kept in memory has its groups with it; one that isn't is
         // read whole just below (restoreSession), groups included.
@@ -673,11 +704,85 @@ extension Browser {
             return
         }
         guard let row = parked[id] else { return }
-        let front = row.active.flatMap { active in row.tabs.first { $0.id == active } } ?? row.tabs.first { $0.pin == nil }
-        guard let front, !(prefs.splitView && row.splits.contains { $0.contains(front.id) }) else { return }
+        let own = row.active.flatMap { active in row.tabs.first { $0.id == active } } ?? row.tabs.first { $0.pin == nil }
+        guard let own, !(prefs.splitView && row.splits.contains { $0.contains(own.id) }) else { return }
+        // A pin every space shows: the page that will come with you, not
+        // this row's own tab for it, which woken would be a second page.
+        let owner = sharesPinPages(in: spaceID) ? spaceID : sharedPinOwner
+        let front = own.pinID.flatMap { pinPages(from: owner, to: id)[$0] } ?? own
         if !front.wake() { front.revive() }
         pageAhead = front
         if let window { PaneStage.stages.object(forKey: window)?.show(now: front, fading: true) }
+    }
+
+    /// Whether a space shows the one page this window has for a pin kept in
+    /// every space: a space of the window's profile, signed in with it. One
+    /// with sign-ins of its own keeps a page of its own for the pin, as every
+    /// space did before: the shared page is signed in as the others are.
+    func sharesPinPages(in space: UUID) -> Bool {
+        Spaces.profile(of: space) == profileID && !Spaces.ownsStore(space)
+    }
+
+    /// The pages that go to space `id` from `owner`, the space whose row has
+    /// them, by pin: for each pin every space shows, `owner`'s tab, to take
+    /// the place of `id`'s own. Both spaces signed in with the profile, and
+    /// each tab in the same store as the one it replaces, whatever the spaces
+    /// say. A page `id` has open isn't given up for one asleep: something
+    /// opened it there while the row was parked (an extension, a script), and
+    /// the page that is running is the one to keep.
+    private func pinPages(from owner: UUID?, to id: UUID) -> [UUID: Tab] {
+        guard let owner, owner != id, sharesPinPages(in: id),
+              // Deleted in another window, it is in no list by the time its
+              // row goes (see forget): its tabs' stores still say whose it was.
+              sharesPinPages(in: owner) || Spaces.known[owner] == nil,
+              let theirs = id == spaceID ? tabs : parked[id]?.tabs else { return [:] }
+        var pages: [UUID: Tab] = [:]
+        for tab in owner == spaceID ? tabs : parked[owner]?.tabs ?? [] where tab.everywhere {
+            guard let pin = tab.pinID, let own = theirs.first(where: { $0.everywhere && $0.pinID == pin }),
+                  samePinStore(tab, own), tab.built != nil || own.built == nil else { continue }
+            pages[pin] = tab
+        }
+        return pages
+    }
+
+    /// Whether two tabs for a pin keep their cookies in the same place: the
+    /// same store, or, for a pin that goes between a website and an
+    /// extension's page, each the store its page is given in this profile
+    /// (see Tab.useExtensionConfiguration).
+    private func samePinStore(_ one: Tab, _ other: Tab) -> Bool {
+        guard !one.shy, !other.shy else { return false }
+        if one.store === other.store { return true }
+        let profile = Profiles.store(profileID)
+        func expected(_ tab: Tab) -> Bool {
+            if tab.store === profile { return true }
+            guard let url = tab.pending ?? tab.pageAddress,
+                  let configuration = Browser.extensionConfiguration(for: url) else { return false }
+            return configuration.websiteDataStore === tab.store
+        }
+        return expected(one) && expected(other)
+    }
+
+    /// Each of `pages` put in `row` where its own tab for the pin was, and
+    /// that tab in `owner`'s parked row where the page was: one page for the
+    /// pin, and every row still with a tab for it, as its file and pins.json
+    /// have it. Each row keeps the pin in front, or in its pair, if it was.
+    private func bringPinPages(_ pages: [UUID: Tab], from owner: UUID, into row: inout Parked) {
+        guard var theirs = parked[owner] else { return }
+        for index in row.tabs.indices {
+            let own = row.tabs[index]
+            guard own.everywhere, let pin = own.pinID, let page = pages[pin],
+                  let slot = theirs.tabs.firstIndex(where: { $0 === page }) else { continue }
+            theirs.replaceTab(at: slot, with: own)
+            row.replaceTab(at: index, with: page)
+            // Open as well, it would run on out of sight, in a row that
+            // never comes on screen with it: asleep, with its history.
+            if own.built != nil, !own.asleep {
+                if floating == own.id { land(covering: false) }
+                if pictured == own.id { unpicture() }
+                own.sleep(picture: nil)
+            }
+        }
+        parked[owner] = theirs
     }
 
     /// Where space `index` lies in the map (SideBar.others), in pages from
@@ -1396,6 +1501,19 @@ enum Ask {
 extension Browser {
     /// Close a parked row, bringing any video it owns back first.
     private func closeParkedSpace(_ id: UUID) {
+        // The row that has the pages of the pins every space shows, while a
+        // space with its own sign-ins is on screen: they go to a space that
+        // stays, rather than closing with this one.
+        if sharedPinOwner == id, id != spaceID {
+            sharedPinOwner = nil
+            if let next = spaces.first(where: { $0.id != id && $0.id != spaceID && sharesPinPages(in: $0.id) })?.id {
+                var row = parked[next] ?? loadRow(next)
+                parked[next] = row
+                bringPinPages(pinPages(from: id, to: next), from: id, into: &row)
+                parked[next] = row
+                sharedPinOwner = next
+            }
+        }
         guard let row = parked[id] else { return }
         if let floating, row.tabs.contains(where: { $0.id == floating }) { land(covering: false) }
         if let pictured, row.tabs.contains(where: { $0.id == pictured }) { unpicture() }
