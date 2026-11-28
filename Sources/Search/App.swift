@@ -130,18 +130,21 @@ struct SearchApp: App {
                 StopAgentMenuItem()
             }
             CommandGroup(replacing: .printItem) {
+                // A small window's own page while it has the keys, the tab
+                // in front otherwise (Browser.filed).
+                let page = browser.filed()?.isWeb ?? false
                 Button("Share…") { browser.share() }
                     .shortcut("file.share")
-                    .disabled(!(browser.active?.isWeb ?? false))
+                    .disabled(!page)
                 Button("Save Page As…") { browser.savePage() }
                     .shortcut("file.savePage")
-                    .disabled(!(browser.active?.isWeb ?? false))
+                    .disabled(!page)
                 Button("Export as PDF…") { browser.exportPDF() }
                     .shortcut("file.exportPDF")
-                    .disabled(!(browser.active?.isWeb ?? false))
+                    .disabled(!page)
                 Button("Print…") { browser.printPage() }
                     .shortcut("file.print")
-                    .disabled(!(browser.active?.isWeb ?? false))
+                    .disabled(!page)
             }
             CommandGroup(after: .pasteboard) {
                 // As Safari's: what ⇧⌘V already does while you type, said

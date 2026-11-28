@@ -7339,11 +7339,19 @@ final class Browser: NSObject, ObservableObject {
         typed = ""
     }
 
+    /// The page File's Share, Save Page As, Export as PDF and Print are
+    /// about: a small window's own while that window has the keys, and the
+    /// tab in front otherwise. Always the tab in front, ⌘P in a small
+    /// window printed a page in the window behind it.
+    func filed(in key: NSWindow? = NSApp.keyWindow) -> Tab? {
+        LittleWindow.owning(key)?.tab ?? active
+    }
+
     /// File › Export as PDF…. Unlike Print, this keeps the page's screen
     /// layout and takes its whole current length. WebKit splits only a page
     /// taller than a PDF page can be (200 inches).
-    func exportPDF() {
-        askWhereToSave(active, as: .pdf, ending: "pdf") { [weak self] tab, file in
+    func exportPDF(in key: NSWindow? = NSApp.keyWindow) {
+        askWhereToSave(filed(in: key), as: .pdf, ending: "pdf") { [weak self] tab, file in
             self?.exportPDF(tab, to: file)
         }
     }
@@ -7351,8 +7359,8 @@ final class Browser: NSObject, ObservableObject {
     /// File › Save Page As…: the page with its pictures and styles in one
     /// web archive, as Safari's Save As makes it. It opens again in Search
     /// or Safari, offline too.
-    func savePage() {
-        askWhereToSave(active, as: .webArchive, ending: "webarchive") { [weak self] tab, file in
+    func savePage(in key: NSWindow? = NSApp.keyWindow) {
+        askWhereToSave(filed(in: key), as: .webArchive, ending: "webarchive") { [weak self] tab, file in
             self?.savePage(tab, to: file)
         }
     }
@@ -7443,8 +7451,8 @@ final class Browser: NSObject, ObservableObject {
     }
 
     /// ⌘P. The system's print sheet, where a paginated PDF can also be saved.
-    func printPage() {
-        guard let tab = active, tab.isWeb, let window = NSApp.keyWindow else { return }
+    func printPage(in key: NSWindow? = NSApp.keyWindow) {
+        guard let tab = filed(in: key), tab.isWeb, let window = key else { return }
         Browser.printing(tab.web).runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
     }
 

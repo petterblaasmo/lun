@@ -9,9 +9,13 @@ extension Browser {
     /// corner of the page, about where Safari keeps its Share button: just
     /// under the row when the tabs are across the top, and beside the
     /// column's page otherwise. The window's own corner is the fallback.
-    func share() {
-        guard let url = active?.address, let window = self.window ?? Links.window,
-              let view = active?.built.flatMap({ $0.window === window ? $0 : nil }) ?? window.contentView
+    /// A small window with the keys shares its own page, from its own
+    /// corner (see filed).
+    func share(in key: NSWindow? = NSApp.keyWindow) {
+        let tab = filed(in: key)
+        let little = LittleWindow.owning(key) == nil ? nil : key
+        guard let url = tab?.address, let window = little ?? self.window ?? Links.window,
+              let view = tab?.built.flatMap({ $0.window === window ? $0 : nil }) ?? window.contentView
         else { return }
         // A few points in from the corner, so the arrow points at the page
         // rather than at its edge. Flipped or not, the picker hangs below.
