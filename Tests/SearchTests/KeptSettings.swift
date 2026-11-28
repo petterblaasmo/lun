@@ -84,6 +84,7 @@ enum KeptSettings {
         keep("addressLine", \.addressLine)
         keep("scrollbarsFade", \.scrollbarsFade)
         keep("addressWidth", \.addressWidth)
+        keep("addressPlace", \.addressPlace)
         keep("glass", \.glass)
         keep("glassGrain", \.glassGrain)
         keep("glassClear", \.glassClear)

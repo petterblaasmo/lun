@@ -60,6 +60,10 @@ enum WhatsNew {
         Toggle(title: "AI on pages", detail: "Summarize a page or ask about it. Choose where it runs in Settings › AI.",
                since: "1.0.5", get: { $0.ai }, set: { $0.ai = $1 }),
     ] : []) + [
+        Toggle(title: "Address bar above the page", detail: "Back, forward, reload and the address in a row over the page, also with the sidebar hidden.",
+               since: "0.1.3", get: { $0.addressPlace == .page }, set: { $0.addressPlace = $1 ? .page : .side },
+               shown: { $0.addressLine && $0.sidebar }),
+
         Toggle(title: "Links from pins open in a new tab", detail: "A link clicked in a pinned tab opens in a tab of its own, and the pin stays on its page.",
                since: "1.0.20", get: { $0.pinLinksOpenTabs }, set: { $0.pinLinksOpenTabs = $1 }),
 

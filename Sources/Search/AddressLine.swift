@@ -6,7 +6,9 @@ import SwiftUI
 // #1240), with the site card's button at its end. Off, the address shows
 // when you go to change it, with ⌘L. On, it sits
 // at the top of the column, as tall as a tab and in line with them, or in a
-// row of its own under the tabs across the top (AddressRow).
+// row of its own under the tabs across the top (AddressRow). With the tabs
+// down a side it can go above the page instead, in that same row with the
+// extensions after it (Toolbar.swift).
 //
 // At rest it says where the page is from, as the tab at rest does
 // (AtRestLine): the site in ink, not the whole address in grey, which read
@@ -44,6 +46,13 @@ enum AddressWidth: String, CaseIterable, Identifiable {
         case .medium: return 340
         }
     }
+}
+
+/// Where the address sits with the tabs down a side (Preferences.addressPlace).
+enum AddressPlace: String, CaseIterable, Identifiable {
+    case side, page
+
+    var id: String { rawValue }
 }
 
 struct AddressLine: View {

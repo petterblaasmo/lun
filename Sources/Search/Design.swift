@@ -293,13 +293,14 @@ enum Metrics {
     /// The three doors' own width, without the air after them.
     static let helmDoors: CGFloat = 3 * 26 + 2 * 4
     /// The same two, for the doors Settings leaves shown (idea 815): all
-    /// three unless some are hidden, nothing when none is.
+    /// three unless some are hidden, nothing when none is, or when they are
+    /// in the row above the page (Toolbar).
     @MainActor static func helm(_ prefs: Preferences) -> CGFloat {
-        let n = CGFloat(prefs.helmDoors)
+        let n = CGFloat(prefs.rowHelmDoors)
         return n == 0 ? 0 : n * 26 + (n - 1) * 2 + 8
     }
     @MainActor static func helmDoors(_ prefs: Preferences) -> CGFloat {
-        let n = CGFloat(prefs.helmDoors)
+        let n = CGFloat(prefs.rowHelmDoors)
         return n == 0 ? 0 : n * 26 + (n - 1) * 4
     }
     /// Tabs are a fixed width rather than the width of their titles, so the

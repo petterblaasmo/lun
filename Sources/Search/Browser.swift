@@ -8854,9 +8854,12 @@ final class Browser: NSObject, ObservableObject {
         focusRequest += 1
     }
 
-    /// The address bar is on screen for the page in front, for ⌘L to open.
+    /// The address bar is on screen for the page in front, for ⌘L to open:
+    /// above the page (Toolbar) it is there with the column in icons or
+    /// folded away too, until a page fills the screen.
     private var editsInLine: Bool {
-        prefs.addressLine && !(prefs.sidebar && prefs.iconColumn) && !folded && active.map { !$0.isBlank } ?? false
+        guard prefs.addressLine, active.map({ !$0.isBlank }) ?? false else { return false }
+        return prefs.toolbar ? !frontFillsHere : !(prefs.sidebar && prefs.iconColumn) && !folded
     }
 
     func dismiss() {
