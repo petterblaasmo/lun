@@ -3109,6 +3109,11 @@ final class Browser: NSObject, ObservableObject {
     var rowKeys: [Tab.ID: Int] = [:]
     var lastRowKey = 0
     var parked: [UUID: Parked] = [:]
+    /// The space whose row has the pages of the pins every space shows (see
+    /// pinPages): the one on screen, or, while that is a space with its own
+    /// sign-ins, the last that wasn't. In memory only: a launch starts from
+    /// what each space's row had.
+    var sharedPinOwner: UUID?
     /// How far the column's rows have followed two fingers sideways, and
     /// whether the card for a new space stands in for them (see SpaceSwipe).
     /// The distance changes with every event of the swipe, so it is kept
@@ -3404,6 +3409,7 @@ final class Browser: NSObject, ObservableObject {
             spaceID = shown
         }
         if record == nil { Spaces.current = spaceID }
+        if sharesPinPages(in: spaceID) { sharedPinOwner = spaceID }
         // A website pop-up holds only the page WebKit hands over: no pins,
         // restored tabs or warm pages from other spaces.
         guard !websitePopup else { return }
@@ -7471,13 +7477,15 @@ final class Browser: NSObject, ObservableObject {
     /// A space's row as its session left it, made without touching the one
     /// on screen: tabs with an address and no page yet, which cost next to
     /// nothing until one is looked at (see Spaces.swift).
-    func loadRow(_ space: UUID) -> Parked {
+    /// `entering`: read as the space is gone to, in place of restoreSession:
+    /// with no tabs of its own it opens on an empty one, as it does there.
+    func loadRow(_ space: UUID, entering: Bool = false) -> Parked {
         let saved = twinned(readRow(space), space: space)
         var restored = restoreRow(saved, space: space, groups: saved.groups ?? [])
         // As restoreSession has it: nothing in front after a fresh start, so
         // the space opens on an empty tab beside its pins (see enter); and a
         // tab whose place no longer reads falls to the first that isn't a pin.
-        if saved.active < 0 {
+        if saved.active < 0 || (entering && saved.tabs.isEmpty) {
             restored.active = nil
         } else if restored.active == nil {
             restored.active = restored.tabs.first { $0.pin == nil }?.id ?? restored.tabs.first?.id
