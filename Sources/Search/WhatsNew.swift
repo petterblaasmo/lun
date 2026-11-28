@@ -60,6 +60,9 @@ enum WhatsNew {
         Toggle(title: "AI on pages", detail: "Summarize a page or ask about it. Choose where it runs in Settings › AI.",
                since: "1.0.5", get: { $0.ai }, set: { $0.ai = $1 }),
     ] : []) + [
+        Toggle(title: "Refuse cookie banners", detail: "A site's cookie pop-up is answered No and closed, usually before you see it.",
+               since: "0.1.3", get: { $0.refusesCookieBanners }, set: { $0.refusesCookieBanners = $1 }),
+
         Toggle(title: "Links from pins open in a new tab", detail: "A link clicked in a pinned tab opens in a tab of its own, and the pin stays on its page.",
                since: "1.0.20", get: { $0.pinLinksOpenTabs }, set: { $0.pinLinksOpenTabs = $1 }),
 

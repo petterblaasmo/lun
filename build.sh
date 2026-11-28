@@ -214,6 +214,10 @@ mv "$APP/Contents/MacOS/$NAME.sdk" "$APP/Contents/MacOS/$NAME"
 cp Search.sdef "$APP/Contents/Resources/"
 # Settings › About › Licences reads these; they have to come with every copy.
 cp LICENSE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
+# DuckDuckGo's cookie-banner script, its rules and its licence
+# (Autoconsent.swift), read only while Refuse cookie banners is on.
+mkdir -p "$APP/Contents/Resources/Autoconsent"
+cp Autoconsent/autoconsent.js Autoconsent/rules.json Autoconsent/LICENSE "$APP/Contents/Resources/Autoconsent/"
 
 # Symbols stay out of the app. The linker leaves every function's name and a
 # map back to the source in the binary — 15,000 entries, more than half of
