@@ -2240,10 +2240,8 @@ struct TabMenu: View {
                     }
                 }
             }
-            if browser.prefs.littleLinks {
-                Button("Open in Small Window") { browser.openInLittleWindow(tab) }
-                    .disabled(!browser.liftable(tab))
-            }
+            Button("Open in Small Window") { browser.openInLittleWindow(tab) }
+                .disabled(!browser.liftable(tab))
         }
         Divider()
         Button("Rename") { browser.beginTabRename(tab) }

@@ -105,11 +105,12 @@ saved = subprocess.run(["pbpaste"], capture_output=True).stdout
 try:
     sv.setup(); sv.launch()
 
-    # Small windows off, as they are unless turned on: no Open in Small
-    # Window in the Tabs menu (nor in a tab's menu, built the same way).
+    # Small windows for links off, as Lun fixes them (RetiredSettings):
+    # Open in Small Window is in the Tabs menu all the same (and in a
+    # tab's menu, SmallWindowMenuTests).
     def tabs_menu(): return sv.cmd({"do": "menus"})["menus"].get("Tabs", [])
-    t.ok("small windows off: no Open in Small Window in the Tabs menu",
-         "Open in Small Window" not in tabs_menu() and "Duplicate Tab" in tabs_menu(), tabs_menu())
+    t.ok("small windows off: Open in Small Window in the Tabs menu",
+         "Open in Small Window" in tabs_menu() and "Duplicate Tab" in tabs_menu(), tabs_menu())
 
     # A tab already in the row, lifted into a small window, then kept back.
     page = f"{sv.BASE}/aside"

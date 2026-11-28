@@ -409,14 +409,13 @@ struct SearchApp: App {
                 Button("Duplicate Tab") { browser.duplicate() }
                     .shortcut("tabs.duplicate")
                     .disabled(!(browser.active?.isWeb ?? false))
-                // Only with small windows turned on in Settings › General:
-                // someone who never asked for them never sees them.
-                if browser.prefs.littleLinks {
-                    Button("Open in Small Window") {
-                        if let tab = browser.active { browser.openInLittleWindow(tab) }
-                    }
-                        .disabled(!(browser.active.map(browser.liftable) ?? false))
+                // Always offered: the switch that sent links from other apps
+                // to a small window is gone (RetiredSettings), and this is
+                // how a page gets one now.
+                Button("Open in Small Window") {
+                    if let tab = browser.active { browser.openInLittleWindow(tab) }
                 }
+                    .disabled(!(browser.active.map(browser.liftable) ?? false))
                 Button("Copy Address") { browser.copyAddress() }
                     .shortcut("tabs.copyAddress")
                     .disabled(!(browser.active?.isWeb ?? false))
