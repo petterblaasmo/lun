@@ -301,15 +301,17 @@ def case_slice2(t):
     a = page("a"); b = page("b"); c = page("c")
     sp("select", id=a); time.sleep(0.5)
     st = sp("state"); fa = frames(st).get(a)
-    t.ok("one page fills the stage", fa is not None and fa["x"] == 0, st["paneFrames"])
+    # Lun insets its pages from the window's edge: the stage starts at x0.
+    t.ok("one page fills the stage", fa is not None and fa["x"] >= 0, st["paneFrames"])
+    x0 = fa["x"]
     full = fa["width"]
     st = sp("pair", id=b, **{"with": a}, side="right"); time.sleep(0.8); st = sp("state")
     f = frames(st)
-    t.ok("two pages, side by side", a in f and b in f and f[a]["x"] == 0 and f[b]["x"] > f[a]["width"], st["paneFrames"])
-    gut = f[b]["x"] - f[a]["width"]
+    t.ok("two pages, side by side", a in f and b in f and f[a]["x"] == x0 and f[b]["x"] > x0 + f[a]["width"], st["paneFrames"])
+    gut = f[b]["x"] - (x0 + f[a]["width"])
     t.ok("a 7 pt gutter", abs(gut - 7) < 0.6, gut)
     t.ok("even halves", abs(f[a]["width"] - f[b]["width"]) < 1, (f[a]["width"], f[b]["width"]))
-    x = f[a]["width"] + 3.5; y = f[a]["y"] + f[a]["height"] / 2
+    x = x0 + f[a]["width"] + 3.5; y = f[a]["y"] + f[a]["height"] / 2
     # drag the divider left, hold
     st = sp("mouse", points=[[x, y], [x - 60, y], [x - 120, y], [x - 160, y]], hold=True, to="view"); time.sleep(0.3); st = sp("state")
     m = frames(st)
@@ -320,16 +322,16 @@ def case_slice2(t):
     t.ok("released: told once", st["splits"][0]["fraction"] < 0.45, st["splits"][0]["fraction"])
     t.ok("released: pages stay put", abs(e[a]["width"] - m[a]["width"]) < 1.5, (m[a]["width"], e[a]["width"]))
     # snap at even
-    x2 = e[a]["width"] + 3.5
+    x2 = x0 + e[a]["width"] + 3.5
     room = full - 7
-    st = sp("mouse", points=[[x2, y], [room / 2 + 3.5 - 30, y], [room / 2 + 3.5 - 10, y], [room / 2 + 3.5 - 10, y]], to="view"); time.sleep(0.3); st = sp("state")
+    st = sp("mouse", points=[[x2, y], [x0 + room / 2 + 3.5 - 30, y], [x0 + room / 2 + 3.5 - 10, y], [x0 + room / 2 + 3.5 - 10, y]], to="view"); time.sleep(0.3); st = sp("state")
     t.ok("snaps to even within 15 pt", abs(st["splits"][0]["fraction"] - 0.5) < 1e-6, st["splits"][0]["fraction"])
     # never narrower than 250
-    x3 = frames(st)[a]["width"] + 3.5
+    x3 = x0 + frames(st)[a]["width"] + 3.5
     st = sp("mouse", points=[[x3, y], [200, y], [20, y], [20, y]], to="view"); time.sleep(0.3); st = sp("state")
     t.ok("a page stays at least 250 pt", abs(frames(st)[a]["width"] - 250) < 1, frames(st)[a]["width"])
     # double-click evens out
-    x4 = frames(st)[a]["width"] + 3.5
+    x4 = x0 + frames(st)[a]["width"] + 3.5
     st = sp("mouse", points=[[x4, y], [x4, y]], clicks=2, to="view"); time.sleep(0.4); st = sp("state")
     t.ok("double-click evens out", abs(st["splits"][0]["fraction"] - 0.5) < 1e-6, st["splits"][0]["fraction"])
     # click in the other page focuses it
