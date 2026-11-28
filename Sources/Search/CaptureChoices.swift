@@ -143,3 +143,41 @@ enum CaptureChoices {
         return invalidated
     }
 }
+
+/// The cameras and microphones a page may list before it has asked for one
+/// (enumerateDevices): by what navigator.permissions tells it, as in Chrome.
+/// WebKit keeps their names and ids back until the page has been given one
+/// in this load, whatever the site is always allowed. Google Meet, told
+/// "granted", looked for them, found one of each with no name and said none
+/// were detected, until a load in which Lun asked. A site not answered yet,
+/// a refused one and a private tab are shown one nameless camera and one
+/// microphone, as before.
+enum CaptureDevices {
+    /// Before a page's view is made, which is when WebKit reads the flag.
+    static func apply(to preferences: WKPreferences) {
+        let set = NSSelectorFromString("_setEnabled:forFeature:")
+        guard let afterCapture, preferences.responds(to: set) else { return }
+        typealias Setter = @convention(c) (AnyObject, Selector, Bool, AnyObject) -> Void
+        unsafeBitCast(preferences.method(for: set), to: Setter.self)(preferences, set, false, afterCapture)
+    }
+
+    /// Whether names wait for a capture, as this WebKit has it — nil where
+    /// it has no such flag. For the tests.
+    static func waitForCapture(_ preferences: WKPreferences) -> Bool? {
+        let get = NSSelectorFromString("_isEnabledForFeature:")
+        guard let afterCapture, preferences.responds(to: get) else { return nil }
+        typealias Getter = @convention(c) (AnyObject, Selector, AnyObject) -> Bool
+        return unsafeBitCast(preferences.method(for: get), to: Getter.self)(preferences, get, afterCapture)
+    }
+
+    /// One of WebKit's feature flags, outside the public framework: looked
+    /// up once, as FrameRate's is, and a WebKit without it is left alone.
+    private static let afterCapture: NSObject? = {
+        let list = NSSelectorFromString("_features")
+        let type: AnyObject = WKPreferences.self
+        guard type.responds(to: list),
+              let all = type.perform(list)?.takeUnretainedValue() as? [NSObject]
+        else { return nil }
+        return all.first { $0.value(forKey: "key") as? String == "ExposeCaptureDevicesAfterCaptureEnabled" }
+    }()
+}

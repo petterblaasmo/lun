@@ -36,6 +36,17 @@ def until(cond, within=6):
     return cond()
 
 
+# What Meet does on load before it asks for anything: lists the devices.
+DEVICES = ("window.D = null; navigator.mediaDevices.enumerateDevices().then(function (d) {"
+           " window.D = d.map(function (x) { return x.kind + '|' + (x.deviceId ? 'id' : '') + '|' + x.label; }); }); 1")
+
+
+def devices(id, kind):
+    sv.ev(id, DEVICES)
+    until(lambda: sv.ev(id, "JSON.stringify(D)") not in (None, "null"), 4)
+    return [d for d in json.loads(sv.ev(id, "JSON.stringify(D)") or "[]") if d.startswith(kind)]
+
+
 QUERY = ("window.Q = {}; window.changes = [];"
          "['camera','microphone'].forEach(function (n) { navigator.permissions.query({name: n}).then(function (s) {"
          " Q[n] = s.state; s.onchange = function () { changes.push(n + ' ' + s.state); Q[n] = s.state; }; }); }); 1")
@@ -59,9 +70,19 @@ try:
     t.ok("a site always let in to the camera hears 'granted'", q.get("camera") == "granted", q)
     t.ok("a refused microphone is not told 'denied' before it asks (WebKit keeps that back)", q.get("microphone") == "prompt", q)
 
+    # Told "granted", it can find the camera without asking first. Meet
+    # said none was detected: the list had one camera, with no name or id.
+    cameras = devices(known, "videoinput")
+    t.ok("and can list the cameras by name before it has asked for one",
+         len(cameras) > 1 and all("|id|Mock video device" in c for c in cameras), cameras)
+    t.ok("but not the microphones it is refused", devices(known, "audioinput") == ["audioinput||"], devices(known, "audioinput"))
+
     fresh = sv.sp("open", url=f"{OTHER}/fresh")["resultID"]; time.sleep(0.7)
     q = states(fresh)
     t.ok("a site never answered hears 'prompt' for both", q == {"camera": "prompt", "microphone": "prompt"}, q)
+    t.ok("and is shown one camera and one microphone, with no name or id",
+         devices(fresh, "videoinput") + devices(fresh, "audioinput") == ["videoinput||", "audioinput||"],
+         devices(fresh, "videoinput") + devices(fresh, "audioinput"))
 
     # It asks; Search asks you; "always allow": the page hears it changed.
     sv.ev(fresh, "navigator.mediaDevices.getUserMedia({video: true}).then(function (s) { window.got = s.getVideoTracks()[0].label; s.getTracks().forEach(function (x) { x.stop(); }); }, function (e) { window.got = 'error ' + e.name; }); 1")
@@ -74,6 +95,17 @@ try:
          until(lambda: "camera granted" in json.loads(sv.ev(fresh, "JSON.stringify(changes)")), 5), sv.ev(fresh, "JSON.stringify(changes)"))
     q = states(fresh)
     t.ok("asked again: camera 'granted', microphone still 'prompt'", q == {"camera": "granted", "microphone": "prompt"}, q)
+
+    # The saved answer alone, in a load where nothing is asked for: the
+    # reload Meet failed on.
+    sv.ev(fresh, "location.reload(); 1"); time.sleep(1.5)
+    cameras = devices(fresh, "videoinput")
+    t.ok("after a reload the cameras are listed by name with no question", len(cameras) > 1 and all("|id|Mock video device" in c for c in cameras), cameras)
+
+    # A private tab leaves nothing behind and is told nothing a site was
+    # always allowed, the names of the cameras included.
+    shy = sv.cmd({"do": "open", "url": f"{sv.BASE}/shy", "private": True})["id"]; time.sleep(0.7)
+    t.ok("a private tab of the allowed site is shown no camera's name", devices(shy, "videoinput") == ["videoinput||"], devices(shy, "videoinput"))
 finally:
     t.done(); sv.finish()
 sys.exit(1 if t.failed else 0)

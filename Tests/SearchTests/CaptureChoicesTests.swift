@@ -3,6 +3,17 @@ import WebKit
 @testable import Search
 
 final class CaptureChoicesTests: XCTestCase {
+    /// What a page may list of the cameras goes by its permission, not by
+    /// whether it has captured in this load (Tests/capture_permission_state.py
+    /// has what the page then sees). A plain view is as WebKit makes it.
+    @MainActor func testAPagesDevicesAreListedByPermission() throws {
+        TestWorld.enter()
+        try XCTSkipIf(CaptureDevices.waitForCapture(WKPreferences()) == nil, "this WebKit has no such flag")
+        XCTAssertEqual(CaptureDevices.waitForCapture(WKPreferences()), true)
+        XCTAssertEqual(CaptureDevices.waitForCapture(Web.configuration().preferences), false)
+        XCTAssertEqual(CaptureDevices.waitForCapture(Web.configuration(shy: true).preferences), false)
+    }
+
     func testChoicesForIndividualAndCombinedRequestsStaySeparate() throws {
         let name = "CaptureChoicesTests.\(UUID().uuidString)"
         let settings = try XCTUnwrap(UserDefaults(suiteName: name))
