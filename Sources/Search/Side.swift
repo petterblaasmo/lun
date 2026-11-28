@@ -566,6 +566,12 @@ struct SideBar: View {
         .overlay(alignment: .topLeading) {
             SwipeCard(side: browser.swipeSide, browser: browser, at: spaceAt, width: width)
         }
+        // How far there is to go for it, at the edge it comes from: a disc
+        // that is all that draws again as the fingers go (CardDisc). Not
+        // in the column of icons, which is no wider than the disc.
+        .overlay(alignment: .trailing) {
+            if !icons { CardDisc(pull: browser.cardPull) }
+        }
             // The pages are the column's whole width, each with its own margin.
             .padding(.horizontal, -inset)
             // The room there is, and never more: another space's rows, drawn

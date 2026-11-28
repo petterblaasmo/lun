@@ -76,6 +76,44 @@ final class SpaceSwipe {
         browser.prefs.sidebar ? 50 : Metrics.strip * 0.6
     }
 
+    /// How much of the fingers' travel the rows take toward the card for a
+    /// new space: heavily, for the stroke that brings it to be one that was
+    /// meant (#246). 0.6 until then, and the card came at the end of a
+    /// stroke to the last space that was only a little long.
+    static let cardWeight: CGFloat = 0.45
+
+    /// How far the rows stand from their place where letting go brings the
+    /// card: 60 points in the column. It is where they stood before, when
+    /// they took 0.6 of a stroke twice `enough` long; the place is the
+    /// same and the way there a third longer, 133 points of the fingers'.
+    static func cardReach(_ enough: CGFloat) -> CGFloat {
+        2 * enough * 0.6
+    }
+
+    /// How far a stroke toward the card has come, for `travel` of the
+    /// fingers that way: 0 before it sets off, 1 where letting go brings
+    /// the card and from there on. One number for all of it, so they can't
+    /// disagree: whether the card comes (ended), the disc's ring and its
+    /// fill (CardDisc), and the tap as it closes (CardArming).
+    static func cardProgress(travel: CGFloat, enough: CGFloat) -> CGFloat {
+        guard enough > 0 else { return 0 }
+        return min(1, abs(travel) * cardWeight / cardReach(enough))
+    }
+
+    /// Whether the stroke toward the card has closed, for one tap as it does.
+    private var arming = CardArming()
+    /// The tap: the one a dragged tab gives as it crosses into place. A
+    /// test counts them here.
+    var tap: () -> Void = { NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now) }
+
+    /// How far the stroke has come toward the card, told to the disc, with
+    /// a tap as it closes. Told only as it changes: nothing is drawn for a
+    /// stroke between two spaces.
+    private func pull(_ browser: Browser, _ progress: CGFloat) {
+        if browser.cardPull.progress != progress { browser.cardPull.progress = progress }
+        if arming.closes(at: progress) { tap() }
+    }
+
     /// A page of the spaces: the column's width, or the bar's height.
     static func page(_ browser: Browser) -> CGFloat {
         browser.prefs.sidebar ? browser.prefs.columnWidth : Metrics.strip
@@ -488,6 +526,8 @@ final class SpaceSwipe {
         axis = .undecided
         gathered = .zero
         trail = []
+        // A stroke that never heard its end leaves no disc behind.
+        if let browser { pull(browser, 0) }
         // Just after a space came, the hand's next stroke is let go by if
         // it goes back the way it came (moved): that is the hand coming back.
         // On the same way it is the next space, quickly — every stroke let
@@ -536,6 +576,8 @@ final class SpaceSwipe {
             base = browser.spaceSwipe == 0 ? 0 : browser.spaceSwipe - resisted(gathered.width, in: browser)
         }
         browser.spaceSwipe = base + resisted(gathered.width, in: browser)
+        pull(browser, toCard(gathered.width, in: browser)
+             ? SpaceSwipe.cardProgress(travel: gathered.width, enough: SpaceSwipe.enough(for: browser)) : 0)
         let now = CACurrentMediaTime()
         trail.append((now, browser.spaceSwipe))
         trail.removeAll { now - $0.at > 0.08 }
@@ -559,6 +601,8 @@ final class SpaceSwipe {
         let held = holding
         tracking = false
         holding = false
+        // The disc goes as the fingers do, whatever comes of the stroke.
+        if let browser { pull(browser, 0) }
         guard let browser, axis == .across, held else { return }
         let travel = gathered.width
         let speed = fingerSpeed()
@@ -567,9 +611,10 @@ final class SpaceSwipe {
         // as the fingers let go. Only the distance counted, and a quick
         // stroke, over before it had gone far, snapped back as if not made.
         let flick = abs(travel) >= 12 && abs(speed) > 400 && (speed < 0) == (travel < 0)
-        // The card for a new space takes a longer stroke, and no flick.
+        // The card for a new space takes a longer stroke, and no flick: as
+        // far as closes the disc's ring (cardProgress).
         let far = toCard(travel, in: browser)
-            ? abs(travel) >= 2 * SpaceSwipe.enough(for: browser)
+            ? SpaceSwipe.cardProgress(travel: travel, enough: SpaceSwipe.enough(for: browser)) >= 1
             : abs(travel) >= SpaceSwipe.enough(for: browser) || flick
         // Fingers to the left, or up, bring what is next.
         let target = cancelled || !far ? here : here + (travel < 0 ? 1 : -1)
@@ -600,7 +645,7 @@ final class SpaceSwipe {
     private func resisted(_ travel: CGFloat, in browser: Browser) -> CGFloat {
         let here = shown(browser)
         let blocked = (travel > 0 && here == 0 && browser.profileBeyond(-1) == nil) || (travel < 0 && here >= furthest(browser))
-        return blocked ? travel / 4 : toCard(travel, in: browser) ? travel * 0.6 : travel
+        return blocked ? travel / 4 : toCard(travel, in: browser) ? travel * SpaceSwipe.cardWeight : travel
     }
 
     /// Fingers going from the last space toward the card for a new one.
@@ -879,6 +924,71 @@ final class SwipeOffset: ObservableObject {
 /// it, and the rows waited up to a tenth of a second to follow the fingers.
 final class SwipeSide: ObservableObject {
     @Published var value = 0
+}
+
+/// How far a stroke toward the card for a new space has come, 0 to 1
+/// (`Browser.cardPull`, SpaceSwipe.cardProgress). Kept apart, for the disc
+/// alone (CardDisc): it changes with every event of that stroke, and the
+/// disc is all that is drawn again for it.
+final class CardPull: ObservableObject {
+    @Published var progress: CGFloat = 0
+}
+
+/// A stroke toward the card closing: true once each time it comes to where
+/// letting go brings the card, not again until it has turned back from
+/// there and closed anew. One tap per arming (SpaceSwipe.pull).
+struct CardArming {
+    private(set) var armed = false
+
+    mutating func closes(at progress: CGFloat) -> Bool {
+        let now = progress >= 1
+        defer { armed = now }
+        return now && !armed
+    }
+}
+
+/// The disc a stroke toward the card for a new space brings in, at the
+/// edge the card comes from: the back swipe's disc (Stage.swift), with a +.
+/// A line of ink winds round it as the fingers go and unwinds if they turn
+/// back; where it closes, letting go brings the card, and the disc says so
+/// by filling in, the + in the ground's colour on ink. Without it nothing
+/// said how far was far enough, and letting go was the only way to find out.
+///
+/// It follows the fingers directly, as that disc does, so with Reduce
+/// Motion on it still winds; the fill comes at once either way. Only this
+/// view watches the stroke (CardPull).
+struct CardDisc: View {
+    @ObservedObject var pull: CardPull
+
+    var body: some View {
+        let progress = pull.progress
+        let armed = progress >= 1
+        ZStack {
+            if progress > 0 {
+                ZStack {
+                    if armed { Circle().fill(Palette.ink) }
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(Palette.ink, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .padding(0.75)
+                    Image(systemName: "plus")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(armed ? Palette.ground : Palette.ink.opacity(0.4 + 0.6 * progress))
+                }
+                .frame(width: 52, height: 52)
+                .elevated(.float, in: Circle())
+                // A little way in from the edge, and further as it closes.
+                .scaleEffect(0.86 + 0.14 * progress)
+                .offset(x: -(10 + 14 * progress))
+                // Its frame is its own size, so it grows from where it is.
+                .transition(.pop)
+            }
+        }
+        .animation(Motion.dissolve, value: progress > 0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
 }
 
 /// Out of sight while a swipe is under way.

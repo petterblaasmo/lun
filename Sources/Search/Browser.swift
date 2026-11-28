@@ -3118,6 +3118,9 @@ final class Browser: NSObject, ObservableObject {
     /// rows are drawn, is kept apart too (SwipeSide).
     let spaceSwipeOffset = SwipeOffset()
     let swipeSide = SwipeSide()
+    /// How far a stroke past the last space has come toward the card for
+    /// a new one, for its disc alone (CardDisc).
+    let cardPull = CardPull()
     /// Told when a space is drawn out of its order in the map (comingSlot).
     let mapDrawn = SwipeSide()
     /// How far the column's rows are scrolled, in which space, and how far
