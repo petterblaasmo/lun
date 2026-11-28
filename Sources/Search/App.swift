@@ -738,11 +738,11 @@ struct ContentView: View {
                                                                     : -(laidLeading - laidTrailing) / 2,
                                                      height: -roomed.height),
                                       scale: displayScale))
-                .modifier(CardEdge(on: (cards && !browser.prefs.splitView) || topCard, insets: cardInsets,
+                .modifier(CardEdge(on: (cards && !browser.prefs.splitView) || topCard || rowsInCard, insets: cardInsets,
                                    corner: cardCorner, scale: displayScale))
                 // The page's own view cut to the card, on the same frames.
                 .modifier(CardClip(card: pageInsets, corner: cardCorner, scale: displayScale,
-                                   on: cards || topCard, squareTop: topCard, centred: !edgeHeld))
+                                   on: cards || topCard, squareTop: topCard || rowsInCard, centred: !edgeHeld))
 
             // An extension's side panel, on the side away from the column
             // (see SidePanel.swift); two pages in Split View share what's left.
@@ -772,15 +772,33 @@ struct ContentView: View {
                     .transition(.opacity)
             }
 
-            // The bookmarks bar, under the strip or beside the column's top —
-            // there on the window's ground above the page's card, and no wider.
+            // The pointer reaching an auto-hidden sidebar's edge brings it
+            // over the rows above the page.
+            let side = chrome.width + (browser.folded && browser.prefs.sideHides ? Fold.hiddenEdge : 0)
+            // In the card they stop where it does, short of the side panel.
+            let far = farGap + (rowsInCard ? panelRoom : 0)
+
+            // The address above the page with the tabs down a side
+            // (Toolbar.swift): the page's card's first row, or across the
+            // page edge to edge.
+            if toolbarShown {
+                Toolbar(browser: browser, prefs: browser.prefs, inCard: rowsInCard)
+                    .padding(.leading, sideOnRight ? far : side)
+                    .padding(.trailing, sideOnRight ? side : far)
+                    .padding(.top, rowsTop)
+                    .zIndex(2)
+                    .transition(.opacity)
+            }
+
+            // The bookmarks bar, under the strip, the row above, or beside
+            // the column's top — there on the window's ground above the
+            // page's card, or on the page's own under its address, and no
+            // wider.
             if barShown {
-                // The pointer reaching an auto-hidden sidebar's edge brings it over the bar.
-                let side = chrome.width + (browser.folded && browser.prefs.sideHides ? Fold.hiddenEdge : 0)
-                BookmarksBar(browser: browser, bookmarks: browser.bookmarks, onFrame: cards)
-                    .padding(.leading, sideOnRight ? farGap : side)
-                    .padding(.trailing, sideOnRight ? side : farGap)
-                    .padding(.top, band + addressRow)
+                BookmarksBar(browser: browser, bookmarks: browser.bookmarks, onFrame: cards && !toolbarShown)
+                    .padding(.leading, sideOnRight ? far : side)
+                    .padding(.trailing, sideOnRight ? side : far)
+                    .padding(.top, rowsTop + band + addressRow + toolbarHeight)
                     .transition(.opacity)
             }
         }
@@ -817,7 +835,7 @@ struct ContentView: View {
             withTransaction(still) {
                 if away, sidebar {
                     // Edge to edge once folded: the whole window, at once.
-                    room = CGSize(width: foldedWidth, height: cards && !barShown ? 0 : roomed.height)
+                    room = CGSize(width: foldedWidth, height: cards && !barShown && !toolbarShown ? 0 : roomed.height)
                     farRoom = 0
                 } else {
                     room = chrome
@@ -887,17 +905,19 @@ struct ContentView: View {
 
     /// What the column and the strip take from the page right now: animated
     /// as they come and go. With the page as a card, the column folded away
-    /// still leaves the card's gap, and so does the top, unless the bookmarks
-    /// bar is there.
+    /// still leaves the card's gap, and so does the top, unless the row above
+    /// the page or the bookmarks bar is there: beside the card the bar takes
+    /// the gap's place, inside it (`rowsInCard`) the rows come after it.
     private var chrome: CGSize {
         let bar = barShown ? BookmarksBar.height : 0
         if cards {
             // Folded away, edge to edge (see `edgeToEdge`).
             let gap = edgeToEdge ? 0 : Metrics.cardGap
+            let top = toolbarHeight + bar
             return CGSize(width: sidebar ? sideWidth : gap,
-                          height: barShown ? bar : gap)
+                          height: rowsInCard ? gap + top : top > 0 ? top : gap)
         }
-        return CGSize(width: sidebar ? sideWidth : topCard ? Metrics.cardGap : 0, height: band + addressRow + bar)
+        return CGSize(width: sidebar ? sideWidth : topCard ? Metrics.cardGap : 0, height: band + addressRow + toolbarHeight + bar)
     }
 
     /// The page as a card under the tabs across the top (Browser.standsOnCard).
@@ -924,7 +944,8 @@ struct ContentView: View {
     /// the column and the strip take, and the gaps beyond.
     private var cardInsets: EdgeInsets {
         let far = farGap + panelRoom
-        return EdgeInsets(top: topCard ? band : chrome.height, leading: sideOnRight ? far : chrome.width,
+        // The rows above the page inside the card: the card starts above them.
+        return EdgeInsets(top: topCard ? band : rowsInCard ? rowsTop : chrome.height, leading: sideOnRight ? far : chrome.width,
                           bottom: farGap, trailing: sideOnRight ? chrome.width : far)
     }
 
@@ -990,7 +1011,7 @@ struct ContentView: View {
     private var sidePanel: some View {
         SidePanelBeside(browser: browser, prefs: browser.prefs, onLeft: sideOnRight,
                         card: panelCard, width: panelWidth, onDrag: { [edges] in edges.panel = $0 })
-            .padding(.top, topCard ? band : chrome.height)
+            .padding(.top, cardInsets.top)
             .padding(.bottom, farGap)
             .padding(sideOnRight ? .leading : .trailing, farGap)
             .frame(maxWidth: .infinity, maxHeight: .infinity,
@@ -1004,6 +1025,28 @@ struct ContentView: View {
         browser.bookmarksBarForTab && !browser.prefs.sideBookmarks && !browser.bookmarks.isEmpty
             && fullscreenTab == nil
     }
+
+    /// The row above the page is up (Preferences.toolbar): not while a page
+    /// fills the screen.
+    private var toolbarShown: Bool {
+        browser.prefs.toolbar && fullscreenTab == nil
+    }
+
+    private var toolbarHeight: CGFloat {
+        guard toolbarShown else { return 0 }
+        return rowsInCard ? Toolbar.inCard : Toolbar.height
+    }
+
+    /// The address above the page, and the bookmarks bar under it, inside
+    /// the page's card as its first rows (see Toolbar), not on the window's
+    /// ground above it: as under the tabs across the top (`topCard`).
+    private var rowsInCard: Bool {
+        toolbarShown && cards && !edgeToEdge
+    }
+
+    /// Where those rows start: at the card's top, a gap down from the
+    /// window's.
+    private var rowsTop: CGFloat { rowsInCard ? Metrics.cardGap : 0 }
 
     /// The room the page is laid out to leave them, which is not animated.
     private var roomed: CGSize { room ?? chrome }
@@ -1105,8 +1148,10 @@ struct ContentView: View {
     /// what it is asked of is said. With no address in sight, at the top of
     /// the page, in the middle.
     private var siteQuestions: some View {
+        // Above the page, the address is there with the column out or away.
         let beside = browser.prefs.sidebar && !browser.folded && !browser.prefs.iconColumn && fullscreenTab == nil
-        let row = addressRow > 0
+            && !toolbarShown
+        let row = addressRow > 0 || toolbarShown
         return VStack(alignment: beside && sideOnRight ? .trailing : .leading, spacing: 8) {
             if let ask = browser.asking, !ask.screen {
                 CaptureQuestion(browser: browser, ask: ask)
@@ -1118,8 +1163,10 @@ struct ContentView: View {
             }
         }
         .padding(.top, beside ? Metrics.strip + (browser.prefs.addressLine ? browser.prefs.sideRow + 8 : 0)
-                 : row ? band + addressRow + 4 : band + 12)
+                 : row ? rowsTop + band + addressRow + toolbarHeight + 4 : band + 12)
         .padding(.horizontal, beside ? Metrics.sideInset : row ? farGap + 8 : 0)
+        // Past the column, where the row above the page starts.
+        .padding(sideOnRight ? .trailing : .leading, toolbarShown ? chrome.width - farGap : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity,
                alignment: beside ? (sideOnRight ? .topTrailing : .topLeading) : row ? .topLeading : .top)
         .animation(Motion.settle, value: browser.asking)

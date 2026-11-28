@@ -49,6 +49,8 @@ final class FollowFileTests: XCTestCase {
             "tabClickRenames",
             // Icons only on the bookmarks bar (idea 980).
             "bookmarksIconsOnly",
+            // The address bar above the page or in the sidebar (#235).
+            "addressPlace",
         ])
     }
 

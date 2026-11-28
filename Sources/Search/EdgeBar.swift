@@ -13,7 +13,8 @@ import SwiftUI
 //
 // Only with the column folded away. Beside the page, or out over it, the
 // column has them; the strip across the top, folded, comes down whole from
-// the same edge (Fold.swift). Not in full screen, where the top edge is the
+// the same edge (Fold.swift). Never with the address above the page, where
+// they stay in sight (Toolbar.swift). Not in full screen, where the top edge is the
 // menu bar's. And not a setting: the middle of the top edge brought nothing
 // before, and nothing that moved moves differently for it.
 
@@ -93,8 +94,10 @@ final class EdgeBarState: ObservableObject {
 extension Browser {
     /// Nothing of the column is in the window, and nothing has the screen
     /// or the keys in its place: the top edge may bring the card (EdgeBar).
+    /// Not with the address above the page, which has all of it there,
+    /// folded or not (Toolbar).
     var edgeBarWanted: Bool {
-        prefs.sidebar && folded && !peeking && !frontFillsHere && !editing
+        prefs.sidebar && !prefs.toolbar && folded && !peeking && !frontFillsHere && !editing
             && !fullScreen && window?.styleMask.contains(.fullScreen) != true
     }
 }
