@@ -142,7 +142,7 @@ def main():
         def deaf(points): return [p for p in points if not heard(*p)]
         def esc(): sv.cmd({"do": "press", "code": 53, "chars": "\x1b"})
 
-        def over(name, show, hide, up, points=None):
+        def over(name, show, hide, up, points=None, whole=False):
             points = points or bare
             show(); time.sleep(0.8)
             t.ok(f"{name}: it is up", up())
@@ -150,14 +150,21 @@ def main():
             heard_under = leaks(on_top)
             print(f"  {name}: over {len(on_top)} of {len(points)} points, the page heard {len(heard_under)} of them")
             t.ok(f"{name}: the page under it hears no move", on_top and not heard_under, heard_under[:4])
-            t.ok(f"{name}: beside it, the page still hears the pointer",
-                 not deaf([p for p in points if p not in on_top]))
+            if whole:
+                # Lun's field opens where it stands, a card a few points
+                # across, and the page behind it is covered whole
+                # (Browser.covers): beside the card it hears nothing either.
+                heard_beside = leaks([p for p in points if p not in on_top])
+                t.ok(f"{name}: beside it, the page hears no move either", not heard_beside, heard_beside[:8])
+            else:
+                deaf_beside = deaf([p for p in points if p not in on_top])
+                t.ok(f"{name}: beside it, the page still hears the pointer", not deaf_beside, deaf_beside[:8])
             hide(); time.sleep(0.8)
             t.ok(f"{name} gone: the page hears the pointer everywhere again", not up() and not deaf(bare))
 
         def field_up(): return any(hit(*p) != "PageView" for p in bare[::3])
 
-        over("⌘L's field", lambda: sv.cmd({"do": "press", "code": 37, "chars": "l", "mods": ["cmd"]}), esc, field_up)
+        over("⌘L's field", lambda: sv.cmd({"do": "press", "code": 37, "chars": "l", "mods": ["cmd"]}), esc, field_up, whole=True)
         over("⌘T's floating field", lambda: sv.cmd({"do": "press", "code": 17, "chars": "t", "mods": ["cmd"]}), esc, field_up)
         other = sv.page("other"); sv.sp("select", id=page); time.sleep(0.6)
         over("the ⌃Tab switcher", lambda: sv.cmd({"do": "press", "code": 48, "chars": "\t", "mods": ["ctrl"]}),
@@ -167,8 +174,8 @@ def main():
              lambda: sv.cmd({"do": "ui", "hidden": False}), field_up)
         over("Welcome", lambda: sv.cmd({"do": "ui", "welcome": True}),
              lambda: sv.cmd({"do": "ui", "welcome": False}), field_up)
-        over("What's New", lambda: sv.cmd({"do": "news", "on": True}),
-             lambda: sv.cmd({"do": "news", "on": False}), field_up)
+        # No What's New here: its card is for upstream's versions only
+        # (WhatsNew.current), so none comes up in Lun.
         # The Find bar is a pill along the page's top: a finer grid there.
         top = [(x, y) for x in range(40, 1600, 40) for y in range(50, 160, 10)]
         top = [p for p in top if hit(*p) == "PageView"]
