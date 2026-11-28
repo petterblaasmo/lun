@@ -193,6 +193,7 @@ enum KeptSettings {
         keep("floatMinimizes", \.floatMinimizes)
         keep("floatsAway", \.floatsAway)
         keep("waitsForPlay", \.waitsForPlay)
+        keep("fullScreenInPlace", \.fullScreenInPlace)
         keep("translateTarget", \.translateTarget)
         keep("translateAlways", \.translateAlways)
         keep("floatsOnLeave", \.floatsOnLeave)

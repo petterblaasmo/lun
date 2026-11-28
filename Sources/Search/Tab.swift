@@ -1266,6 +1266,9 @@ final class Tab: ObservableObject, Identifiable, HandsKeysBack {
                     guard let self, let state = self.built?.fullscreenState else { return }
                     let on = state == .enteringFullscreen || state == .inFullscreen
                     if self.immersed != on { self.immersed = on }
+                    // Kept on this desktop, if asked for (FullScreenInPlace):
+                    // said now, before WebKit shows its window.
+                    if state == .enteringFullscreen, let page = self.built { FullScreenInPlace.entering(page) }
                     // WebKit's full-screen window named, for screen-share pickers.
                     if state == .inFullscreen, let page = self.built { FullScreenTitle.follow(page) }
                     // Home behind another tab: its stage puts it away.

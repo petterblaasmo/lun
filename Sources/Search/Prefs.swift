@@ -1140,6 +1140,15 @@ final class Preferences: ObservableObject {
     @Published var keepsWindow: Bool {
         didSet { store.set(keepsWindow, forKey: "fullscreen.keepsWindow") }
     }
+    /// A video's full screen fills the screen on the desktop it was asked
+    /// from, with no Space of its own to slide to (see FullScreenInPlace).
+    /// Off unless asked for: WebKit's own full screen, as in Safari.
+    @Published var fullScreenInPlace: Bool {
+        didSet {
+            store.set(fullScreenInPlace, forKey: "fullscreen.inPlace")
+            FullScreenInPlace.on = fullScreenInPlace
+        }
+    }
     /// A newer build is fetched, checked and put in place on its own, as it
     /// always was. Off, Search still looks every hour and says so, and waits
     /// for Install in Settings (see Updater.installsOnItsOwn).
@@ -1618,6 +1627,9 @@ final class Preferences: ObservableObject {
         floatStyle = store.string(forKey: "float.style").flatMap(FloatStyle.init(rawValue:)) ?? .search
         escapeTwice = store.bool(forKey: "fullscreen.escapeTwice")
         keepsWindow = store.bool(forKey: "fullscreen.keepsWindow")
+        let fullScreenInPlace = store.bool(forKey: "fullscreen.inPlace")
+        self.fullScreenInPlace = fullScreenInPlace
+        FullScreenInPlace.on = fullScreenInPlace
         waitsForPlay = store.bool(forKey: Preferences.waitsKey)
         translateTarget = store.string(forKey: "translate.target") ?? ""
         translateAlways = Set(store.stringArray(forKey: PageTranslator.alwaysKey) ?? [])
