@@ -8460,8 +8460,10 @@ final class Browser: NSObject, ObservableObject {
         guard !words.isEmpty else { return [] }
         let front = activeID
         let candidates: [Tab] = tabs.filter { $0.id != front && !$0.isBlank && !$0.bench }
+        // A whole address names its tab as well as the start of one does.
+        let isPage = Browser.pageTyped(typed)
         let scored: [(tab: Tab, score: Int)] = candidates.map { tab in
-            (tab: tab, score: Browser.relevance(of: tab, to: words, whole: whole))
+            (tab: tab, score: isPage(tab) ? 3 : Browser.relevance(of: tab, to: words, whole: whole))
         }
         let ranked = scored.filter { $0.score > 0 }.sorted { a, b in
             if a.score != b.score { return a.score > b.score }
@@ -8748,10 +8750,12 @@ final class Browser: NSObject, ObservableObject {
     /// field raised from another app (Launcher.swift) is pressed over none.
     func openPages(matching typed: String, front: Bool = false) -> [Suggestion] {
         let needle = typed.trimmingCharacters(in: .whitespaces).lowercased()
+        let isPage = Browser.pageTyped(typed)
         return tabs
             .filter { (front || $0.id != activeID) && !$0.isBlank }
             .filter { tab in
                 guard !needle.isEmpty else { return true }
+                if isPage(tab) { return true }
                 let address = tab.address.map { Address.pretty($0) } ?? ""
                 return tab.label.lowercased().contains(needle) || address.contains(needle)
             }
@@ -8767,6 +8771,23 @@ final class Browser: NSObject, ObservableObject {
                     tab: tab.id
                 )
             }
+    }
+
+    /// Which tabs have the page whose address was typed or pasted whole.
+    /// The name and the pretty address that words are matched against have
+    /// no scheme and no query, so a pasted link found nothing and its page
+    /// was opened a second time. Compared without what only says where a
+    /// click came from (CleanLink), on both sides: a link pasted with its
+    /// utm_ tags is the page open without them. A link to a part of the
+    /// page (#section) is that page only in a tab at the same part, since
+    /// switching to the tab wouldn't go there.
+    static func pageTyped(_ typed: String) -> (Tab) -> Bool {
+        guard let url = Address.url(from: typed) else { return { _ in false } }
+        let page = History.identity(for: CleanLink.clean(url))
+        return { tab in
+            guard let open = tab.address, History.identity(for: CleanLink.clean(open)) == page else { return false }
+            return url.fragment == nil || url.fragment == open.fragment
+        }
     }
 
     /// A row clicked in the list, taken directly rather than through the
