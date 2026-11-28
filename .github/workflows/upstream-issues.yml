@@ -1,0 +1,28 @@
+# Upstream Search's new open issues, copied into Lun's issues once each,
+# labelled "upstream" (scripts/upstream_issues.py). Opened by
+# github-actions[bot]: the workflow's own token, no secret to keep.
+name: Upstream issues
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: upstream-issues
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy new upstream issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/upstream_issues.py
