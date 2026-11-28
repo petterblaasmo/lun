@@ -51,6 +51,20 @@ final class PageSaveTests: XCTestCase {
         try await waitFor("Kept for later", in: web)
     }
 
+    func testSavedPageSaysWhereItWasSavedFromUnlessItsTabIsPrivate() async throws {
+        let browser = Browser(record: WindowRecord())
+        let kept = try await save(try await page("An ordinary page", in: browser), in: browser)
+        defer { try? FileManager.default.removeItem(at: kept) }
+        XCTAssertEqual(MarkDownloadedTests.whereFrom(kept), ["https://example.invalid/"])
+
+        let shy = try await page("A private page", in: browser, from: Tab(shy: true))
+        let unkept = try await save(shy, in: browser)
+        defer { try? FileManager.default.removeItem(at: unkept) }
+        XCTAssertNil(MarkDownloadedTests.whereFrom(unkept), "a private tab's saved page said where it was from")
+        let properties = try XCTUnwrap(try unkept.resourceValues(forKeys: [.quarantinePropertiesKey]).quarantineProperties)
+        XCTAssertEqual(properties[kLSQuarantineAgentNameKey as String] as? String, "Lun")
+    }
+
     private func save(_ tab: Search.Tab, in browser: Browser) async throws -> URL {
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("Search-Page-\(UUID().uuidString).webarchive")
         let worked = await withCheckedContinuation { continuation in
@@ -60,8 +74,8 @@ final class PageSaveTests: XCTestCase {
         return file
     }
 
-    private func page(_ text: String, in browser: Browser) async throws -> Search.Tab {
-        let tab = browser.open(try XCTUnwrap(URL(string: "about:blank")), foreground: true)
+    private func page(_ text: String, in browser: Browser, from source: Search.Tab? = nil) async throws -> Search.Tab {
+        let tab = browser.open(try XCTUnwrap(URL(string: "about:blank")), foreground: true, from: source)
         tab.web.frame = NSRect(x: 0, y: 0, width: 700, height: 500)
         tab.web.loadHTMLString("<html><body><h1>\(text)</h1></body></html>", baseURL: URL(string: "https://example.invalid/"))
         try await waitFor(text, in: tab.web)

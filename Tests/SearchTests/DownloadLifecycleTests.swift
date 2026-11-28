@@ -353,6 +353,8 @@ final class DownloadLifecycleTests: XCTestCase {
         browser.webView(shy.web, saveDataToFile: pdf, suggestedFilename: "shy.pdf",
                         mimeType: "application/pdf", originatingURL: address)
         XCTAssertEqual(browser.announcement, "Saved shy.pdf")
+        XCTAssertNil(MarkDownloadedTests.whereFrom(downloadFolder.appendingPathComponent("shy.pdf")), "a private tab's PDF said where it was from")
+        XCTAssertEqual(MarkDownloadedTests.whereFrom(downloadFolder.appendingPathComponent("kept.pdf")), address.map { [$0.absoluteString] })
         XCTAssertTrue(FileManager.default.fileExists(atPath: downloadFolder.appendingPathComponent("shy.pdf").path))
         XCTAssertTrue(browser.loot.kept.isEmpty, "a private tab's PDF left its name and host in downloads.json")
         browser.close(shy)
@@ -386,6 +388,45 @@ final class DownloadLifecycleTests: XCTestCase {
         XCTAssertNil(written.first?.address)
     }
 
+    /// As Safari marks a download: without Lun's name on it macOS asked
+    /// about a file "created by the app (null)", and Get Info had no
+    /// Where from.
+    func testAFinishedDownloadSaysLunDownloadedItAndFromWhere() async throws {
+        let tab = try await openFixturePage()
+        let source = fixture.url("/marked.bin")
+        // Asked for as a page asks: by a link in it.
+        _ = try await tab.web.evaluateJavaScript(
+            "(() => { const a = document.createElement('a'); a.href = '/marked.bin'; document.body.append(a); a.click(); return true })()")
+        try await waitUntil { browser.loot.kept.contains { $0.address == source.absoluteString } }
+        let file = try XCTUnwrap(browser.loot.kept.first?.url)
+
+        let properties = try XCTUnwrap(try file.resourceValues(forKeys: [.quarantinePropertiesKey]).quarantineProperties)
+        XCTAssertEqual(properties[kLSQuarantineAgentNameKey as String] as? String, "Lun")
+        XCTAssertEqual(properties[kLSQuarantineTypeKey as String] as? String, kLSQuarantineTypeWebDownload as String)
+        XCTAssertEqual(MarkDownloadedTests.mark(file)?.dropFirst(2).first, "Lun")
+        XCTAssertEqual(MarkDownloadedTests.whereFrom(file), [source.absoluteString, fixture.url("/page").absoluteString])
+        // WebKit's own mark is still there under Lun's: the file is checked
+        // when it is first opened, as before.
+        XCTAssertEqual(try XCTUnwrap(MarkDownloadedTests.flags(file)) & 1, 1)
+    }
+
+    func testAPrivateDownloadSaysLunDownloadedItButNotFromWhere() async throws {
+        let tab = browser.open(URL(string: "about:blank")!, foreground: true, from: Tab(shy: true))
+        page = tab
+        window.contentView = tab.web
+        tab.go(to: fixture.url("/page"))
+        try await waitUntil { tab.committed == fixture.url("/page") && !tab.loading }
+
+        _ = try await requestDownload("/private.bin", from: tab.web)
+        try await waitUntil { fixture.completed("/private.bin") == 1 && browser.downloading.isEmpty }
+        let file = downloadFolder.appendingPathComponent("fixture.bin")
+
+        let properties = try XCTUnwrap(try file.resourceValues(forKeys: [.quarantinePropertiesKey]).quarantineProperties)
+        XCTAssertEqual(properties[kLSQuarantineAgentNameKey as String] as? String, "Lun")
+        XCTAssertEqual(properties[kLSQuarantineTypeKey as String] as? String, kLSQuarantineTypeWebDownload as String)
+        XCTAssertNil(MarkDownloadedTests.whereFrom(file), "a private tab's download said where it was from")
+    }
+
     func testADownloadPausedAcrossClearHistoryKeepsNoAddress() async throws {
         let tab = try await openFixturePage()
         let entry = try await startDownload("/range.bin", in: tab)
@@ -400,6 +441,7 @@ final class DownloadLifecycleTests: XCTestCase {
         browser.resumeDownload(entry)
         try await waitUntil { browser.loot.kept.contains { $0.path == destination.path } }
         XCTAssertNil(browser.loot.kept.first { $0.path == destination.path }?.address)
+        XCTAssertNil(MarkDownloadedTests.whereFrom(destination), "the file said where it was from after History was cleared")
     }
 
     func testRightClickOnARowOffersItsAddressWhenItHasOne() async throws {
