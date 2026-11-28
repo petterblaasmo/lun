@@ -631,6 +631,17 @@ enum Chromium {
 
     /// "v10" and then AES-128-CBC with an IV of sixteen spaces.
     private static func unwrap(_ blob: Data, key: [UInt8]) -> String? {
+        guard let plain = opened(blob, key: key) else { return nil }
+        if let text = String(data: plain, encoding: .utf8) { return text }
+        // Newer builds prefix the password with a hash of the site. Past it,
+        // the password is the same as ever.
+        guard plain.count > 32 else { return nil }
+        return String(data: plain.dropFirst(32), encoding: .utf8)
+    }
+
+    /// The bytes inside, for the passwords above and the cookies
+    /// (ImportSignIns.swift), which are wrapped the same way.
+    static func opened(_ blob: Data, key: [UInt8]) -> Data? {
         // Encrypted, as every Chromium browser on the Mac has done since
         // 2014, or not taken at all. A profile's files can be written by
         // anything running as you; a password lying there in the clear is
@@ -647,12 +658,7 @@ enum Chromium {
             &out, out.count, &moved
         )
         guard status == kCCSuccess else { return nil }
-        let plain = Data(out.prefix(moved))
-        if let text = String(data: plain, encoding: .utf8) { return text }
-        // Newer builds prefix the password with a hash of the site. Past it,
-        // the password is the same as ever.
-        guard plain.count > 32 else { return nil }
-        return String(data: plain.dropFirst(32), encoding: .utf8)
+        return Data(out.prefix(moved))
     }
 
     // MARK: - the file

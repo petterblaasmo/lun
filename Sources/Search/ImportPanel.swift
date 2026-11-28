@@ -30,6 +30,9 @@ struct ImportPanel: View {
     @State private var wantsBookmarks = true
     @State private var wantsHistory = true
     @State private var wantsExtensions = false
+    /// A Chromium browser's cookies, so its sign-ins hold here (see
+    /// ImportSignIns.swift). Off unless asked for, for each browser anew.
+    @State private var wantsSignIns = false
     /// A browser's open tabs and tab groups (see takeSession).
     /// Off unless asked for.
     @State private var wantsTabs = false
@@ -105,6 +108,7 @@ struct ImportPanel: View {
                             guard !bringing else { return }
                             pick = source
                             replaceBookmarks = false
+                            wantsSignIns = false
                             forExtensions = false
                             brought = nil
                         }
@@ -165,6 +169,7 @@ struct ImportPanel: View {
                     } else if let source = pick {
                         Pill(bringing ? "Bringing…" : "Bring Over", filled: true) { bring(from: source) }
                             .disabled(bringing || !(wantsPasswords || wantsBookmarks || wantsHistory || (wantsExtensions && !fresh(source).isEmpty)
+                                                     || (wantsSignIns && source.bringsSignIns)
                                                      || (wantsArc && arcCounts[key(source, profile(of: source))] != nil)
                                                      || (wantsTabs && bringsTabs(source))))
                         if bringing { Ring(size: 10) }
@@ -425,6 +430,11 @@ struct ImportPanel: View {
                  : "Read from \(source.name)'s own files, unless it has a primary password",
                     count: source.importsPasswords ? counted(preview?.passwords) : nil,
                     on: $wantsPasswords, none: !source.importsPasswords || preview?.passwords == 0)
+            if source.bringsSignIns {
+                Rule()
+                Checked("Sign-ins", "Stay signed in: brings cookies from \(source.name)"
+                        + (Spaces.ownsStore(browser.spaceID) ? ", into this space alone" : ""), on: $wantsSignIns)
+            }
             if !extensions.isEmpty {
                 Rule()
                 Checked("Extensions", "Installed fresh from the Chrome Web Store, you say yes to each one",
@@ -544,14 +554,40 @@ struct ImportPanel: View {
         let passwords = wantsPasswords && source.importsPasswords && preview?.passwords != 0
         let marks = wantsBookmarks && preview?.bookmarks != 0
         let places = wantsHistory && preview?.places != 0
+        let signIns = wantsSignIns && source.bringsSignIns
         bringing = true
         var said: [Int: Said] = [:]
         let group = DispatchGroup()
+        func signedIn(_ outcome: Result<Chromium.SignIns, Error>) {
+            switch outcome {
+            case .success(let found):
+                group.enter()
+                browser.takeSignIns(found) {
+                    var text = found.cookies.count == 1 ? "1 cookie" : "\(found.cookies.count.formatted()) cookies"
+                    let left = [(found.session, "session"), (found.partitioned, "partitioned")]
+                        .filter { $0.0 > 0 }.map { "\($0.0.formatted()) \($0.1)" }
+                    if !left.isEmpty { text += " (left behind: \(left.joined(separator: ", ")))" }
+                    if found.unread > 0 { text += " — \(found.unread.formatted()) couldn't be read with \(source.name)'s key" }
+                    said[6] = Said(ok: !found.cookies.isEmpty || found.unread == 0, text: text)
+                    group.leave()
+                }
+            case .failure(Chromium.Trouble.noPassphrase):
+                said[6] = Said(ok: false, text: "No sign-ins: macOS didn't hand over \(source.name)'s key — allow it and try again")
+            case .failure:
+                said[6] = Said(ok: false, text: "No cookies readable in \(source.name)")
+            }
+        }
         if passwords {
             group.enter()
             // The one moment macOS asks for the key, if the browser keeps one.
             DispatchQueue.global(qos: .userInitiated).async {
                 let outcome = Result { try source.read(profile: profile) }
+                // The cookies after the passwords, with the key those just
+                // asked for: one question, and not a second when macOS was
+                // told no.
+                let refused = if case .failure(Chromium.Trouble.noPassphrase) = outcome { true } else { false }
+                let cookies: Result<Chromium.SignIns, Error>? = !signIns ? nil
+                    : refused ? .failure(Chromium.Trouble.noPassphrase) : Result { try source.signIns(profile: profile) }
                 DispatchQueue.main.async {
                     switch outcome {
                     case .success(let found):
@@ -571,6 +607,16 @@ struct ImportPanel: View {
                     case .failure:
                         said[0] = Said(ok: false, text: "No passwords readable in \(source.name)")
                     }
+                    if let cookies { signedIn(cookies) }
+                    group.leave()
+                }
+            }
+        } else if signIns {
+            group.enter()
+            DispatchQueue.global(qos: .userInitiated).async {
+                let cookies = Result { try source.signIns(profile: profile) }
+                DispatchQueue.main.async {
+                    signedIn(cookies)
                     group.leave()
                 }
             }

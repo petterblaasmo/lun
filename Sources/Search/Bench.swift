@@ -3028,6 +3028,20 @@ final class Bench {
                 out["record"] = ["bookmarks": record.bookmarks, "places": record.places, "passwords": record.passwords,
                                  "ids": record.bookmarkIDs.count]
             }
+            if what.contains("signins") {
+                // Its cookies, as the sheet's Sign-ins tick brings them into
+                // the space on screen: how many, never a name or a value.
+                switch Result(catching: { try source.signIns(profile: profile) }) {
+                case .success(let found):
+                    browser.takeSignIns(found) {
+                        out["signins"] = ["cookies": found.cookies.count, "session": found.session,
+                                          "partitioned": found.partitioned, "unread": found.unread]
+                        answer(out)
+                    }
+                    return
+                case .failure(let error): out["signins"] = ["error": "\(error)"]
+                }
+            }
             answer(out)
 
         case "import-preview":
