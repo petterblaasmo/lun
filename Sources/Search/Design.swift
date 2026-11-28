@@ -354,6 +354,10 @@ enum Metrics {
     /// stands as far from the column as from the window (cardGap).
     static let sideInset: CGFloat = 8
     static let sideMin: CGFloat = 176
+    /// How far past its edge the pointer may go and still be on a column
+    /// out over the page (Fold.onColumn): a hand aiming at a row's close
+    /// button, at the column's very edge, overshoots it by a few points.
+    static let columnSlack: CGFloat = 24
     /// Narrower than this, with Narrow to icons on, the column is the strip
     /// of icons (Preferences.narrowStrip).
     static let narrowLine: CGFloat = 200
