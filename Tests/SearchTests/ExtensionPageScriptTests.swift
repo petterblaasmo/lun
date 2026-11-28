@@ -1,4 +1,5 @@
 import Foundation
+import WebKit
 import XCTest
 @testable import Search
 
@@ -53,6 +54,61 @@ final class ExtensionPageScriptTests: XCTestCase {
         XCTAssertTrue(strict.hasPrefix("\"use strict\";(() => {"), strict)
         let quoted = ExtensionPageScript.evaluation(source: "", expected: "https://a.b/?q=\"</script>\\", token: token)
         XCTAssertTrue(quoted.contains(#"!== "https://a.b/?q=\"</script>\\")"#), quoted)
+        let from = ExtensionPageScript.evaluation(source: "", expected: "https://a.b/", token: token, address: "chrome-extension://abc/web/a.js")
+        XCTAssertTrue(from.contains(#"get: () => "chrome-extension://abc/web/a.js""#), "the element's src while the file runs")
+    }
+
+    /// What tells a script in the page its address (addresses), in a page:
+    /// said from another world on the element, the element's src reads as
+    /// the address while it is the script running and as WebKit gives it
+    /// otherwise; the page's own listeners hear nothing, and can't have the
+    /// page's currentScript taken for WebKit's.
+    @MainActor
+    func testAScriptIsToldItsAddressOnlyWhileItRuns() async throws {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .nonPersistent()
+        config.userContentController.addUserScript(
+            WKUserScript(source: ExtensionPageScript.addresses, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .page))
+        let web = WKWebView(frame: NSRect(x: 0, y: 0, width: 200, height: 200), configuration: config)
+        web.loadHTMLString("""
+            <!doctype html><script>
+            for (const where of [window, document]) where.addEventListener("search-script-address", (e) => { window.heard = e.detail; }, true);
+            </script><p>page</p><script>window.ready = true</script>
+            """, baseURL: URL(string: "https://example.com/"))
+        for _ in 0..<200 {
+            if (try? await web.evaluateJavaScript("window.ready")) as? Bool == true { break }
+            try await Task.sleep(nanoseconds: 25_000_000)
+        }
+        // As a content script's shim does it, in a world of its own.
+        let world = WKContentWorld.world(name: "a-content-script")
+        _ = try await web.evaluateJavaScript("""
+            (() => {
+              const s = document.createElement("script");
+              s.id = "theirs";
+              s.src = "data:text/javascript,window.read = document.currentScript.src; window.ran = true";
+              document.head.appendChild(s);
+              s.dispatchEvent(new CustomEvent("search-script-address", { detail: "chrome-extension://abc/web/a.js?_=1" }));
+              s.dispatchEvent(new CustomEvent("search-script-address", { detail: "chrome-extension://abc/second.js" }));
+            })(); 1
+            """, in: nil, contentWorld: world)
+        for _ in 0..<200 {
+            if (try? await web.evaluateJavaScript("window.ran")) as? Bool == true { break }
+            try await Task.sleep(nanoseconds: 25_000_000)
+        }
+        let read = try await web.evaluateJavaScript("window.read") as? String
+        XCTAssertEqual(read, "chrome-extension://abc/web/a.js?_=1", "the first address said, to the script itself")
+        let after = try await web.evaluateJavaScript("document.getElementById('theirs').src") as? String
+        XCTAssertEqual(after?.hasPrefix("data:text/javascript"), true, "the page reads what WebKit gives")
+        let heard = try await web.evaluateJavaScript("String(window.heard)") as? String
+        XCTAssertEqual(heard, "undefined", "no listener of the page's hears it")
+        let posed = try await web.evaluateJavaScript("""
+            (() => {
+              const s = document.getElementById("theirs");
+              Object.defineProperty(document, "currentScript", { configurable: true, get: () => s });
+              return s.src;
+            })()
+            """) as? String
+        XCTAssertEqual(posed?.hasPrefix("data:text/javascript"), true, "a currentScript the page puts there isn't WebKit's")
     }
 
     /// The address the evaluation checks, as location reads it.
