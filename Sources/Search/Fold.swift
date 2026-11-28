@@ -837,8 +837,9 @@ struct Fold: View {
             // The edge held: the column stays out for the whole drag. Measured
             // against the width saved before it, or the strip's, the pointer
             // counted as off the column halfway and it slid away (#1462).
+            // Once on the column, a little past its edge is on it still.
             let over = onOwnPanel || popup || holding || pointer.edgeHeld || overshot || flingHeld
-                || (onWindow && inWindow && distance < reach)
+                || (onWindow && inWindow && Fold.onColumn(distance: distance, reach: reach, was: inside && prefs.sidebar))
             if over != inside { inside = over }
             peek(over)
         } else if inWindow, distance < (prefs.sidebar && prefs.sideHides ? Fold.hiddenEdge : Fold.edge),
@@ -893,6 +894,18 @@ struct Fold: View {
 
     static func frontColumn(sidebar: Bool, key: Bool, main: Bool) -> Bool {
         sidebar && (key || main)
+    }
+
+    /// Whether a pointer `distance` from the window's edge is on a column
+    /// that reaches `reach` from it, out over the page. Once on it (`was`)
+    /// it is on it a little past its edge too (Metrics.columnSlack): the
+    /// column went the moment the pointer was past its width, and aiming
+    /// at a row's close button, a few points too far slid it away from
+    /// under the hand. Coming from the page it is on the column at its
+    /// width only, as before, so the slack never brings or keeps a column
+    /// the pointer wasn't on.
+    static func onColumn(distance: CGFloat, reach: CGFloat, was: Bool) -> Bool {
+        distance < reach + (was ? Metrics.columnSlack : 0)
     }
 
     /// Whether a move of the pointer from `last` to `point`, both in the

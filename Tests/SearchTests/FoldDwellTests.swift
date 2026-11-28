@@ -33,6 +33,24 @@ final class FoldDwellTests: XCTestCase {
         XCTAssertFalse(Fold.rising(from: nil, to: NSPoint(x: 400, y: 799)))
     }
 
+    /// Out over the page, the column went the moment the pointer was past
+    /// its width: a few points too far, aiming at a row's close button, and
+    /// it slid away. Once the pointer has been on it, a little past its
+    /// edge still is; coming from the page, only the column itself is.
+    func testAColumnThePointerWasOnForgivesASmallOvershoot() {
+        let reach: CGFloat = 248
+        XCTAssertEqual(Metrics.columnSlack, 24)
+        XCTAssertTrue(Fold.onColumn(distance: reach - 1, reach: reach, was: false), "on it")
+        XCTAssertTrue(Fold.onColumn(distance: reach - 1, reach: reach, was: true))
+        XCTAssertTrue(Fold.onColumn(distance: reach + 10, reach: reach, was: true), "a few points past its edge, once on it")
+        XCTAssertFalse(Fold.onColumn(distance: reach + 30, reach: reach, was: true), "well past it: it goes")
+        XCTAssertFalse(Fold.onColumn(distance: reach + 10, reach: reach, was: false), "never brought or kept from the page")
+        // The slack ends where it says.
+        XCTAssertTrue(Fold.onColumn(distance: reach + Metrics.columnSlack - 0.5, reach: reach, was: true))
+        XCTAssertFalse(Fold.onColumn(distance: reach + Metrics.columnSlack, reach: reach, was: true))
+        XCTAssertFalse(Fold.onColumn(distance: reach, reach: reach, was: false), "at its width exactly, as before")
+    }
+
     /// The edge is watched on drags too: a drag in the page that reached it
     /// (a selection, Airtable's own sidebar edge 6 points in) brought the
     /// column out over the page mid-drag. Not with the left button held.
