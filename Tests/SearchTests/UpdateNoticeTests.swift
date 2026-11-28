@@ -49,6 +49,22 @@ final class UpdateNoticeTests: XCTestCase {
         XCTAssertEqual(UpdateNotice.button(.waiting), "Install")
     }
 
+    func testThePopupComesOnceABuild() {
+        let next = release(500)
+        XCTAssertEqual(UpdateNotice.popup(.ready(next), on: true, hidden: 0, answered: 0)?.kind, .ready)
+        XCTAssertEqual(UpdateNotice.popup(.waiting(next), on: true, hidden: 0, answered: 0)?.release.build, 500)
+        XCTAssertNil(UpdateNotice.popup(.none, on: true, hidden: 0, answered: 0))
+        XCTAssertNil(UpdateNotice.popup(.fetching(next), on: true, hidden: 0, answered: 0), "nothing while it downloads")
+        XCTAssertNil(UpdateNotice.popup(.offered(next), on: true, hidden: 0, answered: 0), "a disk image offered stays in the menu")
+        XCTAssertNil(UpdateNotice.popup(.ready(next), on: false, hidden: 0, answered: 0), "switched off")
+        XCTAssertNil(UpdateNotice.popup(.ready(next), on: true, hidden: 500, answered: 0), "the card put away")
+        XCTAssertNil(UpdateNotice.popup(.ready(next), on: true, hidden: 0, answered: 500), "answered once")
+        XCTAssertEqual(UpdateNotice.popup(.ready(release(501)), on: true, hidden: 0, answered: 500)?.release.build, 501,
+                       "a newer build comes again")
+        XCTAssertEqual(UpdateNotice.popupTitle(.ready, version: "0.1.3"), "Lun 0.1.3 is ready")
+        XCTAssertEqual(UpdateNotice.popupTitle(.waiting, version: "0.1.3"), "Lun 0.1.3 is out")
+    }
+
     func testOnByDefaultAndInSettings() throws {
         // Always on in Lun: no row for it, and its key is put aside.
         XCTAssertNil(SettingsIndex.items.first { $0.id == "updates.notice" })
@@ -165,6 +181,49 @@ final class UpdateNoticeTests: XCTestCase {
 
     private struct Picture {
         let rep: NSBitmapImageRep
+    }
+
+    /// Over the window's top corner while a newer build waits, light and
+    /// dark, and gone once answered.
+    func testThePopupIsDrawnOverTheCorner() async throws {
+        _ = NSApplication.shared
+        let prefs = Shared.prefs
+        let updater = Updater.shared
+        let before = (prefs.sidebar, prefs.sidePosition, prefs.showsUpdateReady, prefs.updateHiddenBuild, updater.poppedBuild)
+        restore = {
+            (prefs.sidebar, prefs.sidePosition, prefs.showsUpdateReady, prefs.updateHiddenBuild) = (before.0, before.1, before.2, before.3)
+            updater.answerPopup(before.4)
+        }
+        prefs.sidebar = true
+        prefs.sidePosition = .left
+        prefs.showsUpdateReady = true
+        prefs.updateHiddenBuild = 0
+        updater.answerPopup(0)
+        let browser = Browser(record: WindowRecord())
+        browsers.append(browser)
+        browser.welcoming = false
+
+        for dark in [false, true] {
+            let look = dark ? "dark" : "light"
+            let host = try show(UpdatePopup(browser: browser, prefs: prefs).background(Palette.ground),
+                                width: 900, height: 360, dark: dark)
+            updater.setStageForTest(.none)
+            let none = try await picture(host, nil)
+            updater.setStageForTest(.ready(release(800)))
+            let ready = try await picture(host, "popup-ready-\(look)")
+            XCTAssertGreaterThan(differs(none, ready, rows: Int(Metrics.strip)..<220), 4_000, "\(look): the popup is drawn")
+            updater.setStageForTest(.waiting(release(800)))
+            let waiting = try await picture(host, "popup-waiting-\(look)")
+            XCTAssertGreaterThan(differs(none, waiting, rows: Int(Metrics.strip)..<220), 4_000, "\(look): Install too")
+            updater.answerPopup(800)
+            let answered = try await picture(host, nil)
+            XCTAssertEqual(differs(none, answered), 0, "\(look): answered, it goes")
+            updater.setStageForTest(.ready(release(801)))
+            let newer = try await picture(host, nil)
+            XCTAssertGreaterThan(differs(none, newer), 4_000, "\(look): a newer build comes again")
+            updater.answerPopup(0)
+            close(host)
+        }
     }
 
     private func show<V: View>(_ view: V, width: CGFloat, height: CGFloat, dark: Bool) throws -> NSHostingView<V> {

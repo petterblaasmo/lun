@@ -1177,6 +1177,10 @@ struct ContentView: View {
                 })
             } close: { browser.newsShowing = false }
         }
+        // A newer Lun, once a build, over the window's top corner
+        // (UpdateNotice.swift): nothing is drawn while there is none.
+        UpdatePopup(browser: browser, prefs: browser.prefs)
+            .ignoresSafeArea()
         // Help › Search for iPhone… (see IPhoneAsk.swift).
         if browser.iphoneAsking {
             sheet {

@@ -13,6 +13,10 @@ import SwiftUI
 // ready). Its × or Hide puts it away until a newer build is ready: the build
 // put away is kept in the settings. Chrome only: never over a page, a sheet
 // or anything private, and it never takes the keys.
+//
+// The card alone was easy to miss: with the column hidden or in icons, there
+// is none. So a newer build also comes as a popup over the window's top
+// corner (UpdatePopup), once a build: Later puts it away, and the card stays.
 
 enum UpdateNotice {
     static let key = "update.notice"
@@ -38,6 +42,31 @@ enum UpdateNotice {
     @MainActor
     static func shown(_ updater: Updater, _ prefs: Preferences) -> (kind: Kind, build: Int)? {
         shown(updater.stage, on: prefs.showsUpdateReady, hidden: prefs.updateHiddenBuild)
+    }
+
+    /// The popup over the window: what the card would show, with its
+    /// release, while its build hasn't been answered.
+    static func popup(_ stage: Updater.Stage, on: Bool, hidden: Int, answered: Int) -> (kind: Kind, release: Updater.Release)? {
+        guard let shown = shown(stage, on: on, hidden: hidden), shown.build != answered else { return nil }
+        switch stage {
+        case .ready(let release), .waiting(let release): return (shown.kind, release)
+        default: return nil
+        }
+    }
+
+    @MainActor
+    static func popup(_ updater: Updater, _ prefs: Preferences) -> (kind: Kind, release: Updater.Release)? {
+        popup(updater.stage, on: prefs.showsUpdateReady, hidden: prefs.updateHiddenBuild, answered: updater.poppedBuild)
+    }
+
+    static func popupTitle(_ kind: Kind, version: String) -> String {
+        kind == .ready ? "Lun \(version) is ready" : "Lun \(version) is out"
+    }
+
+    static func popupDetail(_ kind: Kind) -> String {
+        kind == .ready
+            ? "It's downloaded. Restart Lun to use it, or it starts the next time you open Lun."
+            : "Install downloads it, and it starts the next time you open Lun."
     }
 
     static func title(_ kind: Kind) -> String { kind == .ready ? "Update ready" : "Update available" }
@@ -159,6 +188,67 @@ struct UpdateNoticePill: View {
                   : "A new version of Lun is out. Click to install it.")
             .animation(Motion.quick, value: hovering)
         }
+    }
+}
+
+/// A newer build, over the window's top corner, away from the column:
+/// once a build, until Later, Restart or Install. No dimming and no keys
+/// taken: the page stays in use around it.
+struct UpdatePopup: View {
+    @ObservedObject var browser: Browser
+    @ObservedObject var prefs: Preferences
+    @ObservedObject private var updater = Updater.shared
+
+    static let width: CGFloat = 320, margin: CGFloat = 14
+
+    var body: some View {
+        let shown = browser.welcoming ? nil : UpdateNotice.popup(updater, prefs)
+        ZStack(alignment: corner) {
+            if let shown {
+                card(shown.kind, release: shown.release)
+                    .padding(.top, Metrics.strip + 8)
+                    .padding(leading ? .leading : .trailing, Self.margin)
+                    .transition(.card(from: corner == .topLeading ? .topLeading : .topTrailing))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: corner)
+        .animation(Motion.settle, value: shown?.release.build)
+    }
+
+    /// Away from the column: across from it when it is on the right.
+    private var leading: Bool { prefs.sidebar && prefs.sidePosition == .right }
+    private var corner: Alignment { leading ? .topLeading : .topTrailing }
+
+    private func card(_ kind: UpdateNotice.Kind, release: Updater.Release) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Palette.ink)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(UpdateNotice.popupTitle(kind, version: release.version))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.ink)
+                    Text(UpdateNotice.popupDetail(kind))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.soft)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                Pill("Later") { updater.answerPopup(release.build) }
+                Pill(UpdateNotice.button(kind), filled: true) {
+                    updater.answerPopup(release.build)
+                    UpdateNotice.act(kind)
+                }
+            }
+        }
+        .padding(14)
+        .frame(width: Self.width, alignment: .leading)
+        .elevated(.float, in: RoundedRectangle(cornerRadius: Radius.float, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(UpdateNotice.popupTitle(kind, version: release.version))
     }
 }
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- A new version comes as a popup in the window's top corner, once, with Restart and Later. The quiet card in the column stays.
+
 ## 0.1.2
 
 - After launch Lun rests in one process, at about 40 MB instead of 66, and the column only draws the rows in sight.
